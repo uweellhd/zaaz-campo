@@ -31,7 +31,7 @@ if (perfilSalvo === 'admin') {
   if (adminNav) adminNav.style.display = 'flex';
 }
 
-// RELÓGIO CORPORATIVO EM TEMPO REAL
+// RELÓGIO CORPORATIVO CENTRALIZADO EM TEMPO REAL
 function iniciarRelocioTempoReal() {
   const elemClock = document.getElementById('realtimeClock');
   const elemDate = document.getElementById('realtimeDate');
@@ -91,7 +91,7 @@ window.alternarAba = (idAba) => {
   if (idAba === 'viewTech') carregarListaTecnico();
 };
 
-// COMPRESSOR DE IMAGEM AUTOMÁTICO
+// COMPRESSOR DE IMAGEM
 function comprimirImagem(file, maxWidth = 1200, quality = 0.7) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -144,7 +144,7 @@ function detectarTipoRede(texto) {
   return "GPON";
 }
 
-// EXPIRADOR AUTOMÁTICO DE INCIDENTES (MAIORES QUE 15 DIAS)
+// EXPIRADOR DE INCIDENTES (15 DIAS)
 function verificarEExcluirExpirados(docSnap) {
   const item = docSnap.data();
   if (item.dataTimestamp) {
@@ -382,12 +382,14 @@ window.voltarEtapaVisual = (dir) => {
   avancarEtapaVisual(currentStepTech + dir);
 };
 
-// SALVAMENTO PARCIAL NA TIMELINE
-async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs) {
+// SALVAMENTO PARCIAL DE TIMELINE PRESERVANDO O HISTÓRICO
+async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevisao = null) {
   if (!chamadoAtivoTecnico) return;
   const docRef = doc(db, "incidentes", chamadoAtivoTecnico.docId);
 
+  // Recupera o histórico de etapas existente no documento
   const timelineAtual = chamadoAtivoTecnico.timelineEtapas || [];
+  
   timelineAtual.push({
     etapa: tituloEtapa,
     dataHora: new Date().toLocaleString("pt-BR"),
@@ -396,10 +398,17 @@ async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs) {
     observacao: descObs
   });
 
-  await updateDoc(docRef, {
+  const payload = {
     statusAtual: tituloEtapa,
     timelineEtapas: timelineAtual
-  });
+  };
+
+  if (novaPrevisao) {
+    payload.previsao = novaPrevisao;
+  }
+
+  await updateDoc(docRef, payload);
+  chamadoAtivoTecnico.timelineEtapas = timelineAtual;
 }
 
 window.salvarEtapa1 = async () => {
@@ -407,17 +416,29 @@ window.salvarEtapa1 = async () => {
   if (mapaFotosBase64['fotoDeslocamento']) fotos.push(mapaFotosBase64['fotoDeslocamento']);
 
   await registrarEventoTimeline("ETAPA 1: EM DESLOCAMENTO", fotos, "Técnico iniciou deslocamento para a ocorrência.");
-  alert("✅ Etapa 1 registrada!");
+  alert("✅ Etapa 1 registrada no histórico do incidente!");
   avancarEtapaVisual(2);
 };
 
 window.salvarEtapa2 = async () => {
+  const previsaoVal = document.getElementById('techPrevisaoInput').value.trim();
+  if (!previsaoVal) {
+    alert("⚠️ Por favor, informe a Previsão Aproximada de Restauração do Sinal!");
+    return;
+  }
+
   const fotos = [];
   if (mapaFotosBase64['fotoChegada']) fotos.push(mapaFotosBase64['fotoChegada']);
   if (mapaFotosBase64['fotoRompimento']) fotos.push(mapaFotosBase64['fotoRompimento']);
 
-  await registrarEventoTimeline("ETAPA 2: NO LOCAL / ROMPIMENTO", fotos, "Técnico no local identificando rompimento.");
-  alert("✅ Etapa 2 registrada!");
+  await registrarEventoTimeline(
+    "ETAPA 2: NO LOCAL / ROMPIMENTO", 
+    fotos, 
+    `Técnico no local identificando rompimento. Previsão estimada de restauração: ${previsaoVal}`,
+    previsaoVal
+  );
+
+  alert("✅ Etapa 2 e Previsão atualizadas no sistema!");
   avancarEtapaVisual(3);
 };
 
@@ -427,7 +448,7 @@ window.salvarEtapa3 = async () => {
   if (mapaFotosBase64['fotoEquipe']) fotos.push(mapaFotosBase64['fotoEquipe']);
 
   await registrarEventoTimeline("ETAPA 3: EXECUTANDO / FUSIONANDO", fotos, "Equipe em execução dos trabalhos de fusão.");
-  alert("✅ Etapa 3 registrada!");
+  alert("✅ Etapa 3 registrada no histórico!");
   avancarEtapaVisual(4);
 };
 
@@ -489,7 +510,7 @@ function renderizarListaSac(lista) {
       <h4 style="color:var(--zaaz-blue); margin-bottom:6px;">🚨 ID: ${item.idIncidente} - ${item.cidades}</h4>
       <p style="font-size:13px; margin-bottom:4px;"><strong>OS:</strong> ${item.os} | <strong>OLT:</strong> ${item.olt}</p>
       <p style="font-size:13px; margin-bottom:4px;"><strong>Status:</strong> <span style="color:var(--zaaz-blue); font-weight:700;">${item.statusAtual}</span></p>
-      <p style="font-size:12px; color:var(--zaaz-blue); font-weight:700; margin-top:8px;">🔍 Clique para ver a Timeline de Progresso e Fotos</p>
+      <p style="font-size:12px; color:var(--zaaz-blue); font-weight:700; margin-top:8px;">🔍 Clique para ver o Histórico Completo da Timeline</p>
     `;
     container.appendChild(card);
   });
@@ -509,7 +530,7 @@ window.filtrarSac = () => {
   renderizarListaSac(filtrados);
 };
 
-// EXIBIÇÃO DA TIMELINE COMPLETA NO MODAL
+// EXIBIÇÃO DO HISTÓRICO COMPLETO DA TIMELINE NO MODAL
 window.abrirModalDetalhes = (item) => {
   document.getElementById('modalIdTitle').textContent = `🚨 Incidente ID: ${item.idIncidente}`;
   
@@ -520,7 +541,7 @@ window.abrirModalDetalhes = (item) => {
     <strong>Rede:</strong> ${item.tipoRede || 'GPON'} | <strong>OLT:</strong> ${item.olt}<br>
     <strong>Status em Tempo Real:</strong> <span style="color:var(--zaaz-blue); font-weight:700;">${item.statusAtual}</span><br>
     <strong>Clientes Afetados:</strong> ${item.clientesCount}<br>
-    <strong>Previsão de Solução:</strong> ${item.previsao}<br>
+    <strong>Previsão de Solução Atualizada:</strong> ${item.previsao}<br>
     <strong>Responsável Oficial:</strong> ${item.responsavel}<br>
     <hr style="margin:8px 0; border:none; border-top:1px solid var(--border-color);">
     <strong>Descrição Inicial:</strong> ${item.descricao}
