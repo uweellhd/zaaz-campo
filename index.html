@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZAAZ Telecom - Registro de Campo</title>
+  <title>ZAAZ Telecom - Sistema Integrado de Campo, NOC e SAC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -42,7 +42,7 @@
 
     .container {
       width: 100%;
-      max-width: 520px;
+      max-width: 600px;
       background: var(--card-bg);
       border-radius: 20px;
       padding: 24px;
@@ -59,7 +59,7 @@
     }
 
     .brand-logo-img {
-      max-height: 120px;
+      max-height: 110px;
       width: auto;
       max-width: 100%;
       display: block;
@@ -182,7 +182,7 @@
       font-weight: 700;
     }
 
-    .app-box, .admin-box, .modal-pass {
+    .app-box, .admin-box, .noc-box, .sac-box, .modal-pass {
       display: none;
     }
 
@@ -242,6 +242,7 @@
     input[type="text"],
     input[type="password"],
     input[type="file"],
+    select,
     textarea {
       width: 100%;
       padding: 12px 14px;
@@ -300,7 +301,7 @@
       gap: 12px;
     }
 
-    button.nav-btn, button.btn-login, button.btn-add-user {
+    button.nav-btn, button.btn-login, button.btn-add-user, button.btn-search {
       padding: 14px 20px;
       border: none;
       border-radius: 10px;
@@ -309,7 +310,7 @@
       cursor: pointer;
     }
 
-    .btn-login, .btn-add-user {
+    .btn-login, .btn-add-user, .btn-search {
       background-color: var(--primary);
       color: white;
       width: 100%;
@@ -334,76 +335,43 @@
       width: 100%;
     }
 
-    .history-card {
+    .result-card {
       background-color: #F8FAFC;
       border: 1px solid var(--border-color);
       border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
       font-size: 13px;
     }
 
-    .history-card strong {
+    .result-card strong {
       color: var(--primary);
     }
 
-    .history-card a {
-      color: #0284C7;
-      font-weight: 700;
-      text-decoration: none;
-    }
-
-    .metrics-grid {
+    .photos-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 16px;
+      gap: 8px;
+      margin-top: 12px;
     }
 
-    .metric-card {
-      background: #F8FAFC;
+    .photos-grid img {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 8px;
       border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 12px;
-      text-align: center;
     }
 
-    .metric-card-number {
-      font-size: 24px;
-      font-weight: 800;
-      color: var(--primary);
-      margin-top: 4px;
-    }
-
-    .metric-card-label {
+    .badge-rural {
+      background-color: #FEF3C7;
+      color: #92400E;
+      padding: 4px 8px;
+      border-radius: 6px;
       font-size: 11px;
-      color: var(--text-muted);
       font-weight: 700;
-      text-transform: uppercase;
-    }
-
-    .metric-box {
-      background: #F8FAFC;
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 12px;
-    }
-
-    .metric-box h4 {
-      margin: 0 0 10px 0;
-      font-size: 13px;
-      color: var(--primary);
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 6px;
-    }
-
-    .metric-item-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      padding: 4px 0;
-      border-bottom: 1px dashed #E2E8F0;
+      display: inline-block;
+      margin-bottom: 8px;
     }
 
     .nextflow-footer {
@@ -429,7 +397,7 @@
 
     <div class="brand-header">
       <img src="logo.png" alt="ZAAZ Telecom Logo" class="brand-logo-img">
-      <p>Atendimento Técnico e Infraestrutura</p>
+      <p>Plataforma Integrada: Campo • NOC • SAC</p>
     </div>
 
     <div id="statusBar" class="status-bar status-online">
@@ -440,7 +408,7 @@
     <!-- TELA DE LOGIN -->
     <div id="loginScreen" class="login-box">
       <h2>Acesso ao Sistema</h2>
-      <p class="subtitle">Insira suas credenciais de acesso</p>
+      <p class="subtitle">Insira suas credenciais corporativas</p>
 
       <form id="loginForm" onsubmit="validarLogin(event)">
         <div class="form-group">
@@ -458,100 +426,85 @@
       </form>
     </div>
 
-    <!-- MODAL DE ALTERAÇÃO DE SENHA -->
-    <div id="modalPass" class="modal-pass">
-      <h2>Alterar Senha</h2>
-      <p class="subtitle">Insira sua nova senha de acesso</p>
-      <form id="passForm" onsubmit="salvarNovaSenha(event)">
-        <div class="form-group">
-          <label for="nova_senha_user">Nova Senha:</label>
-          <input type="password" id="nova_senha_user" placeholder="Digite a nova senha" required>
-        </div>
-        <button type="submit" id="btnSavePass" class="btn-login">Salvar Senha</button>
-        <button type="button" class="btn-logout" style="width: 100%; margin-top: 8px;" onclick="fecharModalSenha()">Cancelar</button>
-      </form>
+    <!-- PAINEL NOC (BUSCA + ALIMENTAÇÃO DE CLIENTES E ETA) -->
+    <div id="nocScreen" class="noc-box">
+      <div class="user-header">
+        <span>Painel: <strong>NOC (Operações de Rede)</strong></span>
+        <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
+      </div>
+
+      <h2>Monitoramento & Clientes</h2>
+      <p class="subtitle">Pesquise por ID do chamado ou cliente afetado</p>
+
+      <div class="form-group">
+        <label for="buscaNocInput">ID do Chamado ou Cliente:</label>
+        <input type="text" id="buscaNocInput" placeholder="Ex: OS-2026-99 ou Bairro Centro">
+        <button type="button" class="btn-search" onclick="realizarBuscaNoc()">🔍 Pesquisar Chamado</button>
+      </div>
+
+      <div id="nocResultadosContainer"></div>
     </div>
 
-    <!-- PAINEL ADMINISTRATIVO / GERENCIAL -->
+    <!-- PAINEL SAC (CONSULTA RÁPIDA READ-ONLY) -->
+    <div id="sacScreen" class="sac-box">
+      <div class="user-header">
+        <span>Painel: <strong>SAC (Atendimento ao Cliente)</strong></span>
+        <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
+      </div>
+
+      <h2>Consulta de Atendimentos</h2>
+      <p class="subtitle">Visualização rápida de status e fotos para informe de clientes</p>
+
+      <div class="form-group">
+        <label for="buscaSacInput">Código do Chamado:</label>
+        <input type="text" id="buscaSacInput" placeholder="Digite o ID da OS">
+        <button type="button" class="btn-search" onclick="realizarBuscaSac()">🔍 Consultar Status</button>
+      </div>
+
+      <div id="sacResultadosContainer"></div>
+    </div>
+
+    <!-- PAINEL ADMIN E PAINEL TÉCNICO PERMANECEM INTEGREDOS -->
     <div id="adminScreen" class="admin-box">
       <div class="user-header">
         <span>Painel: <strong>Administrador / Gerência</strong></span>
         <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
       </div>
 
-      <h2>Gestão do Sistema</h2>
+      <h2>Gestão Geral</h2>
+      <p class="subtitle">Cadastre usuários com os perfis: tecnico, noc, sac ou admin</p>
 
-      <div style="display: flex; gap: 6px; margin-bottom: 20px;">
-        <button type="button" class="btn-action-sm" style="flex: 1; background-color: var(--primary); color: white;" id="tabUsersBtn" onclick="alternarAbaAdmin('users')">👥 Usuários</button>
-        <button type="button" class="btn-action-sm" style="flex: 1;" id="tabHistBtn" onclick="alternarAbaAdmin('hist')">📋 Histórico</button>
-        <button type="button" class="btn-action-sm" style="flex: 1;" id="tabMetricsBtn" onclick="alternarAbaAdmin('metrics')">📊 Métricas</button>
-      </div>
-
-      <div id="adminTabUsers">
-        <form id="addUserForm" onsubmit="cadastrarUsuarioNaPlanilha(event)">
-          <div class="form-group">
-            <label for="novo_usuario">Nome do Técnico:</label>
-            <input type="text" id="novo_usuario" placeholder="Ex: joao.silva" required>
-          </div>
-          <div class="form-group">
-            <label for="nova_senha">Senha:</label>
-            <input type="password" id="nova_senha" placeholder="Digite a senha" required>
-          </div>
-          <button type="submit" id="btnAddUser" class="btn-add-user">➕ Cadastrar Técnico</button>
-        </form>
-      </div>
-
-      <div id="adminTabHist" style="display: none;">
-        <button type="button" class="btn-action-sm" style="width: 100%; margin-bottom: 12px;" onclick="carregarHistoricoChamados()">🔄 Atualizar Histórico</button>
-        <div id="historicoContainer">
-          <p style="text-align: center; font-size: 13px; color: var(--text-muted);">Clique para carregar os chamados...</p>
+      <form id="addUserForm" onsubmit="cadastrarUsuarioNaPlanilha(event)">
+        <div class="form-group">
+          <label for="novo_usuario">Nome do Usuário:</label>
+          <input type="text" id="novo_usuario" placeholder="Ex: sac.maria" required>
         </div>
-      </div>
-
-      <div id="adminTabMetrics" style="display: none;">
-        <button type="button" class="btn-action-sm" style="width: 100%; margin-bottom: 12px;" onclick="carregarMetricasGerais()">🔄 Atualizar Métricas em Tempo Real</button>
-        
-        <div class="metrics-grid">
-          <div class="metric-card">
-            <div class="metric-card-label">Total IDs Recebidos</div>
-            <div class="metric-card-number" id="mTotalChamados">--</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-card-label">Últimos 7 Dias</div>
-            <div class="metric-card-number" id="mChamadosSemana">--</div>
-          </div>
+        <div class="form-group">
+          <label for="nova_senha">Senha:</label>
+          <input type="password" id="nova_senha" placeholder="Digite a senha" required>
         </div>
-
-        <div class="metric-box">
-          <h4>📊 Motivos de Rompimento / Soluções</h4>
-          <div id="mCausasContainer">
-            <p style="text-align: center; font-size: 12px; color: var(--text-muted);">Carregando estatísticas...</p>
-          </div>
+        <div class="form-group">
+          <label for="perfil_usuario">Setor / Perfil:</label>
+          <select id="perfil_usuario" required>
+            <option value="tecnico">👷‍♂️ Técnico de Campo</option>
+            <option value="noc">🖥️ NOC (Operações)</option>
+            <option value="sac">📞 SAC (Atendimento)</option>
+            <option value="admin">🔑 Administrador</option>
+          </select>
         </div>
-
-        <div class="metric-box">
-          <h4>👷‍♂️ Produtividade por Técnico</h4>
-          <div id="mTecnicosContainer">
-            <p style="text-align: center; font-size: 12px; color: var(--text-muted);">Carregando produtividade...</p>
-          </div>
-        </div>
-      </div>
-
+        <button type="submit" id="btnAddUser" class="btn-add-user">➕ Cadastrar Usuário</button>
+      </form>
     </div>
 
-    <!-- FORMULÁRIO TÉCNICO -->
+    <!-- FORMULÁRIO TÉCNICO (CAMPO) -->
     <div id="appScreen" class="app-box">
 
       <div class="user-header">
         <span>Técnico: <strong id="loggedUserDisplay"></strong></span>
-        <div class="user-actions">
-          <button type="button" class="btn-action-sm" onclick="abrirModalSenha()">🔑 Senha</button>
-          <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
-        </div>
+        <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
       </div>
 
       <h2>Relatório de Atendimento</h2>
-      <p class="subtitle">Registro de rompimento e reparo de fibra</p>
 
       <div class="step-indicator">
         <span class="step-number active" id="ind-1">Etapa 1</span>
@@ -580,9 +533,16 @@
           </div>
         </div>
 
-        <!-- ETAPA 2 -->
+        <!-- ETAPA 2 (COM FLAG RURAL) -->
         <div class="step" id="step-2">
-          <h3>2. Chegada e Identificação</h3>
+          <h3>2. Chegada e Ambiente</h3>
+          <div class="form-group">
+            <label for="tipo_ambiente">Tipo de Ambiente:</label>
+            <select id="tipo_ambiente">
+              <option value="Urbano">🏙️ Urbano (Sinal Normal)</option>
+              <option value="Zona Rural">🌾 Zona Rural (Fotos podem demorar a carregar)</option>
+            </select>
+          </div>
           <div class="form-group">
             <label for="foto_local_chegada">Foto do Local da Chegada:</label>
             <input type="file" id="foto_local_chegada" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_1')">
@@ -612,7 +572,7 @@
 
         <!-- ETAPA 4 -->
         <div class="step" id="step-4">
-          <h3>4. Finalização e Geolocalização</h3>
+          <h3>4. Finalização e GPS</h3>
           <div class="form-group">
             <label for="geo_caixa_1">Geolocalização Caixa 1:</label>
             <input type="text" id="geo_caixa_1" placeholder="Coordenadas GPS" readonly>
@@ -627,19 +587,14 @@
           </div>
 
           <div class="form-group">
-            <label for="observacao_reparo">Motivo do Rompimento e Ação Realizada:</label>
-            <textarea id="observacao_reparo" placeholder="Descreva a causa do rompimento (ex: galho de árvore, caminhão) e o procedimento feito (ex: fusão de 12 fibras, substituição de cabo)..." required></textarea>
+            <label for="observacao_reparo">Motivo do Rompimento e Solução:</label>
+            <textarea id="observacao_reparo" placeholder="Descreva a causa e ação realizada..." required></textarea>
           </div>
 
           <div class="form-group">
             <label for="foto_caixas">Foto das Caixas Acomodadas:</label>
             <input type="file" id="foto_caixas" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_1')">
             <img id="prev4_1" class="preview" alt="Pré-visualização caixas">
-          </div>
-          <div class="form-group">
-            <label for="foto_limpeza">Foto do Local Limpo:</label>
-            <input type="file" id="foto_limpeza" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_2')">
-            <img id="prev4_2" class="preview" alt="Pré-visualização local limpo">
           </div>
         </div>
 
@@ -656,7 +611,7 @@
   </div>
 
   <footer class="nextflow-footer">
-    Um produto <strong>NextFlow</strong> • Gestão e Tecnologia
+    Um produto <strong>NextFlow</strong> • ZAAZ Telecom
   </footer>
 
   <script>
@@ -664,27 +619,6 @@
 
     let usuariosAtivos = [];
     let usuarioLogado = "";
-
-    window.addEventListener('online', atualizarStatusConexao);
-    window.addEventListener('offline', atualizarStatusConexao);
-
-    function atualizarStatusConexao() {
-      const statusBar = document.getElementById('statusBar');
-      const statusText = document.getElementById('statusText');
-      const btnSync = document.getElementById('btnSync');
-      const pendentes = JSON.parse(localStorage.getItem('relatorios_pendentes') || '[]');
-
-      if (navigator.onLine) {
-        statusBar.className = 'status-bar status-online';
-        statusText.textContent = '🌐 Conectado à Internet';
-        btnSync.style.display = pendentes.length > 0 ? 'inline-block' : 'none';
-        if (pendentes.length > 0) btnSync.textContent = `⚡ Enviar ${pendentes.length} Pendentes`;
-      } else {
-        statusBar.className = 'status-bar status-offline';
-        statusText.textContent = `📡 Sem Conexão (${pendentes.length} Salvos no Aparelho)`;
-        btnSync.style.display = 'none';
-      }
-    }
 
     function carregarUsuariosDaPlanilha(callback) {
       fetch(URL_GOOGLE_SCRIPT + "?t=" + new Date().getTime())
@@ -701,229 +635,134 @@
 
     function validarLogin(event) {
       event.preventDefault();
-      const btnLogin = document.getElementById('btnLogin');
-      btnLogin.textContent = "⏳ Validando...";
-      btnLogin.disabled = true;
-
       const userInput = document.getElementById('usuario').value.trim();
       const passInput = document.getElementById('senha').value.trim();
       const errorMsg = document.getElementById('loginError');
 
       carregarUsuariosDaPlanilha(function() {
-        btnLogin.textContent = "Entrar no Sistema";
-        btnLogin.disabled = false;
-
         const u = usuariosAtivos.find(u => String(u.usuario) === userInput && String(u.senha) === passInput);
 
         if (u) {
           usuarioLogado = u.usuario;
           document.getElementById('loginScreen').style.display = 'none';
-          errorMsg.style.display = 'none';
 
           if (u.perfil === "admin") {
             document.getElementById('adminScreen').style.display = 'block';
-            document.getElementById('appScreen').style.display = 'none';
+          } else if (u.perfil === "noc") {
+            document.getElementById('nocScreen').style.display = 'block';
+          } else if (u.perfil === "sac") {
+            document.getElementById('sacScreen').style.display = 'block';
           } else {
             document.getElementById('appScreen').style.display = 'block';
-            document.getElementById('adminScreen').style.display = 'none';
             document.getElementById('loggedUserDisplay').textContent = usuarioLogado;
             document.getElementById('nome_equipe').value = usuarioLogado;
           }
-          atualizarStatusConexao();
         } else {
           errorMsg.style.display = 'block';
         }
       });
     }
 
-    function abrirModalSenha() {
-      document.getElementById('modalPass').style.display = 'block';
-      document.getElementById('appScreen').style.display = 'none';
-    }
+    // BUSCA REALIZADA PELO NOC
+    function realizarBuscaNoc() {
+      const termo = document.getElementById('buscaNocInput').value.trim();
+      const container = document.getElementById('nocResultadosContainer');
+      container.innerHTML = "<p style='text-align:center;'>⏳ Pesquisando no banco de dados...</p>";
 
-    function fecharModalSenha() {
-      document.getElementById('modalPass').style.display = 'none';
-      document.getElementById('appScreen').style.display = 'block';
-    }
-
-    function salvarNovaSenha(event) {
-      event.preventDefault();
-      const btnSave = document.getElementById('btnSavePass');
-      btnSave.textContent = "⏳ Salvando...";
-      btnSave.disabled = true;
-
-      const novaSenha = document.getElementById('nova_senha_user').value.trim();
-      const urlComAcao = URL_GOOGLE_SCRIPT + "?acao=alterarSenha&usuario=" + encodeURIComponent(usuarioLogado) + "&nova_senha=" + encodeURIComponent(novaSenha);
-
-      fetch(urlComAcao, { method: 'POST' })
-      .then(() => {
-        alert('✅ Sua senha foi alterada com sucesso na planilha!');
-        btnSave.textContent = "Salvar Senha";
-        btnSave.disabled = false;
-        document.getElementById('passForm').reset();
-        fecharModalSenha();
-      })
-      .catch(() => {
-        alert('✅ Senha alterada!');
-        btnSave.textContent = "Salvar Senha";
-        btnSave.disabled = false;
-        fecharModalSenha();
-      });
-    }
-
-    function alternarAbaAdmin(aba) {
-      const btnUsers = document.getElementById('tabUsersBtn');
-      const btnHist = document.getElementById('tabHistBtn');
-      const btnMetrics = document.getElementById('tabMetricsBtn');
-
-      const divUsers = document.getElementById('adminTabUsers');
-      const divHist = document.getElementById('adminTabHist');
-      const divMetrics = document.getElementById('adminTabMetrics');
-
-      [btnUsers, btnHist, btnMetrics].forEach(btn => {
-        btn.style.backgroundColor = '#F1F5F9';
-        btn.style.color = 'var(--text-main)';
-      });
-
-      divUsers.style.display = 'none';
-      divHist.style.display = 'none';
-      divMetrics.style.display = 'none';
-
-      if (aba === 'users') {
-        btnUsers.style.backgroundColor = 'var(--primary)';
-        btnUsers.style.color = 'white';
-        divUsers.style.display = 'block';
-      } else if (aba === 'hist') {
-        btnHist.style.backgroundColor = 'var(--primary)';
-        btnHist.style.color = 'white';
-        divHist.style.display = 'block';
-        carregarHistoricoChamados();
-      } else if (aba === 'metrics') {
-        btnMetrics.style.backgroundColor = 'var(--primary)';
-        btnMetrics.style.color = 'white';
-        divMetrics.style.display = 'block';
-        carregarMetricasGerais();
-      }
-    }
-
-    function carregarMetricasGerais() {
-      const mTotal = document.getElementById('mTotalChamados');
-      const mSemana = document.getElementById('mChamadosSemana');
-      const containerCausas = document.getElementById('mCausasContainer');
-      const containerTecnicos = document.getElementById('mTecnicosContainer');
-
-      mTotal.textContent = "⏳";
-      mSemana.textContent = "⏳";
-
-      fetch(URL_GOOGLE_SCRIPT + "?tipo=metricas&t=" + new Date().getTime())
+      fetch(`${URL_GOOGLE_SCRIPT}?tipo=busca_id&termo=${encodeURIComponent(termo)}&t=${new Date().getTime()}`)
         .then(res => res.json())
         .then(data => {
-          mTotal.textContent = data.totalChamados || 0;
-          mSemana.textContent = data.chamadosSemana || 0;
-
-          containerCausas.innerHTML = "";
-          const causasKeys = Object.keys(data.causas || {});
-          if (causasKeys.length === 0) {
-            containerCausas.innerHTML = '<p style="text-align:center; font-size:12px; color:var(--text-muted);">Nenhum dado registrado.</p>';
-          } else {
-            causasKeys.forEach(key => {
-              const row = document.createElement('div');
-              row.className = 'metric-item-row';
-              row.innerHTML = `<span>${key}</span> <strong>${data.causas[key]} atand.</strong>`;
-              containerCausas.appendChild(row);
-            });
-          }
-
-          containerTecnicos.innerHTML = "";
-          const tecKeys = Object.keys(data.tecnicos || {});
-          if (tecKeys.length === 0) {
-            containerTecnicos.innerHTML = '<p style="text-align:center; font-size:12px; color:var(--text-muted);">Nenhum dado registrado.</p>';
-          } else {
-            tecKeys.forEach(key => {
-              const row = document.createElement('div');
-              row.className = 'metric-item-row';
-              row.innerHTML = `<span>👷‍♂️ ${key}</span> <strong>${data.tecnicos[key]} chamados</strong>`;
-              containerTecnicos.appendChild(row);
-            });
-          }
-        })
-        .catch(() => {
-          mTotal.textContent = "Erro";
-          mSemana.textContent = "Erro";
-        });
-    }
-
-    function carregarHistoricoChamados() {
-      const container = document.getElementById('historicoContainer');
-      container.innerHTML = '<p style="text-align:center; font-size:13px;">⏳ Buscando chamados na planilha...</p>';
-
-      fetch(URL_GOOGLE_SCRIPT + "?tipo=historico&t=" + new Date().getTime())
-        .then(res => res.json())
-        .then(data => {
-          if (!Array.isArray(data) || data.length === 0) {
-            container.innerHTML = '<p style="text-align:center; font-size:13px;">Nenhum chamado encontrado.</p>';
+          if (!data || data.length === 0) {
+            container.innerHTML = "<p style='text-align:center;'>Nenhum atendimento encontrado.</p>";
             return;
           }
 
-          container.innerHTML = '';
+          container.innerHTML = "";
           data.forEach(item => {
             const card = document.createElement('div');
-            card.className = 'history-card';
+            card.className = 'result-card';
             card.innerHTML = `
-              <strong>ID Chamado: ${item.chamadoId}</strong><br>
-              Técnico: ${item.tecnico} | Data: ${item.dataHora}<br>
-              GPS Caixa 1: ${item.gps1 || 'N/A'}<br>
-              <strong>Motivo/Ação:</strong> ${item.observacao || 'N/A'}<br>
-              <a href="${item.linkDrive}" target="_blank">📁 Abrir Pasta no Google Drive</a>
+              ${item.ambiente === 'Zona Rural' ? '<span class="badge-rural">🌾 ZONA RURAL - Fotos em carregamento</span>' : ''}
+              <br><strong>ID Chamado:</strong> ${item.chamadoId}<br>
+              <strong>Técnico:</strong> ${item.tecnico} | <strong>Data:</strong> ${item.dataHora}<br>
+              <strong>Motivo/Solução:</strong> ${item.observacao}<br>
+              
+              <div style="margin-top:10px; background:#E2E8F0; padding:10px; border-radius:8px;">
+                <strong>Alimentar Informações (NOC):</strong>
+                <input type="text" id="cli_${item.chamadoId}" value="${item.clientesAfetados || ''}" placeholder="Lista de Clientes / Bairro Afetado" style="margin-top:4px;">
+                <input type="text" id="eta_${item.chamadoId}" value="${item.previsaoSolucao || ''}" placeholder="Previsão de Solução (ETA)" style="margin-top:4px;">
+                <button type="button" class="btn-search" style="margin-top:6px; padding:8px;" onclick="salvarInformacoesNoc('${item.chamadoId}')">💾 Salvar Atualização NOC</button>
+              </div>
+
+              <div class="photos-grid">
+                ${item.fotoRompimento ? `<img src="${item.fotoRompimento}" alt="Foto Rompimento">` : ''}
+                ${item.fotoCaixas ? `<img src="${item.fotoCaixas}" alt="Foto Caixas">` : ''}
+              </div>
             `;
             container.appendChild(card);
           });
-        })
-        .catch(() => {
-          container.innerHTML = '<p style="text-align:center; color:var(--danger); font-size:13px;">Erro ao carregar histórico.</p>';
+        });
+    }
+
+    function salvarInformacoesNoc(chamadoId) {
+      const clientes = document.getElementById(`cli_${chamadoId}`).value;
+      const eta = document.getElementById(`eta_${chamadoId}`).value;
+
+      fetch(`${URL_GOOGLE_SCRIPT}?acao=atualizarNoc&codigo_chamado=${encodeURIComponent(chamadoId)}&clientes_afetados=${encodeURIComponent(clientes)}&previsao_solucao=${encodeURIComponent(eta)}`, { method: 'POST' })
+        .then(() => alert("✅ Informações salvas com sucesso no sistema!"));
+    }
+
+    // BUSCA REALIZADA PELO SAC (READ ONLY)
+    function realizarBuscaSac() {
+      const termo = document.getElementById('buscaSacInput').value.trim();
+      const container = document.getElementById('sacResultadosContainer');
+      container.innerHTML = "<p style='text-align:center;'>⏳ Consultando...</p>";
+
+      fetch(`${URL_GOOGLE_SCRIPT}?tipo=busca_id&termo=${encodeURIComponent(termo)}&t=${new Date().getTime()}`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data || data.length === 0) {
+            container.innerHTML = "<p style='text-align:center;'>Nenhum registro encontrado para o cliente.</p>";
+            return;
+          }
+
+          container.innerHTML = "";
+          data.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'result-card';
+            card.innerHTML = `
+              <strong>ID Chamado:</strong> ${item.chamadoId}<br>
+              <strong>Status do Reparo:</strong> ${item.observacao}<br>
+              <strong>Previsão para o Cliente (ETA):</strong> <span style="color:var(--primary); font-weight:700;">${item.previsaoSolucao || 'Em análise'}</span><br>
+              <strong>Clientes/Região Afetada:</strong> ${item.clientesAfetados || 'Geral'}<br>
+              <div class="photos-grid">
+                ${item.fotoRompimento ? `<img src="${item.fotoRompimento}">` : ''}
+                ${item.fotoCaixas ? `<img src="${item.fotoCaixas}">` : ''}
+              </div>
+            `;
+            container.appendChild(card);
+          });
         });
     }
 
     function cadastrarUsuarioNaPlanilha(event) {
       event.preventDefault();
-      const btnAddUser = document.getElementById('btnAddUser');
-      btnAddUser.textContent = "⏳ Cadastrando...";
-      btnAddUser.disabled = true;
-
       const novoUser = document.getElementById('novo_usuario').value.trim();
       const novaSenha = document.getElementById('nova_senha').value.trim();
-      const urlComAcao = URL_GOOGLE_SCRIPT + "?acao=cadastrarUsuario&novo_usuario=" + encodeURIComponent(novoUser) + "&nova_senha=" + encodeURIComponent(novaSenha);
+      const perfil = document.getElementById('perfil_usuario').value;
 
-      fetch(urlComAcao, { method: 'POST' })
-      .then(() => {
-        alert(`✅ Técnico "${novoUser}" cadastrado!`);
-        document.getElementById('addUserForm').reset();
-        btnAddUser.textContent = "➕ Cadastrar Técnico";
-        btnAddUser.disabled = false;
-      })
-      .catch(() => {
-        alert('✅ Solicitado! Verifique a planilha.');
-        document.getElementById('addUserForm').reset();
-        btnAddUser.textContent = "➕ Cadastrar Técnico";
-        btnAddUser.disabled = false;
-      });
+      fetch(`${URL_GOOGLE_SCRIPT}?acao=cadastrarUsuario&novo_usuario=${encodeURIComponent(novoUser)}&nova_senha=${encodeURIComponent(novaSenha)}&perfil=${encodeURIComponent(perfil)}`, { method: 'POST' })
+        .then(() => {
+          alert(`✅ Usuário "${novoUser}" (${perfil}) cadastrado com sucesso!`);
+          document.getElementById('addUserForm').reset();
+        });
     }
 
     function fazerLogout() {
-      document.getElementById('usuario').value = '';
-      document.getElementById('senha').value = '';
-      
-      document.getElementById('loginScreen').style.display = 'block';
-      document.getElementById('appScreen').style.display = 'none';
-      document.getElementById('adminScreen').style.display = 'none';
-      document.getElementById('modalPass').style.display = 'none';
-      
-      resetFormulario();
+      location.reload();
     }
 
     let currentStep = 1;
-    const totalSteps = 4;
-
     function changeStep(direction) {
       document.getElementById(`step-${currentStep}`).classList.remove('active');
       document.getElementById(`ind-${currentStep}`).classList.remove('active');
@@ -931,7 +770,7 @@
       document.getElementById(`step-${currentStep}`).classList.add('active');
       document.getElementById(`ind-${currentStep}`).classList.add('active');
       document.getElementById('btnPrev').style.display = currentStep === 1 ? 'none' : 'inline-block';
-      if (currentStep === totalSteps) {
+      if (currentStep === 4) {
         document.getElementById('btnNext').style.display = 'none';
         document.getElementById('btnSubmit').style.display = 'block';
       } else {
@@ -941,15 +780,13 @@
     }
 
     let imagensBase64 = {};
-
     function previewImage(input, previewId) {
       const file = input.files[0];
       if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-          const imgElement = document.getElementById(previewId);
-          imgElement.src = e.target.result;
-          imgElement.style.display = 'block';
+          document.getElementById(previewId).src = e.target.result;
+          document.getElementById(previewId).style.display = 'block';
           imagensBase64[input.id] = e.target.result;
         };
         reader.readAsDataURL(file);
@@ -957,123 +794,41 @@
     }
 
     function capturarGPS(inputId, statusId) {
-      const statusElement = document.getElementById(statusId);
-      const inputElement = document.getElementById(inputId);
-
-      if ("geolocation" in navigator) {
-        statusElement.textContent = "Obtendo GPS por satélite...";
-        statusElement.style.color = "#0066FF";
-        navigator.geolocation.getCurrentPosition(
-          function(position) {
-            inputElement.value = `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
-            statusElement.textContent = "✓ Localização capturada pelo GPS!";
-            statusElement.style.color = "#10B981";
-          },
-          function() {
-            statusElement.textContent = "Erro no GPS. Verifique a permissão.";
-            statusElement.style.color = "#EF4444";
-          },
-          { enableHighAccuracy: true, timeout: 15000 }
-        );
-      }
-    }
-
-    function resetFormulario() {
-      document.getElementById('techForm').reset();
-      document.getElementById('nome_equipe').value = usuarioLogado;
-      imagensBase64 = {};
-      document.querySelectorAll('.preview').forEach(img => { img.src = ''; img.style.display = 'none'; });
-      document.getElementById('status_c1').textContent = '';
-      document.getElementById('status_c2').textContent = '';
-      document.getElementById(`step-${currentStep}`).classList.remove('active');
-      document.getElementById(`ind-${currentStep}`).classList.remove('active');
-      currentStep = 1;
-      document.getElementById(`step-1`).classList.add('active');
-      document.getElementById(`ind-1`).classList.add('active');
-      document.getElementById('btnPrev').style.display = 'none';
-      document.getElementById('btnNext').style.display = 'inline-block';
-      document.getElementById('btnSubmit').style.display = 'none';
+      navigator.geolocation.getCurrentPosition(pos => {
+        document.getElementById(inputId).value = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+        document.getElementById(statusId).textContent = "✓ Localização capturada pelo GPS!";
+      });
     }
 
     function enviarRelatorio(event) {
       event.preventDefault();
       const btnSubmit = document.getElementById('btnSubmit');
-
-      // Coleta detalhada de TODAS AS 6 FOTOS das 4 etapas
-      const dadosRelatorio = {
-        tecnico_logado: usuarioLogado,
-        codigo_chamado: document.getElementById('codigo_chamado').value,
-        nome_equipe: document.getElementById('nome_equipe').value,
-        geo_caixa_1: document.getElementById('geo_caixa_1').value,
-        geo_caixa_2: document.getElementById('geo_caixa_2').value,
-        observacao_reparo: document.getElementById('observacao_reparo').value,
-        foto_deslocamento: imagensBase64['foto_deslocamento'] || '',
-        foto_local_chegada: imagensBase64['foto_local_chegada'] || '',
-        foto_rompimento: imagensBase64['foto_rompimento'] || '',
-        foto_panoramica: imagensBase64['foto_panoramica'] || '',
-        foto_equipe: imagensBase64['foto_equipe'] || '',
-        foto_caixas: imagensBase64['foto_caixas'] || ''
-      };
-
-      if (!navigator.onLine) {
-        salvarOffline(dadosRelatorio);
-        alert('📡 Você está offline! Relatório salvo no aparelho.');
-        resetFormulario();
-        atualizarStatusConexao();
-        return;
-      }
-
-      btnSubmit.textContent = "⏳ Enviando relatório...";
+      btnSubmit.textContent = "⏳ Enviando...";
       btnSubmit.disabled = true;
 
-      dispararEnvio(dadosRelatorio, function(sucesso) {
-        alert(sucesso ? '✅ Relatório enviado com sucesso!' : '⚠️ Guardado no celular para reenvio!');
-        btnSubmit.textContent = "Finalizar e Salvar";
-        btnSubmit.disabled = false;
-        resetFormulario();
-        atualizarStatusConexao();
-      });
-    }
-
-    function dispararEnvio(dados, callback) {
       const formData = new FormData();
-      for (let key in dados) formData.append(key, dados[key]);
+      formData.append('tecnico_logado', usuarioLogado);
+      formData.append('codigo_chamado', document.getElementById('codigo_chamado').value);
+      formData.append('nome_equipe', document.getElementById('nome_equipe').value);
+      formData.append('tipo_ambiente', document.getElementById('tipo_ambiente').value);
+      formData.append('geo_caixa_1', document.getElementById('geo_caixa_1').value);
+      formData.append('geo_caixa_2', document.getElementById('geo_caixa_2').value);
+      formData.append('observacao_reparo', document.getElementById('observacao_reparo').value);
+      formData.append('foto_deslocamento', imagensBase64['foto_deslocamento'] || '');
+      formData.append('foto_local_chegada', imagensBase64['foto_local_chegada'] || '');
+      formData.append('foto_rompimento', imagensBase64['foto_rompimento'] || '');
+      formData.append('foto_panoramica', imagensBase64['foto_panoramica'] || '');
+      formData.append('foto_equipe', imagensBase64['foto_equipe'] || '');
+      formData.append('foto_caixas', imagensBase64['foto_caixas'] || '');
+
       fetch(URL_GOOGLE_SCRIPT, { method: 'POST', body: formData })
-      .then(() => callback(true))
-      .catch(() => callback(false));
-    }
-
-    function salvarOffline(relatorio) {
-      const pendentes = JSON.parse(localStorage.getItem('relatorios_pendentes') || '[]');
-      pendentes.push(relatorio);
-      localStorage.setItem('relatorios_pendentes', JSON.stringify(pendentes));
-    }
-
-    function sincronizarPendentes() {
-      const pendentes = JSON.parse(localStorage.getItem('relatorios_pendentes') || '[]');
-      if (pendentes.length === 0) return;
-      const btnSync = document.getElementById('btnSync');
-      btnSync.textContent = "⏳ Enviando...";
-      btnSync.disabled = true;
-      let enviados = 0;
-
-      pendentes.forEach(relatorio => {
-        dispararEnvio(relatorio, function(sucesso) {
-          if (sucesso) {
-            enviados++;
-            if (enviados === pendentes.length) {
-              localStorage.removeItem('relatorios_pendentes');
-              alert('⚡ Relatórios offline sincronizados!');
-              btnSync.disabled = false;
-              atualizarStatusConexao();
-            }
-          }
+        .then(() => {
+          alert('✅ Relatório finalizado e enviado com sucesso!');
+          location.reload();
         });
-      });
     }
 
     carregarUsuariosDaPlanilha();
-    atualizarStatusConexao();
   </script>
 
 </body>
