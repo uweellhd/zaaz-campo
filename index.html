@@ -353,7 +353,6 @@
       text-decoration: none;
     }
 
-    /* ESTILOS DOS CARDS DE MÉTRICAS AUTOMÁTICAS */
     .metrics-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -488,7 +487,6 @@
         <button type="button" class="btn-action-sm" style="flex: 1;" id="tabMetricsBtn" onclick="alternarAbaAdmin('metrics')">📊 Métricas</button>
       </div>
 
-      <!-- ABA 1: USUÁRIOS -->
       <div id="adminTabUsers">
         <form id="addUserForm" onsubmit="cadastrarUsuarioNaPlanilha(event)">
           <div class="form-group">
@@ -503,7 +501,6 @@
         </form>
       </div>
 
-      <!-- ABA 2: HISTÓRICO -->
       <div id="adminTabHist" style="display: none;">
         <button type="button" class="btn-action-sm" style="width: 100%; margin-bottom: 12px;" onclick="carregarHistoricoChamados()">🔄 Atualizar Histórico</button>
         <div id="historicoContainer">
@@ -511,7 +508,6 @@
         </div>
       </div>
 
-      <!-- ABA 3: MÉTRICAS AUTOMÁTICAS (NOVA) -->
       <div id="adminTabMetrics" style="display: none;">
         <button type="button" class="btn-action-sm" style="width: 100%; margin-bottom: 12px;" onclick="carregarMetricasGerais()">🔄 Atualizar Métricas em Tempo Real</button>
         
@@ -784,13 +780,11 @@
       const divHist = document.getElementById('adminTabHist');
       const divMetrics = document.getElementById('adminTabMetrics');
 
-      // Reseta todos os botões para cor neutra
       [btnUsers, btnHist, btnMetrics].forEach(btn => {
         btn.style.backgroundColor = '#F1F5F9';
         btn.style.color = 'var(--text-main)';
       });
 
-      // Esconde todas as abas
       divUsers.style.display = 'none';
       divHist.style.display = 'none';
       divMetrics.style.display = 'none';
@@ -827,7 +821,6 @@
           mTotal.textContent = data.totalChamados || 0;
           mSemana.textContent = data.chamadosSemana || 0;
 
-          // Renderiza Lista de Causas
           containerCausas.innerHTML = "";
           const causasKeys = Object.keys(data.causas || {});
           if (causasKeys.length === 0) {
@@ -841,7 +834,6 @@
             });
           }
 
-          // Renderiza Lista de Técnicos
           containerTecnicos.innerHTML = "";
           const tecKeys = Object.keys(data.tecnicos || {});
           if (tecKeys.length === 0) {
@@ -1007,6 +999,7 @@
       event.preventDefault();
       const btnSubmit = document.getElementById('btnSubmit');
 
+      // Coleta detalhada de TODAS AS 6 FOTOS das 4 etapas
       const dadosRelatorio = {
         tecnico_logado: usuarioLogado,
         codigo_chamado: document.getElementById('codigo_chamado').value,
@@ -1017,6 +1010,8 @@
         foto_deslocamento: imagensBase64['foto_deslocamento'] || '',
         foto_local_chegada: imagensBase64['foto_local_chegada'] || '',
         foto_rompimento: imagensBase64['foto_rompimento'] || '',
+        foto_panoramica: imagensBase64['foto_panoramica'] || '',
+        foto_equipe: imagensBase64['foto_equipe'] || '',
         foto_caixas: imagensBase64['foto_caixas'] || ''
       };
 
