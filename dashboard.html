@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZAAZ Telecom - Painel Operacional</title>
+  <title>ZAAZ Telecom - NextFlow Enterprise Panel</title>
   
   <!-- Fonte Google Inter e Estilos Globais -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,76 +13,119 @@
 </head>
 <body class="dashboard-body">
 
-  <div class="dashboard-container">
-    
-    <!-- BARRA SUPERIOR (HEADER) -->
-    <header class="top-nav">
-      <div>
-        <h2 style="color: var(--primary); font-size: 20px; font-weight: 800; margin:0;">ZAAZ TELECOM</h2>
-        <span id="userBadge" style="font-size: 12px; color: var(--text-muted);">Carregando usuário...</span>
-      </div>
-      <button class="btn-logout-sm" onclick="sair()">Sair da Conta</button>
-    </header>
+  <!-- BARRA SUPERIOR FIXA (HEADER) -->
+  <header class="top-nav">
+    <div class="nav-brand">
+      <h2>ZAAZ TELECOM</h2>
+      <span class="system-subtitle">NextFlow Enterprise System</span>
+    </div>
 
-    <!-- 1. DASHBOARD DA GERÊNCIA / DIREÇÃO (SOMENTE LEITURA) -->
+    <!-- MENU DE NAVEGAÇÃO RÁPIDA (HABILITADO PARA ADMIN / NAVEGAÇÃO) -->
+    <nav id="adminNavMenu" class="nav-menu" style="display: none;">
+      <button class="nav-btn active" onclick="alternarAba('viewGerente')">📊 Diretoria / Gerência</button>
+      <button class="nav-btn" onclick="alternarAba('viewNoc')">🚨 Cadastrar Incidente (NOC)</button>
+      <button class="nav-btn" onclick="alternarAba('viewSac')">📞 Consulta SAC</button>
+    </nav>
+
+    <div class="nav-user">
+      <span id="userBadge">Carregando perfil...</span>
+      <button class="btn-logout-sm" onclick="sair()">Sair</button>
+    </div>
+  </header>
+
+  <main class="dashboard-container">
+
+    <!-- 1. DASHBOARD DA GERÊNCIA / DIREÇÃO (MÉTRICAS POR ESTADO E RELATÓRIOS) -->
     <section id="viewGerente" class="view-panel">
-      <h3 class="panel-title">📊 Painel de Indicadores Executivos</h3>
+      <div class="panel-header-action">
+        <h3 class="panel-title">📊 Painel de Indicadores Executivos e Estado da Rede</h3>
+        <button class="btn-export" onclick="exportarRelatorioCSV()">📥 Exportar Relatório CSV</button>
+      </div>
       
+      <!-- CARDS DE INDICADORES GERAIS -->
       <div class="kpi-grid">
         <div class="kpi-card">
-          <span class="kpi-title">Incidentes Ativos</span>
+          <span class="kpi-title">Total Incidentes Ativos</span>
           <h2 id="kpiTotalIncidentes" class="kpi-value">0</h2>
         </div>
         <div class="kpi-card">
-          <span class="kpi-title">Clientes Afetados</span>
-          <h2 id="kpiTotalClientes" class="kpi-value" style="color: var(--danger);">0</h2>
+          <span class="kpi-title">Total Clientes Afetados</span>
+          <h2 id="kpiTotalClientes" class="kpi-value alert-text">0</h2>
         </div>
       </div>
 
-      <h4 style="margin-bottom: 12px; font-size: 14px; color: var(--text-muted);">Acompanhamento Geral de Incidentes</h4>
-      <div id="gerenteIncidentesList"></div>
+      <!-- CARDS DE INCIDENTES POR ESTADO -->
+      <h4 class="section-subtitle">📍 Distribuição de Incidentes por Estado</h4>
+      <div class="kpi-grid state-grid">
+        <div class="kpi-card state-card">
+          <span class="kpi-title">São Paulo (SP)</span>
+          <h3 id="kpiSpCount" class="state-value">0</h3>
+        </div>
+        <div class="kpi-card state-card">
+          <span class="kpi-title">Minas Gerais (MG)</span>
+          <h3 id="kpiMgCount" class="state-value">0</h3>
+        </div>
+        <div class="kpi-card state-card">
+          <span class="kpi-title">Paraná (PR)</span>
+          <h3 id="kpiPrCount" class="state-value">0</h3>
+        </div>
+      </div>
+
+      <h4 class="section-subtitle">📋 Visão Geral Consolidada de Atendimentos</h4>
+      <div id="gerenteIncidentesList" class="incidents-grid-list"></div>
     </section>
 
     <!-- 2. PAINEL DO NOC (CADASTRO RÁPIDO VIA CAIXA ÚNICA) -->
     <section id="viewNoc" class="view-panel">
-      <h3 class="panel-title">🚨 Leitura Rápida de Comunicado</h3>
-      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
-        Cole abaixo o texto do comunicado de incidente. O sistema extrairá os campos e gerará o ID automaticamente!
+      <h3 class="panel-title">🚨 Registro Rápido de Incidente (NOC)</h3>
+      <p class="panel-desc">
+        Cole abaixo o texto bruto do comunicado oficial. O sistema extrairá os campos e classificará a região automaticamente.
       </p>
       
       <form id="formNocIncidente">
         <div class="form-group">
-          <label for="nocTextoComunicado">Cole o Comunicado Oficial aqui:</label>
-          <textarea id="nocTextoComunicado" style="min-height: 220px; font-family: monospace; font-size: 13px;" placeholder="🚨 COMUNICADO DE INCIDENTE - REDE GPON 🚨
-ID: 9842
-CIDADES AFETADAS: Buri / São Paulo
-OLT: PRD-OLT-FB-BRI-DC
-PORTAS AFETADAS: 1/2
-INCIDENTE: REDE DE ACESSO
-DESCRIÇÃO: 11 clientes com LOS. acionado supervisor
-INÍCIO: 10:54 28-09-2026
-PREVISÃO: 17:17 28-09-2026
-CLIENTES AFETADOS: 11
-RESPONSÁVEL: LUCAS AUGUSTO DE PAULA
-ORDEM DE SERVIÇO: 20260928111752523246
-STATUS ATUAL: SUPERVISOR INFORMADO" required></textarea>
+          <label for="nocTextoComunicado">Texto do Comunicado Oficial:</label>
+          <textarea id="nocTextoComunicado" class="code-textarea" placeholder="Cole aqui seu comunicado..." required></textarea>
         </div>
 
-        <button type="submit" id="btnSalvarNoc" class="btn-primary" style="margin-top: 10px;">⚡ Processar e Publicar Comunicado</button>
+        <button type="submit" id="btnSalvarNoc" class="btn-primary">⚡ Processar e Publicar Comunicado</button>
       </form>
     </section>
 
-    <!-- 3. PAINEL DO SAC (CONSULTA RÁPIDA EM TEMPO REAL) -->
+    <!-- 3. PAINEL DO SAC (CONSULTA COM DETALHES E FOTOS) -->
     <section id="viewSac" class="view-panel">
-      <h3 class="panel-title">📞 Consulta Rápida de Incidentes</h3>
+      <h3 class="panel-title">📞 Central de Consulta do SAC</h3>
       
       <div class="search-box">
-        <input type="text" id="inputBuscaSac" placeholder="Pesquisar por ID, Cidade, OS ou Descrição..." onkeyup="filtrarSac()">
+        <input type="text" id="inputBuscaSac" placeholder="Pesquisar por ID, Cidade, OS, OLT ou Descrição..." onkeyup="filtrarSac()">
       </div>
 
-      <div id="sacResultsList"></div>
+      <div id="sacResultsList" class="incidents-grid-list"></div>
     </section>
 
+  </main>
+
+  <!-- MODAL DE DETALHES DO INCIDENTE PARA O SAC (FOTOS E COMENTÁRIOS DO TÉCNICO) -->
+  <div id="modalDetalhesIncidente" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalIdTitle">Detalhes do Incidente</h3>
+        <button class="modal-close" onclick="fecharModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="modalInfoBox" class="info-details-box"></div>
+
+        <h4 class="section-subtitle" style="margin-top:20px;">📷 Registros e Fotos do Técnico de Campo</h4>
+        <div id="modalPhotosGrid" class="photos-grid">
+          <p class="text-muted">Nenhuma foto registrada até o momento para este atendimento.</p>
+        </div>
+
+        <h4 class="section-subtitle" style="margin-top:20px;">💬 Histórico e Observações de Tratamento</h4>
+        <div id="modalCommentsList" class="comments-list">
+          <p class="text-muted">Aguardando atualização de campo pelo técnico responsável.</p>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- RODAPÉ CORPORATIVO -->
