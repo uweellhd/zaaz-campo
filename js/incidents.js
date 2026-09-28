@@ -1,11 +1,10 @@
 /* ==========================================================================
-   NEXTFLOW ENTERPRISE - LOGICA DE INCIDENTES (js/incidents.js)
+   NEXTFLOW ENTERPRISE - LOGICA DE INCIDENTES EXPANDIDA (js/incidents.js)
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Credenciais do Firebase ZAAZ Telecom
 const firebaseConfig = {
   apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
   authDomain: "nextflow-telecom.firebaseapp.com",
@@ -19,7 +18,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Recupera informações da sessão ativa
 const perfilSalvo = localStorage.getItem('user_perfil') || 'sac';
 const usuarioSalvo = localStorage.getItem('user_nome') || 'Colaborador';
 
@@ -28,15 +26,20 @@ if (badgeElem) {
   badgeElem.textContent = `${usuarioSalvo} (${perfilSalvo.toUpperCase()})`;
 }
 
-// Alterna os painéis conforme o perfil autenticado
+// Se for Admin, exibe o menu de navegação entre todas as abas
+if (perfilSalvo === 'admin') {
+  const adminNav = document.getElementById('adminNavMenu');
+  if (adminNav) adminNav.style.display = 'flex';
+}
+
 function configurarTelasPorPerfil() {
   document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
 
-  if (perfilSalvo === 'gerente' || perfilSalvo === 'diretor') {
+  if (perfilSalvo === 'gerente' || perfilSalvo === 'diretor' || perfilSalvo === 'admin') {
     const vG = document.getElementById('viewGerente');
     if (vG) vG.style.display = 'block';
     carregarDashboardGerente();
-  } else if (perfilSalvo === 'noc' || perfilSalvo === 'admin') {
+  } else if (perfilSalvo === 'noc') {
     const vN = document.getElementById('viewNoc');
     if (vN) vN.style.display = 'block';
   } else {
@@ -46,20 +49,38 @@ function configurarTelasPorPerfil() {
   }
 }
 
-// FUNÇÃO AUXILIAR: EXTRAI UM CAMPO DO TEXTO COLADO VIA EXPRESSÃO REGULAR
+// Troca de abas para o perfil Admin
+window.alternarAba = (idAba) => {
+  document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+  const abaAlvo = document.getElementById(idAba);
+  if (abaAlvo) abaAlvo.style.display = 'block';
+
+  if (idAba === 'viewGerente') carregarDashboardGerente();
+  if (idAba === 'viewSac') carregarIncidentesSac();
+};
+
 function extrairCampo(texto, rotulo) {
   const regex = new RegExp(rotulo + "\\s*:\\s*(.*)", "i");
   const match = texto.match(regex);
   return match ? match[1].trim() : "";
 }
 
-// FUNÇÃO AUXILIAR: GERA UM ID AUTOMÁTICO CASO O TEXTO NÃO TENHA
 function gerarIdAutomatico() {
-  const numeroAleatorio = Math.floor(1000 + Math.random() * 9000);
-  return `INC-${numeroAleatorio}`;
+  const numero = Math.floor(1000 + Math.random() * 9000);
+  return `INC-${numero}`;
 }
 
-// 1. REGISTRO AUTOMÁTICO DO COMUNICADO PELO NOC (LEITURA DO TEXTO)
+// Detecta o Estado (SP, MG, PR) a partir da string de Cidades Afetadas
+function detectarEstado(cidadesStr) {
+  const c = cidadesStr.toUpperCase();
+  if (c.includes("MG") || c.includes("MINAS")) return "MG";
+  if (c.includes("PR") || c.includes("PARANÁ") || c.includes("PARANA")) return "PR";
+  return "SP"; // Padrão
+}
+
+// 1. REGISTRO AUTOMÁTICO DO NOC
 const formNoc = document.getElementById('formNocIncidente');
 if (formNoc) {
   formNoc.addEventListener('submit', async (e) => {
@@ -67,103 +88,109 @@ if (formNoc) {
     const btn = document.getElementById('btnSalvarNoc');
     const textoBruto = document.getElementById('nocTextoComunicado').value.trim();
 
-    btn.textContent = "⏳ Lendo comunicado e salvando...";
+    btn.textContent = "⏳ Lendo e gravando comunicado...";
     btn.disabled = true;
 
     try {
-      // Extração automática de cada campo do texto colado
       let idIncidenteExt = extrairCampo(textoBruto, "ID");
-      if (!idIncidenteExt) {
-        idIncidenteExt = gerarIdAutomatico();
-      }
+      if (!idIncidenteExt) idIncidenteExt = gerarIdAutomatico();
 
-      const osExt = extrairCampo(textoBruto, "ORDEM DE SERVIÇO") || "Não informada";
-      const cidadesExt = extrairCampo(textoBruto, "CIDADES AFETADAS") || "Geral";
-      const oltExt = extrairCampo(textoBruto, "OLT") || "N/A";
-      const portasExt = extrairCampo(textoBruto, "PORTAS AFETADAS") || "N/A";
-      const tipoExt = extrairCampo(textoBruto, "INCIDENTE") || "REDE";
-      const clientesExtStr = extrairCampo(textoBruto, "CLIENTES AFETADOS") || "0";
-      const clientesCountExt = parseInt(clientesExtStr, 10) || 0;
-      const responsavelExt = extrairCampo(textoBruto, "RESPONSÁVEL") || usuarioSalvo;
-      const previsaoExt = extrairCampo(textoBruto, "PREVISÃO") || "A definir";
-      const statusExt = extrairCampo(textoBruto, "STATUS ATUAL") || "EM ATENDIMENTO";
-      const descricaoExt = extrairCampo(textoBruto, "DESCRIÇÃO") || textoBruto;
+      const cidadesExt = extrairCampo(textoBruto, "CIDADES AFETADAS") || "Geral / SP";
+      const estadoExt = detectarEstado(cidadesExt);
 
-      // Gravação dos dados extraídos no Firebase Firestore
       await addDoc(collection(db, "incidentes"), {
         idIncidente: idIncidenteExt,
-        os: osExt,
+        os: extrairCampo(textoBruto, "ORDEM DE SERVIÇO") || "Não informada",
         cidades: cidadesExt,
-        olt: oltExt,
-        portas: portasExt,
-        incidenteTipo: tipoExt,
-        clientesCount: clientesCountExt,
-        responsavel: responsavelExt,
-        previsao: previsaoExt,
-        statusAtual: statusExt,
-        descricao: descricaoExt,
+        estado: estadoExt,
+        olt: extrairCampo(textoBruto, "OLT") || "N/A",
+        portas: extrairCampo(textoBruto, "PORTAS AFETADAS") || "N/A",
+        incidenteTipo: extrairCampo(textoBruto, "INCIDENTE") || "REDE",
+        clientesCount: parseInt(extrairCampo(textoBruto, "CLIENTES AFETADOS") || "0", 10) || 0,
+        responsavel: extrairCampo(textoBruto, "RESPONSÁVEL") || usuarioSalvo,
+        previsao: extrairCampo(textoBruto, "PREVISÃO") || "A definir",
+        statusAtual: extrairCampo(textoBruto, "STATUS ATUAL") || "EM ATENDIMENTO",
+        descricao: extrairCampo(textoBruto, "DESCRIÇÃO") || textoBruto,
         textoCompleto: textoBruto,
+        fotosTecnico: [],
+        comentariosTecnico: [],
         dataCriacao: new Date().toLocaleString("pt-BR")
       });
 
-      alert(`⚡ Comunicado lido com sucesso!\nID do Incidente: ${idIncidenteExt}`);
+      alert(`⚡ Comunicado lido com sucesso!\nID do Incidente: ${idIncidenteExt}\nEstado: ${estadoExt}`);
       formNoc.reset();
       btn.textContent = "⚡ Processar e Publicar Comunicado";
       btn.disabled = false;
     } catch (err) {
-      alert("Erro ao processar comunicado: " + err.message);
+      alert("Erro ao registrar: " + err.message);
       btn.textContent = "⚡ Processar e Publicar Comunicado";
       btn.disabled = false;
     }
   });
 }
 
-// 2. DASHBOARD DE MENSURAÇÃO PARA DIREÇÃO / GERÊNCIA
+// 2. DASHBOARD GERENCIAL COM CONTAGEM POR ESTADO (SP, MG, PR)
+let todosIncidentesCache = [];
+
 function carregarDashboardGerente() {
-  const q = collection(db, "incidentes");
-  
-  onSnapshot(q, (snapshot) => {
+  onSnapshot(collection(db, "incidentes"), (snapshot) => {
     let totalIncidentes = snapshot.size;
     let totalClientes = 0;
+    let spCount = 0, mgCount = 0, prCount = 0;
+
+    todosIncidentesCache = [];
     const container = document.getElementById('gerenteIncidentesList');
     if (!container) return;
-
     container.innerHTML = "";
 
-    snapshot.forEach((doc) => {
-      const item = doc.data();
+    snapshot.forEach((docSnap) => {
+      const item = docSnap.data();
+      item.docId = docSnap.id;
+      todosIncidentesCache.push(item);
+
       totalClientes += Number(item.clientesCount || 0);
+
+      const est = item.estado || detectarEstado(item.cidades || "");
+      if (est === "SP") spCount++;
+      else if (est === "MG") mgCount++;
+      else if (est === "PR") prCount++;
 
       const card = document.createElement('div');
       card.className = 'incidente-card';
+      card.onclick = () => abrirModalDetalhes(item);
       card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <strong style="color:var(--primary);">ID: ${item.idIncidente} | OS: ${item.os}</strong>
           <span style="background:#FEF3C7; color:#92400E; padding:3px 8px; border-radius:6px; font-weight:700; font-size:11px;">${item.statusAtual}</span>
         </div>
-        <p style="margin: 8px 0; font-size: 13px;"><strong>Cidades:</strong> ${item.cidades} | <strong>OLT:</strong> ${item.olt}</p>
+        <p style="margin: 8px 0; font-size: 13px;"><strong>Cidades:</strong> ${item.cidades} (${est}) | <strong>OLT:</strong> ${item.olt}</p>
         <p style="font-size: 13px; color: var(--text-muted);">${item.descricao}</p>
         <div style="margin-top: 8px; font-size: 12px; color: var(--danger); font-weight:700;">
-          👥 Clientes Afetados: ${item.clientesCount} | Previsão: ${item.previsao}
+          👥 Clientes: ${item.clientesCount} | Previsão: ${item.previsao}
         </div>
       `;
       container.appendChild(card);
     });
 
-    const elemInc = document.getElementById('kpiTotalIncidentes');
-    const elemCli = document.getElementById('kpiTotalClientes');
-    if (elemInc) elemInc.textContent = totalIncidentes;
-    if (elemCli) elemCli.textContent = totalClientes;
+    document.getElementById('kpiTotalIncidentes').textContent = totalIncidentes;
+    document.getElementById('kpiTotalClientes').textContent = totalClientes;
+    document.getElementById('kpiSpCount').textContent = spCount;
+    document.getElementById('kpiMgCount').textContent = mgCount;
+    document.getElementById('kpiPrCount').textContent = prCount;
   });
 }
 
-// 3. CONSULTA RÁPIDA DE INCIDENTES PELO SAC
+// 3. CONSULTA DO SAC COM MODAL DE FOTOS E DETALHES
 let listaIncidentesSac = [];
 
 function carregarIncidentesSac() {
   onSnapshot(collection(db, "incidentes"), (snapshot) => {
     listaIncidentesSac = [];
-    snapshot.forEach(doc => listaIncidentesSac.push(doc.data()));
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      data.docId = docSnap.id;
+      listaIncidentesSac.push(data);
+    });
     renderizarListaSac(listaIncidentesSac);
   });
 }
@@ -171,23 +198,23 @@ function carregarIncidentesSac() {
 function renderizarListaSac(lista) {
   const container = document.getElementById('sacResultsList');
   if (!container) return;
-
   container.innerHTML = "";
 
   if (lista.length === 0) {
-    container.innerHTML = "<p style='text-align:center; color:var(--text-muted); padding:20px;'>Nenhum incidente localizado no momento.</p>";
+    container.innerHTML = "<p style='text-align:center; color:var(--text-muted); padding:20px; grid-column:span 2;'>Nenhum incidente localizado no momento.</p>";
     return;
   }
 
   lista.forEach(item => {
     const card = document.createElement('div');
     card.className = 'incidente-card';
+    card.onclick = () => abrirModalDetalhes(item);
     card.innerHTML = `
       <h4 style="color:var(--primary); margin-bottom:6px;">🚨 ID: ${item.idIncidente} - ${item.cidades}</h4>
-      <p style="font-size:13px; margin-bottom:4px;"><strong>OS:</strong> ${item.os} | <strong>OLT:</strong> ${item.olt} | <strong>Portas:</strong> ${item.portas}</p>
-      <p style="font-size:13px; margin-bottom:4px;"><strong>Status Atual:</strong> <span style="color:var(--primary); font-weight:700;">${item.statusAtual}</span></p>
-      <p style="font-size:13px; margin-bottom:4px;"><strong>Previsão de Solução:</strong> ${item.previsao}</p>
-      <p style="font-size:13px; background:#F1F5F9; padding:10px; border-radius:8px; margin-top:6px; border:1px solid #E2E8F0;">${item.descricao}</p>
+      <p style="font-size:13px; margin-bottom:4px;"><strong>OS:</strong> ${item.os} | <strong>OLT:</strong> ${item.olt}</p>
+      <p style="font-size:13px; margin-bottom:4px;"><strong>Status:</strong> <span style="color:var(--primary); font-weight:700;">${item.statusAtual}</span></p>
+      <p style="font-size:13px; margin-bottom:4px;"><strong>Previsão:</strong> ${item.previsao}</p>
+      <p style="font-size:12px; color:var(--primary); font-weight:700; margin-top:8px;">🔍 Clique para abrir fotos e detalhes do técnico</p>
     `;
     container.appendChild(card);
   });
@@ -205,6 +232,65 @@ window.filtrarSac = () => {
     (item.descricao && item.descricao.toLowerCase().includes(termo))
   );
   renderizarListaSac(filtrados);
+};
+
+// EXIBIÇÃO DO MODAL COM FOTOS E COMENTÁRIOS DO TÉCNICO
+window.abrirModalDetalhes = (item) => {
+  document.getElementById('modalIdTitle').textContent = `🚨 Incidente ID: ${item.idIncidente}`;
+  
+  const infoBox = document.getElementById('modalInfoBox');
+  infoBox.innerHTML = `
+    <strong>Ordem de Serviço (OS):</strong> ${item.os}<br>
+    <strong>Cidades Afetadas:</strong> ${item.cidades} (${item.estado || 'SP'})<br>
+    <strong>OLT / Portas:</strong> ${item.olt} (Portas: ${item.portas})<br>
+    <strong>Status Atual:</strong> ${item.statusAtual}<br>
+    <strong>Clientes Afetados:</strong> ${item.clientesCount}<br>
+    <strong>Previsão de Solução:</strong> ${item.previsao}<br>
+    <strong>Responsável:</strong> ${item.responsavel}<br>
+    <hr style="margin:8px 0; border:none; border-top:1px solid #E2E8F0;">
+    <strong>Descrição Oficial:</strong> ${item.descricao}
+  `;
+
+  // Fotos do Técnico
+  const photosGrid = document.getElementById('modalPhotosGrid');
+  photosGrid.innerHTML = "";
+  if (item.fotosTecnico && item.fotosTecnico.length > 0) {
+    item.fotosTecnico.forEach(url => {
+      const img = document.createElement('img');
+      img.src = url;
+      photosGrid.appendChild(img);
+    });
+  } else {
+    photosGrid.innerHTML = "<p class='text-muted' style='font-size:12px;'>Nenhuma foto anexada até o momento.</p>";
+  }
+
+  document.getElementById('modalDetalhesIncidente').style.display = 'flex';
+};
+
+window.fecharModal = () => {
+  document.getElementById('modalDetalhesIncidente').style.display = 'none';
+};
+
+// EXPORTAÇÃO DE RELATÓRIO EM EXCEL / CSV
+window.exportarRelatorioCSV = () => {
+  if (todosIncidentesCache.length === 0) {
+    alert("Nenhum dado disponível para exportação.");
+    return;
+  }
+
+  let csvContent = "data:text/csv;charset=utf-8,ID,OS,Cidades,Estado,OLT,Clientes,Status,Previsao,DataCriacao\n";
+
+  todosIncidentesCache.forEach(i => {
+    csvContent += `"${i.idIncidente}","${i.os}","${i.cidades}","${i.estado}","${i.olt}","${i.clientesCount}","${i.statusAtual}","${i.previsao}","${i.dataCriacao}"\n`;
+  });
+
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `Relatorio_Incidentes_ZAAZ_${new Date().toLocaleDateString('pt-BR')}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
 window.sair = () => {
