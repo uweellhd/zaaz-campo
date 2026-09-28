@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZAAZ Telecom - Painel Operacional</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dashboard-body">
+
+  <div class="dashboard-container">
+    
+    <!-- BARRA SUPERIOR (HEADER) -->
+    <header class="top-nav">
+      <div>
+        <h2 style="color: var(--primary); font-size: 20px; font-weight: 800;">ZAAZ TELECOM</h2>
+        <span id="userBadge" style="font-size: 12px; color: var(--text-muted);">Carregando usuário...</span>
+      </div>
+      <button class="btn-logout-sm" onclick="sair()">Sair da Conta</button>
+    </header>
+
+    <!-- 1. DASHBOARD DA GERÊNCIA / DIREÇÃO (SOMENTE LEITURA) -->
+    <section id="viewGerente" class="view-panel">
+      <h3 class="panel-title">📊 Painel de Indicadores Executivos</h3>
+      
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <span class="kpi-title">Incidentes Ativos</span>
+          <h2 id="kpiTotalIncidentes" class="kpi-value">0</h2>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Clientes Afetados</span>
+          <h2 id="kpiTotalClientes" class="kpi-value" style="color: var(--danger);">0</h2>
+        </div>
+      </div>
+
+      <h4 style="margin-bottom: 12px; font-size: 14px; color: var(--text-muted);">Acompanhamento Geral de Incidentes</h4>
+      <div id="gerenteIncidentesList"></div>
+    </section>
+
+    <!-- 2. PAINEL DO NOC (CADASTRO DE COMUNICADOS) -->
+    <section id="viewNoc" class="view-panel">
+      <h3 class="panel-title">🚨 Registrar Comunicado de Incidente</h3>
+      
+      <form id="formNocIncidente" class="form-grid">
+        <div class="form-group">
+          <label>ID do Incidente:</label>
+          <input type="text" id="nocId" placeholder="Ex: 9842" required>
+        </div>
+        <div class="form-group">
+          <label>Ordem de Serviço (OS):</label>
+          <input type="text" id="nocOs" placeholder="Ex: 20260928111752523246" required>
+        </div>
+        <div class="form-group">
+          <label>Cidades Afetadas:</label>
+          <input type="text" id="nocCidades" placeholder="Ex: Buri / São Paulo" required>
+        </div>
+        <div class="form-group">
+          <label>OLT:</label>
+          <input type="text" id="nocOlt" placeholder="Ex: PRD-OLT-FB-BRI-DC" required>
+        </div>
+        <div class="form-group">
+          <label>Portas Afetadas:</label>
+          <input type="text" id="nocPortas" placeholder="Ex: 1/2" required>
+        </div>
+        <div class="form-group">
+          <label>Tipo de Incidente:</label>
+          <input type="text" id="nocIncidenteTipo" placeholder="Ex: REDE DE ACESSO" required>
+        </div>
+        <div class="form-group">
+          <label>Clientes Afetados (Nº):</label>
+          <input type="number" id="nocClientesCount" placeholder="Ex: 11" required>
+        </div>
+        <div class="form-group">
+          <label>Responsável:</label>
+          <input type="text" id="nocResponsavel" placeholder="Ex: LUCAS AUGUSTO DE PAULA" required>
+        </div>
+        <div class="form-group">
+          <label>Previsão de Solução:</label>
+          <input type="text" id="nocPrevisao" placeholder="Ex: 17:17 28-09-2026" required>
+        </div>
+        <div class="form-group">
+          <label>Status Atual:</label>
+          <input type="text" id="nocStatus" placeholder="Ex: SUPERVISOR INFORMADO" required>
+        </div>
+        <div class="form-group full-width">
+          <label>Descrição detalhada:</label>
+          <textarea id="nocDescricao" placeholder="Ex: 11 clientes com LOS. Acionado supervisor..." required></textarea>
+        </div>
+
+        <button type="submit" id="btnSalvarNoc" class="btn-primary full-width">Publicar Comunicado no Sistema</button>
+      </form>
+    </section>
+
+    <!-- 3. PAINEL DO SAC (CONSULTA RÁPIDA EM TEMPO REAL) -->
+    <section id="viewSac" class="view-panel">
+      <h3 class="panel-title">📞 Consulta Rápida de Incidentes</h3>
+      
+      <div class="search-box">
+        <input type="text" id="inputBuscaSac" placeholder="Pesquisar por ID, Cidade, OS ou Cliente..." onkeyup="filtrarSac()">
+      </div>
+
+      <div id="sacResultsList"></div>
+    </section>
+
+  </div>
+
+  <footer class="app-footer">
+    Um produto <strong>NextFlow</strong>
+  </footer>
+
+  <!-- Script Modular do Firebase para Incidentes -->
+  <script type="module" src="js/incidents.js"></script>
+</body>
+</html>
