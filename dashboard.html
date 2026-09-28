@@ -10,6 +10,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+
+  <!-- Biblioteca de Gráficos Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="dashboard-body">
 
@@ -20,11 +23,12 @@
       <span class="system-subtitle">NextFlow Enterprise System</span>
     </div>
 
-    <!-- MENU DE NAVEGAÇÃO RÁPIDA (HABILITADO PARA ADMIN / NAVEGAÇÃO) -->
+    <!-- MENU DE NAVEGAÇÃO RÁPIDA (ADMIN / DIREÇÃO) -->
     <nav id="adminNavMenu" class="nav-menu" style="display: none;">
       <button class="nav-btn active" onclick="alternarAba('viewGerente')">📊 Diretoria / Gerência</button>
-      <button class="nav-btn" onclick="alternarAba('viewNoc')">🚨 Cadastrar Incidente (NOC)</button>
+      <button class="nav-btn" onclick="alternarAba('viewNoc')">🚨 Registrar (NOC)</button>
       <button class="nav-btn" onclick="alternarAba('viewSac')">📞 Consulta SAC</button>
+      <button class="nav-btn" onclick="alternarAba('viewTech')">👷 Campo Técnico</button>
     </nav>
 
     <div class="nav-user">
@@ -35,27 +39,31 @@
 
   <main class="dashboard-container">
 
-    <!-- 1. DASHBOARD DA GERÊNCIA / DIREÇÃO (MÉTRICAS POR ESTADO E RELATÓRIOS) -->
+    <!-- 1. DASHBOARD DA GERÊNCIA / DIREÇÃO (MÉTRICAS, GPON VS BACKBONE E GRÁFICOS) -->
     <section id="viewGerente" class="view-panel">
       <div class="panel-header-action">
-        <h3 class="panel-title">📊 Painel de Indicadores Executivos e Estado da Rede</h3>
+        <h3 class="panel-title">📊 Painel Executivo e Indicadores da Rede</h3>
         <button class="btn-export" onclick="exportarRelatorioCSV()">📥 Exportar Relatório CSV</button>
       </div>
       
-      <!-- CARDS DE INDICADORES GERAIS -->
+      <!-- CARDS DE INDICADORES DE IMPACTO -->
       <div class="kpi-grid">
         <div class="kpi-card">
-          <span class="kpi-title">Total Incidentes Ativos</span>
+          <span class="kpi-title">Incidentes Ativos</span>
           <h2 id="kpiTotalIncidentes" class="kpi-value">0</h2>
         </div>
         <div class="kpi-card">
-          <span class="kpi-title">Total Clientes Afetados</span>
-          <h2 id="kpiTotalClientes" class="kpi-value alert-text">0</h2>
+          <span class="kpi-title">Clientes Afetados (GPON)</span>
+          <h2 id="kpiTotalGpon" class="kpi-value alert-text">0</h2>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Paradas de Backbone</span>
+          <h2 id="kpiTotalBackbone" class="kpi-value warning-text">0</h2>
         </div>
       </div>
 
       <!-- CARDS DE INCIDENTES POR ESTADO -->
-      <h4 class="section-subtitle">📍 Distribuição de Incidentes por Estado</h4>
+      <h4 class="section-subtitle">📍 Incidentes por Estado</h4>
       <div class="kpi-grid state-grid">
         <div class="kpi-card state-card">
           <span class="kpi-title">São Paulo (SP)</span>
@@ -71,7 +79,20 @@
         </div>
       </div>
 
-      <h4 class="section-subtitle">📋 Visão Geral Consolidada de Atendimentos</h4>
+      <!-- ÁREA DE GRÁFICOS REAL-TIME -->
+      <h4 class="section-subtitle" style="margin-top:20px;">📈 Análise Gráfica em Tempo Real</h4>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h5>Distribuição por Tipo (GPON vs Backbone)</h5>
+          <canvas id="chartTipoIncidente"></canvas>
+        </div>
+        <div class="chart-card">
+          <h5>Incidentes por Estado (SP / MG / PR)</h5>
+          <canvas id="chartEstados"></canvas>
+        </div>
+      </div>
+
+      <h4 class="section-subtitle" style="margin-top:24px;">📋 Visão Geral Consolidada de Atendimentos</h4>
       <div id="gerenteIncidentesList" class="incidents-grid-list"></div>
     </section>
 
@@ -103,9 +124,109 @@
       <div id="sacResultsList" class="incidents-grid-list"></div>
     </section>
 
+    <!-- 4. PAINEL DO TÉCNICO DE CAMPO (MÓDULO GUIADO EM 4 ETAPAS) -->
+    <section id="viewTech" class="view-panel">
+      <h3 class="panel-title">👷 Atendimento Técnico de Rua</h3>
+      
+      <!-- SELEÇÃO DE INCIDENTE SEM DIGITAÇÃO DE ID -->
+      <div id="techSelectArea">
+        <p class="panel-desc">Selecione o chamado abaixo para iniciar o tratamento de rua:</p>
+        <div id="techIncidentsList" class="incidents-grid-list"></div>
+      </div>
+
+      <!-- FORMULÁRIO GUIADO DE 4 ETAPAS -->
+      <div id="techFormArea" style="display:none;">
+        <div class="tech-flow-header">
+          <button class="btn-sec-sm" onclick="cancelarAtendimentoTecnico()">← Voltar à Lista</button>
+          <span id="techActiveIdDisplay" class="active-incident-badge">Atendimento Ativo</span>
+        </div>
+
+        <div class="step-indicator">
+          <span class="step-number active" id="ind-1">1. Partida</span>
+          <span class="step-number" id="ind-2">2. Chegada</span>
+          <span class="step-number" id="ind-3">3. Atuação</span>
+          <span class="step-number" id="ind-4">4. GPS & Final</span>
+        </div>
+
+        <form id="techFormFlow">
+          <!-- ETAPA 1 -->
+          <div class="step active" id="step-1">
+            <h4>Etapa 1: Foto do Deslocamento e Partida</h4>
+            <div class="form-group">
+              <label>Foto da Partida / Deslocamento:</label>
+              <input type="file" id="tf1" accept="image/*" capture="environment" onchange="previewFoto(this, 'tp1')">
+              <img id="tp1" class="preview-img">
+            </div>
+            <button type="button" class="btn-primary" onclick="mudarEtapaTecnico(1)">Avançar para Etapa 2</button>
+          </div>
+
+          <!-- ETAPA 2 -->
+          <div class="step" id="step-2">
+            <h4>Etapa 2: Chegada e Localização do Rompimento</h4>
+            <div class="form-group">
+              <label>Foto do Local de Chegada:</label>
+              <input type="file" id="tf2" accept="image/*" capture="environment" onchange="previewFoto(this, 'tp2')">
+              <img id="tp2" class="preview-img">
+            </div>
+            <div class="form-group">
+              <label>Foto do Rompimento Localizado:</label>
+              <input type="file" id="tf3" accept="image/*" capture="environment" onchange="previewFoto(this, 'tp3')">
+              <img id="tp3" class="preview-img">
+            </div>
+            <div class="btn-step-group">
+              <button type="button" class="btn-sec" onclick="mudarEtapaTecnico(-1)">Voltar</button>
+              <button type="button" class="btn-primary" onclick="mudarEtapaTecnico(1)">Avançar para Etapa 3</button>
+            </div>
+          </div>
+
+          <!-- ETAPA 3 -->
+          <div class="step" id="step-3">
+            <h4>Etapa 3: Atuação da Equipe e Panorâmica</h4>
+            <div class="form-group">
+              <label>Foto Panorâmica do Local:</label>
+              <input type="file" id="tf4" accept="image/*" capture="environment" onchange="previewFoto(this, 'tp4')">
+              <img id="tp4" class="preview-img">
+            </div>
+            <div class="form-group">
+              <label>Foto da Equipe Atuando:</label>
+              <input type="file" id="tf5" accept="image/*" capture="environment" onchange="previewFoto(this, 'tp5')">
+              <img id="tp5" class="preview-img">
+            </div>
+            <div class="btn-step-group">
+              <button type="button" class="btn-sec" onclick="mudarEtapaTecnico(-1)">Voltar</button>
+              <button type="button" class="btn-primary" onclick="mudarEtapaTecnico(1)">Avançar para Etapa 4</button>
+            </div>
+          </div>
+
+          <!-- ETAPA 4 -->
+          <div class="step" id="step-4">
+            <h4>Etapa 4: Geolocalização GPS e Observações de Solução</h4>
+            <div class="form-group">
+              <label>GPS Caixa 1:</label>
+              <input type="text" id="tgps1" placeholder="Coordenadas GPS" readonly>
+              <button type="button" class="btn-sec" style="margin-top:6px;" onclick="capturarGPSTecnico('tgps1')">📍 Capturar GPS Caixa 1</button>
+            </div>
+            <div class="form-group">
+              <label>GPS Caixa 2:</label>
+              <input type="text" id="tgps2" placeholder="Coordenadas GPS" readonly>
+              <button type="button" class="btn-sec" style="margin-top:6px;" onclick="capturarGPSTecnico('tgps2')">📍 Capturar GPS Caixa 2</button>
+            </div>
+            <div class="form-group">
+              <label>Descrição e Solução do Reparo:</label>
+              <textarea id="tobs" placeholder="Descreva a causa encontrada e o reparo realizado..." required></textarea>
+            </div>
+            <div class="btn-step-group">
+              <button type="button" class="btn-sec" onclick="mudarEtapaTecnico(-1)">Voltar</button>
+              <button type="submit" id="btnSalvarTecnico" class="btn-primary" style="background-color: var(--success);">Finalizar e Enviar Atendimento</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
   </main>
 
-  <!-- MODAL DE DETALHES DO INCIDENTE PARA O SAC (FOTOS E COMENTÁRIOS DO TÉCNICO) -->
+  <!-- MODAL DE DETALHES DO INCIDENTE PARA O SAC (FOTOS E COMENTÁRIOS) -->
   <div id="modalDetalhesIncidente" class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header">
@@ -115,14 +236,14 @@
       <div class="modal-body">
         <div id="modalInfoBox" class="info-details-box"></div>
 
-        <h4 class="section-subtitle" style="margin-top:20px;">📷 Registros e Fotos do Técnico de Campo</h4>
+        <h4 class="section-subtitle" style="margin-top:20px;">📷 Fotos Registradas do Técnico</h4>
         <div id="modalPhotosGrid" class="photos-grid">
-          <p class="text-muted">Nenhuma foto registrada até o momento para este atendimento.</p>
+          <p class="text-muted">Nenhuma foto registrada até o momento.</p>
         </div>
 
-        <h4 class="section-subtitle" style="margin-top:20px;">💬 Histórico e Observações de Tratamento</h4>
+        <h4 class="section-subtitle" style="margin-top:20px;">💬 Solução e Observações do Técnico</h4>
         <div id="modalCommentsList" class="comments-list">
-          <p class="text-muted">Aguardando atualização de campo pelo técnico responsável.</p>
+          <p class="text-muted">Aguardando atualização de campo.</p>
         </div>
       </div>
     </div>
