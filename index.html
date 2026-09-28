@@ -9,7 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    /* VARIÁVEIS DE CORES E ESTILOS GLOBAIS */
     :root {
       --primary: #0066FF;
       --primary-hover: #0052CC;
@@ -51,22 +50,20 @@
       border: 1px solid var(--border-color);
     }
 
-    /* ESTILO DO CABEÇALHO DA MARCA COM DIMENSÕES AJUSTADAS PARA A LOGO */
     .brand-header {
       text-align: center;
       border-bottom: 2px solid var(--bg-body);
       padding-bottom: 12px;
       margin-bottom: 20px;
-      overflow: hidden; /* Evita que margens da imagem transbordem */
+      overflow: hidden;
     }
 
     .brand-logo-img {
-      /* Aumentamos a altura máxima para compensar as bordas da imagem */
       max-height: 120px;
       width: auto;
       max-width: 100%;
       display: block;
-      margin: -10px auto -10px auto; /* Margens negativas para aproximar do texto abaixo */
+      margin: -10px auto -10px auto;
       object-fit: contain;
     }
 
@@ -244,13 +241,19 @@
 
     input[type="text"],
     input[type="password"],
-    input[type="file"] {
+    input[type="file"],
+    textarea {
       width: 100%;
       padding: 12px 14px;
       border: 1.5px solid var(--border-color);
       border-radius: 10px;
       font-size: 14px;
       background-color: #F8FAFC;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
     }
 
     input[readonly] {
@@ -371,7 +374,6 @@
 
   <div class="container">
 
-    <!-- CABEÇALHO COM A LOGO EM DIMENSÕES REAJUSTADAS -->
     <div class="brand-header">
       <img src="logo.png" alt="ZAAZ Telecom Logo" class="brand-logo-img">
       <p>Atendimento Técnico e Infraestrutura</p>
@@ -417,7 +419,7 @@
       </form>
     </div>
 
-    <!-- PAINEL ADMINISTRATIVO COM ABAS DE GESTÃO E HISTÓRICO -->
+    <!-- PAINEL ADMINISTRATIVO -->
     <div id="adminScreen" class="admin-box">
       <div class="user-header">
         <span>Painel: <strong>Administrador</strong></span>
@@ -539,6 +541,13 @@
             <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_2', 'status_c2')">📍 Capturar GPS Caixa 2</button>
             <span id="status_c2" class="geo-status"></span>
           </div>
+
+          <!-- NOVO CAMPO: OBSERVAÇÕES DO ATENDIMENTO -->
+          <div class="form-group">
+            <label for="observacao_reparo">Motivo do Rompimento e Ação Realizada:</label>
+            <textarea id="observacao_reparo" placeholder="Descreva a causa do rompimento (ex: galho de árvore, caminhão) e o procedimento feito (ex: fusão de 12 fibras, substituição de cabo)..." required></textarea>
+          </div>
+
           <div class="form-group">
             <label for="foto_caixas">Foto das Caixas Acomodadas:</label>
             <input type="file" id="foto_caixas" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_1')">
@@ -723,6 +732,7 @@
               <strong>ID Chamado: ${item.chamadoId}</strong><br>
               Técnico: ${item.tecnico} | Data: ${item.dataHora}<br>
               GPS Caixa 1: ${item.gps1 || 'N/A'}<br>
+              <strong>Motivo/Ação:</strong> ${item.observacao || 'N/A'}<br>
               <a href="${item.linkDrive}" target="_blank">📁 Abrir Pasta no Google Drive</a>
             `;
             container.appendChild(card);
@@ -854,6 +864,7 @@
         nome_equipe: document.getElementById('nome_equipe').value,
         geo_caixa_1: document.getElementById('geo_caixa_1').value,
         geo_caixa_2: document.getElementById('geo_caixa_2').value,
+        observacao_reparo: document.getElementById('observacao_reparo').value,
         foto_deslocamento: imagensBase64['foto_deslocamento'] || '',
         foto_local_chegada: imagensBase64['foto_local_chegada'] || '',
         foto_rompimento: imagensBase64['foto_rompimento'] || '',
