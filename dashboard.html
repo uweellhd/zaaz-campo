@@ -124,7 +124,7 @@
       <div id="sacResultsList" class="incidents-grid-list"></div>
     </section>
 
-    <!-- 4. PAINEL DO TÉCNICO DE CAMPO (MÓDULO GUIADO EM 4 ETAPAS) -->
+    <!-- 4. PAINEL DO TÉCNICO DE CAMPO (COM SALVAMENTO PARCIAL E MODO RURAL) -->
     <section id="viewTech" class="view-panel">
       <h3 class="panel-title">👷 Atendimento Técnico de Rua</h3>
       
@@ -134,18 +134,27 @@
         <div id="techIncidentsList" class="incidents-grid-list"></div>
       </div>
 
-      <!-- FORMULÁRIO GUIADO DE 4 ETAPAS -->
+      <!-- FORMULÁRIO GUIADO DE 4 ETAPAS COM SALVAMENTO PASSO A PASSO -->
       <div id="techFormArea" style="display:none;">
         <div class="tech-flow-header">
           <button class="btn-sec-sm" onclick="cancelarAtendimentoTecnico()">← Voltar à Lista</button>
           <span id="techActiveIdDisplay" class="active-incident-badge">Atendimento Ativo</span>
         </div>
 
+        <!-- AMBIENTE / SINAL RURAL -->
+        <div class="form-group" style="background: #FFFBEB; padding: 12px; border-radius: 10px; border: 1px solid #FDE68A; margin-bottom: 20px;">
+          <label style="color: #92400E; font-weight: 700; margin-bottom: 4px;">🌾 Condição de Sinal da Região:</label>
+          <select id="techSinalRuralSelect" style="border-color: #FCD34D; font-weight: 600;">
+            <option value="NORMAL">🏙️ Área Urbana / Sinal Normal</option>
+            <option value="RURAL_SEM_SINAL">🌾 Área Rural / Sem Sinal (Sincronização Automática ao Reconectar)</option>
+          </select>
+        </div>
+
         <div class="step-indicator">
           <span class="step-number active" id="ind-1">1. Partida</span>
           <span class="step-number" id="ind-2">2. Chegada</span>
           <span class="step-number" id="ind-3">3. Atuação</span>
-          <span class="step-number" id="ind-4">4. GPS & Final</span>
+          <span class="step-number" id="ind-4">4. Finalização</span>
         </div>
 
         <form id="techFormFlow">
@@ -154,10 +163,10 @@
             <h4>Etapa 1: Foto do Deslocamento e Partida</h4>
             <div class="form-group">
               <label>Foto da Partida / Deslocamento:</label>
-              <input type="file" id="tf1" accept="image/*" capture="environment" onchange="previewFoto(this, 'tp1')">
+              <input type="file" id="tf1" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp1', 'fotoDeslocamento')">
               <img id="tp1" class="preview-img">
             </div>
-            <button type="button" class="btn-primary" onclick="mudarEtapaTecnico(1)">Avançar para Etapa 2</button>
+            <button type="button" class="btn-primary" onclick="salvarEtapa1()">Avançar e Enviar Etapa 1</button>
           </div>
 
           <!-- ETAPA 2 -->
@@ -165,17 +174,17 @@
             <h4>Etapa 2: Chegada e Localização do Rompimento</h4>
             <div class="form-group">
               <label>Foto do Local de Chegada:</label>
-              <input type="file" id="tf2" accept="image/*" capture="environment" onchange="previewFoto(this, 'tp2')">
+              <input type="file" id="tf2" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp2', 'fotoChegada')">
               <img id="tp2" class="preview-img">
             </div>
             <div class="form-group">
               <label>Foto do Rompimento Localizado:</label>
-              <input type="file" id="tf3" accept="image/*" capture="environment" onchange="previewFoto(this, 'tp3')">
+              <input type="file" id="tf3" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp3', 'fotoRompimento')">
               <img id="tp3" class="preview-img">
             </div>
             <div class="btn-step-group">
-              <button type="button" class="btn-sec" onclick="mudarEtapaTecnico(-1)">Voltar</button>
-              <button type="button" class="btn-primary" onclick="mudarEtapaTecnico(1)">Avançar para Etapa 3</button>
+              <button type="button" class="btn-sec" onclick="voltarEtapaVisual(-1)">Voltar</button>
+              <button type="button" class="btn-primary" onclick="salvarEtapa2()">Avançar e Enviar Etapa 2</button>
             </div>
           </div>
 
@@ -184,23 +193,23 @@
             <h4>Etapa 3: Atuação da Equipe e Panorâmica</h4>
             <div class="form-group">
               <label>Foto Panorâmica do Local:</label>
-              <input type="file" id="tf4" accept="image/*" capture="environment" onchange="previewFoto(this, 'tp4')">
+              <input type="file" id="tf4" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp4', 'fotoPanoramica')">
               <img id="tp4" class="preview-img">
             </div>
             <div class="form-group">
               <label>Foto da Equipe Atuando:</label>
-              <input type="file" id="tf5" accept="image/*" capture="environment" onchange="previewFoto(this, 'tp5')">
+              <input type="file" id="tf5" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp5', 'fotoEquipe')">
               <img id="tp5" class="preview-img">
             </div>
             <div class="btn-step-group">
-              <button type="button" class="btn-sec" onclick="mudarEtapaTecnico(-1)">Voltar</button>
-              <button type="button" class="btn-primary" onclick="mudarEtapaTecnico(1)">Avançar para Etapa 4</button>
+              <button type="button" class="btn-sec" onclick="voltarEtapaVisual(-1)">Voltar</button>
+              <button type="button" class="btn-primary" onclick="salvarEtapa3()">Avançar e Enviar Etapa 3</button>
             </div>
           </div>
 
           <!-- ETAPA 4 -->
           <div class="step" id="step-4">
-            <h4>Etapa 4: Geolocalização GPS e Observações de Solução</h4>
+            <h4>Etapa 4: GPS, Acomodação das Caixas e Local Limpo</h4>
             <div class="form-group">
               <label>GPS Caixa 1:</label>
               <input type="text" id="tgps1" placeholder="Coordenadas GPS" readonly>
@@ -211,13 +220,27 @@
               <input type="text" id="tgps2" placeholder="Coordenadas GPS" readonly>
               <button type="button" class="btn-sec" style="margin-top:6px;" onclick="capturarGPSTecnico('tgps2')">📍 Capturar GPS Caixa 2</button>
             </div>
+
             <div class="form-group">
-              <label>Descrição e Solução do Reparo:</label>
-              <textarea id="tobs" placeholder="Descreva a causa encontrada e o reparo realizado..." required></textarea>
+              <label>Foto das Acomodações das Caixas / Fusões:</label>
+              <input type="file" id="tf6" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp6', 'fotoAcomodacao')">
+              <img id="tp6" class="preview-img">
             </div>
+
+            <div class="form-group">
+              <label>Foto do Local Limpo e Organizado:</label>
+              <input type="file" id="tf7" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp7', 'fotoLocalLimpo')">
+              <img id="tp7" class="preview-img">
+            </div>
+
+            <div class="form-group">
+              <label>Descrição e Solução Final do Reparo:</label>
+              <textarea id="tobs" placeholder="Descreva o serviço realizado e causa final..." required></textarea>
+            </div>
+
             <div class="btn-step-group">
-              <button type="button" class="btn-sec" onclick="mudarEtapaTecnico(-1)">Voltar</button>
-              <button type="submit" id="btnSalvarTecnico" class="btn-primary" style="background-color: var(--success);">Finalizar e Enviar Atendimento</button>
+              <button type="button" class="btn-sec" onclick="voltarEtapaVisual(-1)">Voltar</button>
+              <button type="button" id="btnSalvarTecnicoFinal" class="btn-primary" style="background-color: var(--success);" onclick="salvarEtapa4Final()">Finalizar Atendimento de Campo</button>
             </div>
           </div>
         </form>
