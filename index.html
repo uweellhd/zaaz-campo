@@ -73,7 +73,6 @@
       text-transform: uppercase;
     }
 
-    /* BARRA DE STATUS DE CONEXÃO E PENDÊNCIAS */
     .status-bar {
       padding: 10px 14px;
       border-radius: 10px;
@@ -397,9 +396,10 @@
             <input type="text" id="nome_equipe" readonly required>
           </div>
 
+          <!-- FOTO DA ETAPA 1: PERMITE GALERIA OU CÂMERA (Sem o atributo capture) -->
           <div class="form-group">
-            <label for="foto_deslocamento">Foto do Deslocamento / Partida:</label>
-            <input type="file" id="foto_deslocamento" accept="image/*" capture="environment" onchange="previewImage(this, 'prev1')">
+            <label for="foto_deslocamento">Foto do Deslocamento / Partida (Câmera ou Galeria):</label>
+            <input type="file" id="foto_deslocamento" accept="image/*" onchange="previewImage(this, 'prev1')">
             <img id="prev1" class="preview" alt="Pré-visualização da foto 1">
           </div>
         </div>
@@ -488,7 +488,6 @@
     const SENHA_CORRETA = "1234";
     let usuarioLogado = "";
 
-    // VERIFICAÇÃO AUTOMÁTICA DE CONEXÃO E PENDÊNCIAS
     window.addEventListener('online', atualizarStatusConexao);
     window.addEventListener('offline', atualizarStatusConexao);
 
@@ -584,7 +583,6 @@
       const statusElement = document.getElementById(statusId);
       const inputElement = document.getElementById(inputId);
 
-      // O GPS via Satélite funciona sem internet!
       if ("geolocation" in navigator) {
         statusElement.textContent = "Obtendo GPS por satélite...";
         statusElement.style.color = "#0066FF";
@@ -636,7 +634,6 @@
       document.getElementById('btnSubmit').style.display = 'none';
     }
 
-    // ENVIO INTELIGENTE (ONLINE x OFFLINE)
     function enviarRelatorio(event) {
       event.preventDefault();
 
@@ -654,7 +651,6 @@
         foto_caixas: imagensBase64['foto_caixas'] || ''
       };
 
-      // SE ESTIVER SEM INTERNET
       if (!navigator.onLine) {
         salvarOffline(dadosRelatorio);
         alert('📡 Você está offline! O relatório foi salvo com segurança no celular e será enviado assim que houver sinal.');
@@ -663,7 +659,6 @@
         return;
       }
 
-      // SE ESTIVER COM INTERNET
       btnSubmit.textContent = "⏳ Enviando relatório...";
       btnSubmit.disabled = true;
 
@@ -681,7 +676,6 @@
       });
     }
 
-    // FUNÇÃO AUXILIAR DE TRANSMISSÃO HTTP
     function dispararEnvio(dados, callback) {
       const formData = new FormData();
       for (let key in dados) {
@@ -696,14 +690,12 @@
       .catch(() => callback(false));
     }
 
-    // SALVA NO ARMAZENAMENTO INTERNO DO CELULAR (`localStorage`)
     function salvarOffline(relatorio) {
       const pendentes = JSON.parse(localStorage.getItem('relatorios_pendentes') || '[]');
       pendentes.push(relatorio);
       localStorage.setItem('relatorios_pendentes', JSON.stringify(pendentes));
     }
 
-    // ENVIA TODOS OS RELATÓRIOS SALVOS QUANDO VOLTA A INTERNET
     function sincronizarPendentes() {
       const pendentes = JSON.parse(localStorage.getItem('relatorios_pendentes') || '[]');
       if (pendentes.length === 0) return;
@@ -720,7 +712,7 @@
             enviados++;
             if (enviados === pendentes.length) {
               localStorage.removeItem('relatorios_pendentes');
-              alert('⚡ Todos os relatórios offline foram sincronizados com sucesso na planilha!');
+              alert('⚡ Todos os relatorios offline foram sincronizados com sucesso na planilha!');
               btnSync.disabled = false;
               atualizarStatusConexao();
             }
