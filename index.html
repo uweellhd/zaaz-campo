@@ -7,9 +7,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
-  <!-- Biblioteca html2pdf para geração de PDF direto no navegador -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
     :root {
@@ -294,7 +291,7 @@
       gap: 12px;
     }
 
-    button.nav-btn, button.btn-login, button.btn-add-user, button.btn-pdf {
+    button.nav-btn, button.btn-login, button.btn-add-user {
       padding: 14px 20px;
       border: none;
       border-radius: 10px;
@@ -305,13 +302,6 @@
 
     .btn-login, .btn-add-user {
       background-color: var(--primary);
-      color: white;
-      width: 100%;
-      margin-top: 10px;
-    }
-
-    .btn-pdf {
-      background-color: #0284C7;
       color: white;
       width: 100%;
       margin-top: 10px;
@@ -335,7 +325,6 @@
       width: 100%;
     }
 
-    /* CARDS DE HISTÓRICO */
     .history-card {
       background-color: #F8FAFC;
       border: 1px solid var(--border-color);
@@ -429,14 +418,12 @@
       </div>
 
       <h2>Gestão do Sistema</h2>
-      
-      <!-- MENU DE NAVEGAÇÃO ADMIN -->
+
       <div style="display: flex; gap: 8px; margin-bottom: 20px;">
         <button type="button" class="btn-action-sm" style="flex: 1; background-color: var(--primary); color: white;" id="tabUsersBtn" onclick="alternarAbaAdmin('users')">👥 Usuários</button>
         <button type="button" class="btn-action-sm" style="flex: 1;" id="tabHistBtn" onclick="alternarAbaAdmin('hist')">📋 Histórico</button>
       </div>
 
-      <!-- ABA CADASTRO DE USUÁRIOS -->
       <div id="adminTabUsers">
         <form id="addUserForm" onsubmit="cadastrarUsuarioNaPlanilha(event)">
           <div class="form-group">
@@ -451,7 +438,6 @@
         </form>
       </div>
 
-      <!-- ABA HISTÓRICO DE CHAMADOS -->
       <div id="adminTabHist" style="display: none;">
         <button type="button" class="btn-action-sm" style="width: 100%; margin-bottom: 12px;" onclick="carregarHistoricoChamados()">🔄 Atualizar Histórico</button>
         <div id="historicoContainer">
@@ -471,107 +457,101 @@
         </div>
       </div>
 
-      <!-- CONTAINER PARA GERAR PDF -->
-      <div id="pdfArea">
-        <h2>Relatório de Atendimento</h2>
-        <p class="subtitle">Registro de rompimento e reparo de fibra</p>
+      <h2>Relatório de Atendimento</h2>
+      <p class="subtitle">Registro de rompimento e reparo de fibra</p>
 
-        <div class="step-indicator">
-          <span class="step-number active" id="ind-1">Etapa 1</span>
-          <span class="step-number" id="ind-2">Etapa 2</span>
-          <span class="step-number" id="ind-3">Etapa 3</span>
-          <span class="step-number" id="ind-4">Etapa 4</span>
-        </div>
-
-        <form id="techForm" onsubmit="enviarRelatorio(event)">
-
-          <!-- ETAPA 1 -->
-          <div class="step active" id="step-1">
-            <h3>1. Comunicado e Deslocamento</h3>
-            <div class="form-group">
-              <label for="codigo_chamado">Código / ID do Chamado:</label>
-              <input type="text" id="codigo_chamado" placeholder="Ex: OS-2026-99" required>
-            </div>
-            <div class="form-group">
-              <label for="nome_equipe">Técnico Responsável:</label>
-              <input type="text" id="nome_equipe" readonly required>
-            </div>
-            <div class="form-group">
-              <label for="foto_deslocamento">Foto do Deslocamento / Partida:</label>
-              <input type="file" id="foto_deslocamento" accept="image/*" onchange="previewImage(this, 'prev1')">
-              <img id="prev1" class="preview" alt="Pré-visualização foto 1">
-            </div>
-          </div>
-
-          <!-- ETAPA 2 -->
-          <div class="step" id="step-2">
-            <h3>2. Chegada e Identificação</h3>
-            <div class="form-group">
-              <label for="foto_local_chegada">Foto do Local da Chegada:</label>
-              <input type="file" id="foto_local_chegada" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_1')">
-              <img id="prev2_1" class="preview" alt="Pré-visualização local">
-            </div>
-            <div class="form-group">
-              <label for="foto_rompimento">Foto do Rompimento Localizado:</label>
-              <input type="file" id="foto_rompimento" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_2')">
-              <img id="prev2_2" class="preview" alt="Pré-visualização rompimento">
-            </div>
-          </div>
-
-          <!-- ETAPA 3 -->
-          <div class="step" id="step-3">
-            <h3>3. Execução do Serviço</h3>
-            <div class="form-group">
-              <label for="foto_panoramica">Foto Panorâmica do Local:</label>
-              <input type="file" id="foto_panoramica" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_1')">
-              <img id="prev3_1" class="preview" alt="Pré-visualização panorâmica">
-            </div>
-            <div class="form-group">
-              <label for="foto_equipe">Foto da Equipe Atuando:</label>
-              <input type="file" id="foto_equipe" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_2')">
-              <img id="prev3_2" class="preview" alt="Pré-visualização equipe">
-            </div>
-          </div>
-
-          <!-- ETAPA 4 -->
-          <div class="step" id="step-4">
-            <h3>4. Finalização e Geolocalização</h3>
-            <div class="form-group">
-              <label for="geo_caixa_1">Geolocalização Caixa 1:</label>
-              <input type="text" id="geo_caixa_1" placeholder="Coordenadas GPS" readonly>
-              <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_1', 'status_c1')">📍 Capturar GPS Caixa 1</button>
-              <span id="status_c1" class="geo-status"></span>
-            </div>
-            <div class="form-group">
-              <label for="geo_caixa_2">Geolocalização Caixa 2:</label>
-              <input type="text" id="geo_caixa_2" placeholder="Coordenadas GPS" readonly>
-              <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_2', 'status_c2')">📍 Capturar GPS Caixa 2</button>
-              <span id="status_c2" class="geo-status"></span>
-            </div>
-            <div class="form-group">
-              <label for="foto_caixas">Foto das Caixas Acomodadas:</label>
-              <input type="file" id="foto_caixas" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_1')">
-              <img id="prev4_1" class="preview" alt="Pré-visualização caixas">
-            </div>
-            <div class="form-group">
-              <label for="foto_limpeza">Foto do Local Limpo:</label>
-              <input type="file" id="foto_limpeza" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_2')">
-              <img id="prev4_2" class="preview" alt="Pré-visualização local limpo">
-            </div>
-          </div>
-
-          <!-- NAVEGAÇÃO -->
-          <div class="buttons">
-            <button type="button" class="nav-btn btn-prev" id="btnPrev" onclick="changeStep(-1)" style="display:none;">Voltar</button>
-            <button type="button" class="nav-btn btn-next" id="btnNext" onclick="changeStep(1)">Avançar</button>
-            <button type="submit" class="nav-btn btn-submit" id="btnSubmit" style="display:none;">Finalizar e Salvar</button>
-          </div>
-
-        </form>
+      <div class="step-indicator">
+        <span class="step-number active" id="ind-1">Etapa 1</span>
+        <span class="step-number" id="ind-2">Etapa 2</span>
+        <span class="step-number" id="ind-3">Etapa 3</span>
+        <span class="step-number" id="ind-4">Etapa 4</span>
       </div>
 
-      <!-- BOTÃO PARA GERAR PDF DO RELATÓRIO PREENCHIDO -->
-      <button type="button" class="btn-pdf" onclick="gerarPDF()">📄 Gerar PDF do Relatório</button>
+      <form id="techForm" onsubmit="enviarRelatorio(event)">
+
+        <!-- ETAPA 1 -->
+        <div class="step active" id="step-1">
+          <h3>1. Comunicado e Deslocamento</h3>
+          <div class="form-group">
+            <label for="codigo_chamado">Código / ID do Chamado:</label>
+            <input type="text" id="codigo_chamado" placeholder="Ex: OS-2026-99" required>
+          </div>
+          <div class="form-group">
+            <label for="nome_equipe">Técnico Responsável:</label>
+            <input type="text" id="nome_equipe" readonly required>
+          </div>
+          <div class="form-group">
+            <label for="foto_deslocamento">Foto do Deslocamento / Partida:</label>
+            <input type="file" id="foto_deslocamento" accept="image/*" onchange="previewImage(this, 'prev1')">
+            <img id="prev1" class="preview" alt="Pré-visualização foto 1">
+          </div>
+        </div>
+
+        <!-- ETAPA 2 -->
+        <div class="step" id="step-2">
+          <h3>2. Chegada e Identificação</h3>
+          <div class="form-group">
+            <label for="foto_local_chegada">Foto do Local da Chegada:</label>
+            <input type="file" id="foto_local_chegada" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_1')">
+            <img id="prev2_1" class="preview" alt="Pré-visualização local">
+          </div>
+          <div class="form-group">
+            <label for="foto_rompimento">Foto do Rompimento Localizado:</label>
+            <input type="file" id="foto_rompimento" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_2')">
+            <img id="prev2_2" class="preview" alt="Pré-visualização rompimento">
+          </div>
+        </div>
+
+        <!-- ETAPA 3 -->
+        <div class="step" id="step-3">
+          <h3>3. Execução do Serviço</h3>
+          <div class="form-group">
+            <label for="foto_panoramica">Foto Panorâmica do Local:</label>
+            <input type="file" id="foto_panoramica" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_1')">
+            <img id="prev3_1" class="preview" alt="Pré-visualização panorâmica">
+          </div>
+          <div class="form-group">
+            <label for="foto_equipe">Foto da Equipe Atuando:</label>
+            <input type="file" id="foto_equipe" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_2')">
+            <img id="prev3_2" class="preview" alt="Pré-visualização equipe">
+          </div>
+        </div>
+
+        <!-- ETAPA 4 -->
+        <div class="step" id="step-4">
+          <h3>4. Finalização e Geolocalização</h3>
+          <div class="form-group">
+            <label for="geo_caixa_1">Geolocalização Caixa 1:</label>
+            <input type="text" id="geo_caixa_1" placeholder="Coordenadas GPS" readonly>
+            <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_1', 'status_c1')">📍 Capturar GPS Caixa 1</button>
+            <span id="status_c1" class="geo-status"></span>
+          </div>
+          <div class="form-group">
+            <label for="geo_caixa_2">Geolocalização Caixa 2:</label>
+            <input type="text" id="geo_caixa_2" placeholder="Coordenadas GPS" readonly>
+            <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_2', 'status_c2')">📍 Capturar GPS Caixa 2</button>
+            <span id="status_c2" class="geo-status"></span>
+          </div>
+          <div class="form-group">
+            <label for="foto_caixas">Foto das Caixas Acomodadas:</label>
+            <input type="file" id="foto_caixas" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_1')">
+            <img id="prev4_1" class="preview" alt="Pré-visualização caixas">
+          </div>
+          <div class="form-group">
+            <label for="foto_limpeza">Foto do Local Limpo:</label>
+            <input type="file" id="foto_limpeza" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_2')">
+            <img id="prev4_2" class="preview" alt="Pré-visualização local limpo">
+          </div>
+        </div>
+
+        <!-- NAVEGAÇÃO -->
+        <div class="buttons">
+          <button type="button" class="nav-btn btn-prev" id="btnPrev" onclick="changeStep(-1)" style="display:none;">Voltar</button>
+          <button type="button" class="nav-btn btn-next" id="btnNext" onclick="changeStep(1)">Avançar</button>
+          <button type="submit" class="nav-btn btn-submit" id="btnSubmit" style="display:none;">Finalizar e Salvar</button>
+        </div>
+
+      </form>
     </div>
 
   </div>
@@ -657,7 +637,7 @@
       });
     }
 
-    /* RECURSO 1: ALTERAÇÃO DE SENHA */
+    /* ALTERAÇÃO DE SENHA */
     function abrirModalSenha() {
       document.getElementById('modalPass').style.display = 'block';
       document.getElementById('appScreen').style.display = 'none';
@@ -693,32 +673,7 @@
       });
     }
 
-    /* RECURSO 2: GERAR PDF DO RELATÓRIO */
-    function gerarPDF() {
-      const elemento = document.getElementById('pdfArea');
-      const chamado = document.getElementById('codigo_chamado').value || 'Relatorio';
-
-      // Revela temporariamente todas as etapas para o PDF capturar tudo
-      const steps = document.querySelectorAll('.step');
-      steps.forEach(s => s.style.display = 'block');
-
-      const opcoes = {
-        margin: 10,
-        filename: `ZAAZ_Relatorio_${chamado}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      html2pdf().set(opcoes).from(elemento).save().then(() => {
-        // Restaura a visualização por etapas
-        steps.forEach((s, idx) => {
-          s.style.display = (idx + 1 === currentStep) ? 'block' : 'none';
-        });
-      });
-    }
-
-    /* RECURSO 3: HISTÓRICO DE CHAMADOS NO PAINEL ADMIN */
+    /* HISTÓRICO DE CHAMADOS NO PAINEL ADMIN */
     function alternarAbaAdmin(aba) {
       const btnUsers = document.getElementById('tabUsersBtn');
       const btnHist = document.getElementById('tabHistBtn');
@@ -798,13 +753,20 @@
       });
     }
 
+    /* FUNÇÃO LOGOUT TOTALMENTE CORRIGIDA */
     function fazerLogout() {
+      // Limpa os campos de login
       document.getElementById('usuario').value = '';
       document.getElementById('senha').value = '';
+      
+      // Exibe a tela de login
       document.getElementById('loginScreen').style.display = 'block';
+      
+      // Esconde obrigatoriamente todas as outras telas e modais
       document.getElementById('appScreen').style.display = 'none';
       document.getElementById('adminScreen').style.display = 'none';
-      fecharModalSenha();
+      document.getElementById('modalPass').style.display = 'none';
+      
       resetFormulario();
     }
 
