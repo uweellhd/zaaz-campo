@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEXTFLOW ENTERPRISE - ESTILIZAÇÃO PROFISSIONAL (style.css)
+   NEXTFLOW ENTERPRISE - ESTILIZAÇÃO COMPLETA (style.css)
    ========================================================================== */
 
 :root {
@@ -21,6 +21,7 @@
   padding: 0;
 }
 
+/* ESTILOS DA TELA DE LOGIN */
 body {
   background: var(--bg-gradient);
   min-height: 100vh;
@@ -29,10 +30,9 @@ body {
   justify-content: center;
   align-items: center;
   padding: 20px;
-  padding-bottom: 60px; /* Espaço para o rodapé fixo */
+  padding-bottom: 60px;
 }
 
-/* Container do Cartão Login */
 .login-card {
   background: var(--card-bg);
   width: 100%;
@@ -47,7 +47,6 @@ body {
   margin-bottom: 28px;
 }
 
-/* DESTAQUE PRINCIPAL DA EMPRESA */
 .brand-header h1 {
   font-size: 28px;
   font-weight: 800;
@@ -56,7 +55,6 @@ body {
   text-transform: uppercase;
 }
 
-/* SUBTÍTULO: ACESSO CORPORATIVO */
 .brand-header p {
   font-size: 13px;
   color: var(--text-muted);
@@ -66,7 +64,6 @@ body {
   margin-top: 6px;
 }
 
-/* Campos do Formulário */
 .form-group {
   margin-bottom: 20px;
 }
@@ -80,7 +77,9 @@ label {
 }
 
 input[type="text"],
-input[type="password"] {
+input[type="password"],
+input[type="number"],
+textarea {
   width: 100%;
   padding: 14px 16px;
   border: 1.5px solid var(--border-color);
@@ -90,8 +89,15 @@ input[type="password"] {
   transition: all 0.2s ease;
 }
 
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
 input[type="text"]:focus,
-input[type="password"]:focus {
+input[type="password"]:focus,
+input[type="number"]:focus,
+textarea:focus {
   outline: none;
   border-color: var(--primary);
   background-color: #FFFFFF;
@@ -116,7 +122,6 @@ input[type="password"]:focus {
   background-color: var(--primary-hover);
 }
 
-/* Mensagens de Feedback e Erro */
 .error-box {
   display: none;
   background-color: #FEF2F2;
@@ -130,7 +135,6 @@ input[type="password"]:focus {
   margin-top: 16px;
 }
 
-/* Área de Boas-Vindas (Pós-Login) */
 .welcome-card {
   display: none;
   text-align: center;
@@ -159,7 +163,111 @@ input[type="password"]:focus {
   margin-bottom: 20px;
 }
 
-/* RODAPÉ PERSONALIZADO NEXTFLOW */
+/* ESTILOS DA DASHBOARD DE INCIDENTES */
+.dashboard-body {
+  background: #F1F5F9;
+  min-height: 100vh;
+  display: block;
+  padding: 20px;
+  padding-bottom: 70px;
+}
+
+.dashboard-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #FFFFFF;
+  padding: 16px 20px;
+  border-radius: 14px;
+  border: 1px solid #E2E8F0;
+  margin-bottom: 20px;
+}
+
+.btn-logout-sm {
+  background: #FEF2F2;
+  color: #EF4444;
+  border: 1px solid #FCA5A5;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.view-panel {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #E2E8F0;
+}
+
+.panel-title {
+  font-size: 18px;
+  color: var(--primary);
+  margin-bottom: 20px;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.kpi-card {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  padding: 18px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.kpi-title {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.kpi-value {
+  font-size: 28px;
+  font-weight: 800;
+  margin-top: 6px;
+  color: var(--primary);
+}
+
+.incidente-card {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.full-width {
+  grid-column: span 2;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 14px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
 .app-footer {
   position: fixed;
   bottom: 0;
@@ -175,4 +283,13 @@ input[type="password"]:focus {
 
 .app-footer strong {
   color: #38BDF8;
+}
+
+@media (max-width: 600px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .full-width {
+    grid-column: span 1;
+  }
 }
