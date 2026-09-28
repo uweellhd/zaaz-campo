@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZAAZ Telecom - NextFlow Enterprise Panel</title>
+  <title>ZAAZ Telecom - Painel Operacional Widescreen</title>
   
   <!-- Fonte Google Inter e Estilos Globais -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,13 +14,19 @@
   <!-- Biblioteca de Gráficos Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="dashboard-body">
+<body class="dashboard-body theme-light" id="appBody">
 
-  <!-- BARRA SUPERIOR FIXA (HEADER) -->
+  <!-- BARRA SUPERIOR FIXA WIDESCREEN (HEADER) -->
   <header class="top-nav">
     <div class="nav-brand">
-      <h2>ZAAZ TELECOM</h2>
+      <h2 class="zaaz-title">ZAAZ TELECOM</h2>
       <span class="system-subtitle">NextFlow Enterprise System</span>
+    </div>
+
+    <!-- RELÓGIO CORPORATIVO EM TEMPO REAL -->
+    <div class="clock-box">
+      <span id="realtimeClock">00:00:00</span>
+      <span id="realtimeDate" class="clock-date">--/--/----</span>
     </div>
 
     <!-- MENU DE NAVEGAÇÃO RÁPIDA (ADMIN / DIREÇÃO) -->
@@ -32,12 +38,19 @@
     </nav>
 
     <div class="nav-user">
+      <!-- BOTÃO DE ALTERNÂNCIA DE TEMAS -->
+      <select id="themeSelector" class="theme-select" onchange="mudarTemaSistema(this.value)">
+        <option value="theme-light">☀️ Tema Claro</option>
+        <option value="theme-dark">🌙 Tema Escuro</option>
+        <option value="theme-neon">⚡ Tema Neon Telecom</option>
+      </select>
+
       <span id="userBadge">Carregando perfil...</span>
       <button class="btn-logout-sm" onclick="sair()">Sair</button>
     </div>
   </header>
 
-  <main class="dashboard-container">
+  <main class="dashboard-container widescreen-container">
 
     <!-- 1. DASHBOARD DA GERÊNCIA / DIREÇÃO (MÉTRICAS, GPON VS BACKBONE E GRÁFICOS) -->
     <section id="viewGerente" class="view-panel">
@@ -79,7 +92,7 @@
         </div>
       </div>
 
-      <!-- ÁREA DE GRÁFICOS REAL-TIME -->
+      <!-- ÁREA DE GRÁFICOS REAL-TIME WIDESCREEN -->
       <h4 class="section-subtitle" style="margin-top:20px;">📈 Análise Gráfica em Tempo Real</h4>
       <div class="charts-grid">
         <div class="chart-card">
@@ -124,29 +137,26 @@
       <div id="sacResultsList" class="incidents-grid-list"></div>
     </section>
 
-    <!-- 4. PAINEL DO TÉCNICO DE CAMPO (COM SALVAMENTO PARCIAL E MODO RURAL) -->
+    <!-- 4. PAINEL DO TÉCNICO DE CAMPO (FOCADO E LIMPO POR ETAPAS) -->
     <section id="viewTech" class="view-panel">
       <h3 class="panel-title">👷 Atendimento Técnico de Rua</h3>
       
-      <!-- SELEÇÃO DE INCIDENTE SEM DIGITAÇÃO DE ID -->
       <div id="techSelectArea">
-        <p class="panel-desc">Selecione o chamado abaixo para iniciar o tratamento de rua:</p>
+        <p class="panel-desc">Selecione o chamado para iniciar ou continuar o tratamento:</p>
         <div id="techIncidentsList" class="incidents-grid-list"></div>
       </div>
 
-      <!-- FORMULÁRIO GUIADO DE 4 ETAPAS COM SALVAMENTO PASSO A PASSO -->
       <div id="techFormArea" style="display:none;">
         <div class="tech-flow-header">
           <button class="btn-sec-sm" onclick="cancelarAtendimentoTecnico()">← Voltar à Lista</button>
           <span id="techActiveIdDisplay" class="active-incident-badge">Atendimento Ativo</span>
         </div>
 
-        <!-- AMBIENTE / SINAL RURAL -->
-        <div class="form-group" style="background: #FFFBEB; padding: 12px; border-radius: 10px; border: 1px solid #FDE68A; margin-bottom: 20px;">
-          <label style="color: #92400E; font-weight: 700; margin-bottom: 4px;">🌾 Condição de Sinal da Região:</label>
-          <select id="techSinalRuralSelect" style="border-color: #FCD34D; font-weight: 600;">
+        <div class="form-group" style="background: rgba(253, 230, 138, 0.2); padding: 12px; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+          <label style="color: var(--zaaz-blue); font-weight: 700; margin-bottom: 4px;">🌾 Condição de Sinal da Região:</label>
+          <select id="techSinalRuralSelect">
             <option value="NORMAL">🏙️ Área Urbana / Sinal Normal</option>
-            <option value="RURAL_SEM_SINAL">🌾 Área Rural / Sem Sinal (Sincronização Automática ao Reconectar)</option>
+            <option value="RURAL_SEM_SINAL">🌾 Área Rural / Sem Sinal (Sincronização Automática)</option>
           </select>
         </div>
 
@@ -212,30 +222,30 @@
             <h4>Etapa 4: GPS, Acomodação das Caixas e Local Limpo</h4>
             <div class="form-group">
               <label>GPS Caixa 1:</label>
-              <input type="text" id="tgps1" placeholder="Coordenadas GPS" readonly>
+              <input type="text" id="tgps1" placeholder="Coordenadas GPS Caixa 1" readonly required>
               <button type="button" class="btn-sec" style="margin-top:6px;" onclick="capturarGPSTecnico('tgps1')">📍 Capturar GPS Caixa 1</button>
             </div>
             <div class="form-group">
               <label>GPS Caixa 2:</label>
-              <input type="text" id="tgps2" placeholder="Coordenadas GPS" readonly>
+              <input type="text" id="tgps2" placeholder="Coordenadas GPS Caixa 2" readonly required>
               <button type="button" class="btn-sec" style="margin-top:6px;" onclick="capturarGPSTecnico('tgps2')">📍 Capturar GPS Caixa 2</button>
             </div>
 
             <div class="form-group">
               <label>Foto das Acomodações das Caixas / Fusões:</label>
-              <input type="file" id="tf6" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp6', 'fotoAcomodacao')">
+              <input type="file" id="tf6" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp6', 'fotoAcomodacao')" required>
               <img id="tp6" class="preview-img">
             </div>
 
             <div class="form-group">
               <label>Foto do Local Limpo e Organizado:</label>
-              <input type="file" id="tf7" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp7', 'fotoLocalLimpo')">
+              <input type="file" id="tf7" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp7', 'fotoLocalLimpo')" required>
               <img id="tp7" class="preview-img">
             </div>
 
             <div class="form-group">
               <label>Descrição e Solução Final do Reparo:</label>
-              <textarea id="tobs" placeholder="Descreva o serviço realizado e causa final..." required></textarea>
+              <textarea id="tobs" placeholder="Descreva detalhadamente a solução aplicada..." required></textarea>
             </div>
 
             <div class="btn-step-group">
@@ -249,9 +259,9 @@
 
   </main>
 
-  <!-- MODAL DE DETALHES DO INCIDENTE PARA O SAC (FOTOS E COMENTÁRIOS) -->
+  <!-- MODAL DE TIMELINE E DETALHES PARA SAC / GERENTE / ADMIN -->
   <div id="modalDetalhesIncidente" class="modal-overlay">
-    <div class="modal-content">
+    <div class="modal-content modal-widescreen">
       <div class="modal-header">
         <h3 id="modalIdTitle">Detalhes do Incidente</h3>
         <button class="modal-close" onclick="fecharModal()">✕</button>
@@ -259,14 +269,9 @@
       <div class="modal-body">
         <div id="modalInfoBox" class="info-details-box"></div>
 
-        <h4 class="section-subtitle" style="margin-top:20px;">📷 Fotos Registradas do Técnico</h4>
-        <div id="modalPhotosGrid" class="photos-grid">
-          <p class="text-muted">Nenhuma foto registrada até o momento.</p>
-        </div>
-
-        <h4 class="section-subtitle" style="margin-top:20px;">💬 Solução e Observações do Técnico</h4>
-        <div id="modalCommentsList" class="comments-list">
-          <p class="text-muted">Aguardando atualização de campo.</p>
+        <h4 class="section-subtitle" style="margin-top:20px;">⏱️ Timeline e Histórico de Progresso do Técnico</h4>
+        <div id="modalTimelineList" class="timeline-container">
+          <p class="text-muted">Nenhum evento registrado ainda.</p>
         </div>
       </div>
     </div>
