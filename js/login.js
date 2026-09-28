@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEXTFLOW ENTERPRISE - LOGICA DE LOGIN & FIBRA ÓTICA (js/login.js)
+   NEXTFLOW ENTERPRISE - LOGICA DE LOGIN (js/login.js)
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -18,7 +18,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ANIMAÇÃO DE FIBRA ÓTICA EM CANVAS
 function iniciarEfeitoFibra() {
   const canvas = document.getElementById('fiberCanvas');
   if (!canvas) return;
@@ -45,15 +44,12 @@ function iniciarEfeitoFibra() {
 
   function desenhar() {
     ctx.clearRect(0, 0, width, height);
-
     linhas.forEach(l => {
       ctx.beginPath();
       ctx.moveTo(l.x, l.y);
       ctx.lineTo(l.x, l.y + l.length);
       ctx.strokeStyle = `rgba(0, 102, 255, ${l.alpha})`;
       ctx.lineWidth = 2;
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = '#0066FF';
       ctx.stroke();
 
       l.y -= l.speed;
@@ -62,10 +58,8 @@ function iniciarEfeitoFibra() {
         l.x = Math.random() * width;
       }
     });
-
     requestAnimationFrame(desenhar);
   }
-
   desenhar();
 }
 
@@ -95,11 +89,12 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     let usuarioDados = null;
 
     const padroes = {
-      "admin": { usuario: "Administrador", perfil: "admin", senha: "123" },
-      "tecnico": { usuario: "Técnico de Campo", perfil: "tecnico", senha: "123" },
-      "noc": { usuario: "Operador NOC", perfil: "noc", senha: "123" },
-      "sac": { usuario: "Atendente SAC", perfil: "sac", senha: "123" },
-      "gerente": { usuario: "Gerente / Diretor", perfil: "gerente", senha: "123" }
+      "admin": { usuario: "Administrador", perfil: "admin", estado: "SP", senha: "123" },
+      "tecnico": { usuario: "Lucas Augusto", perfil: "tecnico", estado: "SP", senha: "123" },
+      "noc": { usuario: "Operador NOC", perfil: "noc", estado: "SP", senha: "123" },
+      "sac": { usuario: "Atendente SAC", perfil: "sac", estado: "SP", senha: "123" },
+      "suporte": { usuario: "Analista Suporte", perfil: "suporte", estado: "SP", senha: "123" },
+      "gerente": { usuario: "Gerente / Diretor", perfil: "gerente", estado: "SP", senha: "123" }
     };
 
     if (padroes[userInput] && padroes[userInput].senha === passInput) {
@@ -121,11 +116,12 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
       document.getElementById('welcomeSection').style.display = 'block';
 
       document.getElementById('saudacaoTexto').textContent = `${obterSaudacao()}, ${usuarioDados.usuario}!`;
-      document.getElementById('usuarioNomeDisplay').textContent = "Redirecionando para o painel operacional...";
+      document.getElementById('usuarioNomeDisplay').textContent = "Redirecionando...";
       document.getElementById('perfilBadge').textContent = `Perfil: ${usuarioDados.perfil.toUpperCase()}`;
 
       localStorage.setItem('user_nome', usuarioDados.usuario);
       localStorage.setItem('user_perfil', usuarioDados.perfil);
+      localStorage.setItem('user_estado', usuarioDados.estado || 'SP');
 
       setTimeout(() => {
         window.location.href = 'dashboard.html';
@@ -138,7 +134,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     }
 
   } catch (erro) {
-    errorMsg.textContent = "Erro de conexão: " + erro.message;
+    errorMsg.textContent = "Erro: " + erro.message;
     errorMsg.style.display = 'block';
     btnLogin.textContent = "Entrar no Sistema";
     btnLogin.disabled = false;
