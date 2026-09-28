@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZAAZ Telecom - Registro de Campo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #0066FF;
+      --primary-hover: #0052CC;
+      --bg-body: #F0F4F8;
+      --card-bg: #FFFFFF;
+      --text-main: #1E293B;
+      --text-muted: #64748B;
+      --border-color: #E2E8F0;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      --dark-footer: #0F172A;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-body);
+      margin: 0;
+      padding: 15px;
+      padding-bottom: 80px;
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border-color);
+    }
+
+    .brand-header {
+      text-align: center;
+      border-bottom: 2px solid var(--bg-body);
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+    }
+
+    .brand-header h1 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--primary);
+      text-transform: uppercase;
+    }
+
+    .brand-header p {
+      margin: 6px 0 0 0;
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* BARRA DE STATUS DE CONEXÃO E PENDÊNCIAS */
+    .status-bar {
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-online {
+      background-color: #ECFDF5;
+      color: #065F46;
+      border: 1px solid #A7F3D0;
+    }
+
+    .status-offline {
+      background-color: #FFFBEB;
+      color: #92400E;
+      border: 1px solid #FDE68A;
+    }
+
+    .btn-sync {
+      background-color: var(--warning);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    h2 {
+      text-align: center;
+      color: var(--text-main);
+      margin: 0 0 6px 0;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .login-box {
+      display: block;
+    }
+
+    .error-message {
+      color: var(--danger);
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      margin-top: 12px;
+      display: none;
+      background-color: #FEF2F2;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #FCA5A5;
+    }
+
+    .user-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #F8FAFC;
+      border: 1px solid var(--border-color);
+      padding: 10px 14px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .btn-logout {
+      background-color: #F1F5F9;
+      color: var(--danger);
+      border: 1px solid #FECDD3;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .app-box {
+      display: none;
+    }
+
+    .step-indicator {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      background-color: #F8FAFC;
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .step-number {
+      flex: 1;
+      text-align: center;
+      padding: 8px 0;
+      font-weight: 700;
+      color: var(--text-muted);
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    .step-number.active {
+      color: #FFFFFF;
+      background-color: var(--primary);
+    }
+
+    .step {
+      display: none;
+    }
+
+    .step.active {
+      display: block;
+    }
+
+    .step h3 {
+      font-size: 16px;
+      color: var(--primary);
+      margin-top: 0;
+      margin-bottom: 16px;
+      border-left: 4px solid var(--primary);
+      padding-left: 8px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="file"] {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border-color);
+      border-radius: 10px;
+      font-size: 14px;
+      background-color: #F8FAFC;
+    }
+
+    input[readonly] {
+      background-color: #E2E8F0;
+      color: #475569;
+      cursor: not-allowed;
+    }
+
+    .btn-geo {
+      background-color: #0284C7;
+      color: white;
+      border: none;
+      padding: 10px 14px;
+      margin-top: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      width: 100%;
+    }
+
+    .geo-status {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--success);
+      margin-top: 6px;
+      display: block;
+    }
+
+    .preview {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      margin-top: 10px;
+      border-radius: 10px;
+      display: none;
+      border: 2px solid var(--border-color);
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 24px;
+      gap: 12px;
+    }
+
+    button.nav-btn, button.btn-login {
+      padding: 14px 20px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .btn-login {
+      background-color: var(--primary);
+      color: white;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .btn-prev {
+      background-color: #E2E8F0;
+      color: var(--text-main);
+      flex: 1;
+    }
+
+    .btn-next {
+      background-color: var(--primary);
+      color: white;
+      flex: 1;
+    }
+
+    .btn-submit {
+      background-color: var(--success);
+      color: white;
+      width: 100%;
+    }
+
+    .nextflow-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: var(--dark-footer);
+      color: #94A3B8;
+      text-align: center;
+      padding: 12px 0;
+      font-size: 12px;
+    }
+
+    .nextflow-footer strong {
+      color: #38BDF8;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <div class="brand-header">
+      <h1>ZAAZ Telecom</h1>
+      <p>Atendimento Técnico e Infraestrutura</p>
+    </div>
+
+    <!-- INDICADOR DE STATUS DA INTERNET -->
+    <div id="statusBar" class="status-bar status-online">
+      <span id="statusText">🌐 Conectado à Internet</span>
+      <button id="btnSync" class="btn-sync" onclick="sincronizarPendentes()" style="display:none;">⚡ Enviar Pendentes</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="loginScreen" class="login-box">
+      <h2>Acesso ao Sistema</h2>
+      <p class="subtitle">Insira suas credenciais de técnico</p>
+
+      <form id="loginForm" onsubmit="validarLogin(event)">
+        <div class="form-group">
+          <label for="usuario">Usuário:</label>
+          <input type="text" id="usuario" placeholder="Digite seu usuário" required>
+        </div>
+
+        <div class="form-group">
+          <label for="senha">Senha:</label>
+          <input type="password" id="senha" placeholder="Digite sua senha" required>
+        </div>
+
+        <button type="submit" class="btn-login">Entrar no Sistema</button>
+        <p id="loginError" class="error-message">Usuário ou senha incorretos!</p>
+      </form>
+    </div>
+
+    <!-- FORMULÁRIO -->
+    <div id="appScreen" class="app-box">
+
+      <div class="user-header">
+        <span>Técnico: <strong id="loggedUserDisplay"></strong></span>
+        <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
+      </div>
+
+      <h2>Relatório de Atendimento</h2>
+      <p class="subtitle">Registro de rompimento e reparo de fibra</p>
+
+      <div class="step-indicator">
+        <span class="step-number active" id="ind-1">Etapa 1</span>
+        <span class="step-number" id="ind-2">Etapa 2</span>
+        <span class="step-number" id="ind-3">Etapa 3</span>
+        <span class="step-number" id="ind-4">Etapa 4</span>
+      </div>
+
+      <form id="techForm" onsubmit="enviarRelatorio(event)">
+
+        <!-- ETAPA 1 -->
+        <div class="step active" id="step-1">
+          <h3>1. Comunicado e Deslocamento</h3>
+          
+          <div class="form-group">
+            <label for="codigo_chamado">Código / ID do Chamado:</label>
+            <input type="text" id="codigo_chamado" placeholder="Ex: OS-2026-99" required>
+          </div>
+
+          <div class="form-group">
+            <label for="nome_equipe">Técnico Responsável:</label>
+            <input type="text" id="nome_equipe" readonly required>
+          </div>
+
+          <div class="form-group">
+            <label for="foto_deslocamento">Foto do Deslocamento / Partida:</label>
+            <input type="file" id="foto_deslocamento" accept="image/*" capture="environment" onchange="previewImage(this, 'prev1')">
+            <img id="prev1" class="preview" alt="Pré-visualização da foto 1">
+          </div>
+        </div>
+
+        <!-- ETAPA 2 -->
+        <div class="step" id="step-2">
+          <h3>2. Chegada e Identificação</h3>
+          <div class="form-group">
+            <label for="foto_local_chegada">Foto do Local da Chegada:</label>
+            <input type="file" id="foto_local_chegada" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_1')">
+            <img id="prev2_1" class="preview" alt="Pré-visualização local">
+          </div>
+          <div class="form-group">
+            <label for="foto_rompimento">Foto do Rompimento Localizado:</label>
+            <input type="file" id="foto_rompimento" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_2')">
+            <img id="prev2_2" class="preview" alt="Pré-visualização rompimento">
+          </div>
+        </div>
+
+        <!-- ETAPA 3 -->
+        <div class="step" id="step-3">
+          <h3>3. Execução do Serviço</h3>
+          <div class="form-group">
+            <label for="foto_panoramica">Foto Panorâmica do Local do Serviço:</label>
+            <input type="file" id="foto_panoramica" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_1')">
+            <img id="prev3_1" class="preview" alt="Pré-visualização panorâmica">
+          </div>
+          <div class="form-group">
+            <label for="foto_equipe">Foto da Equipe Atuando:</label>
+            <input type="file" id="foto_equipe" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_2')">
+            <img id="prev3_2" class="preview" alt="Pré-visualização equipe">
+          </div>
+        </div>
+
+        <!-- ETAPA 4 -->
+        <div class="step" id="step-4">
+          <h3>4. Finalização e Geolocalização</h3>
+
+          <div class="form-group">
+            <label for="geo_caixa_1">Geolocalização da Caixa 1:</label>
+            <input type="text" id="geo_caixa_1" placeholder="Coordenadas GPS (Lat, Long)" readonly>
+            <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_1', 'status_c1')">📍 Capturar GPS Caixa 1</button>
+            <span id="status_c1" class="geo-status"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="geo_caixa_2">Geolocalização da Caixa 2:</label>
+            <input type="text" id="geo_caixa_2" placeholder="Coordenadas GPS (Lat, Long)" readonly>
+            <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_2', 'status_c2')">📍 Capturar GPS Caixa 2</button>
+            <span id="status_c2" class="geo-status"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="foto_caixas">Foto das Caixas Acomodadas:</label>
+            <input type="file" id="foto_caixas" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_1')">
+            <img id="prev4_1" class="preview" alt="Pré-visualização caixas">
+          </div>
+
+          <div class="form-group">
+            <label for="foto_limpeza">Foto do Local Limpo / Finalizado:</label>
+            <input type="file" id="foto_limpeza" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_2')">
+            <img id="prev4_2" class="preview" alt="Pré-visualização local limpo">
+          </div>
+        </div>
+
+        <!-- NAVEGAÇÃO -->
+        <div class="buttons">
+          <button type="button" class="nav-btn btn-prev" id="btnPrev" onclick="changeStep(-1)" style="display:none;">Voltar</button>
+          <button type="button" class="nav-btn btn-next" id="btnNext" onclick="changeStep(1)">Avançar</button>
+          <button type="submit" class="nav-btn btn-submit" id="btnSubmit" style="display:none;">Finalizar e Salvar</button>
+        </div>
+
+      </form>
+    </div>
+
+  </div>
+
+  <footer class="nextflow-footer">
+    Um produto <strong>NextFlow</strong> • Gestão e Tecnologia
+  </footer>
+
+  <script>
+    const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzL7VYWpBFq_xGjoZiBmNMHZvc8mc3O6hW00-8UShwV4uKwtkShCFN8JLYnrKgsx5bW/exec";
+
+    const USUARIO_CORRETO = "tecnico";
+    const SENHA_CORRETA = "1234";
+    let usuarioLogado = "";
+
+    // VERIFICAÇÃO AUTOMÁTICA DE CONEXÃO E PENDÊNCIAS
+    window.addEventListener('online', atualizarStatusConexao);
+    window.addEventListener('offline', atualizarStatusConexao);
+
+    function atualizarStatusConexao() {
+      const statusBar = document.getElementById('statusBar');
+      const statusText = document.getElementById('statusText');
+      const btnSync = document.getElementById('btnSync');
+      const pendentes = JSON.parse(localStorage.getItem('relatorios_pendentes') || '[]');
+
+      if (navigator.onLine) {
+        statusBar.className = 'status-bar status-online';
+        statusText.textContent = '🌐 Conectado à Internet';
+        if (pendentes.length > 0) {
+          btnSync.style.display = 'inline-block';
+          btnSync.textContent = `⚡ Enviar ${pendentes.length} Pendentes`;
+        } else {
+          btnSync.style.display = 'none';
+        }
+      } else {
+        statusBar.className = 'status-bar status-offline';
+        statusText.textContent = `📡 Sem Conexão (${pendentes.length} Salvos no Aparelho)`;
+        btnSync.style.display = 'none';
+      }
+    }
+
+    function validarLogin(event) {
+      event.preventDefault();
+      const userInput = document.getElementById('usuario').value;
+      const passInput = document.getElementById('senha').value;
+      const errorMsg = document.getElementById('loginError');
+
+      if (userInput === USUARIO_CORRETO && passInput === SENHA_CORRETA) {
+        usuarioLogado = userInput;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appScreen').style.display = 'block';
+        document.getElementById('loggedUserDisplay').textContent = usuarioLogado;
+        document.getElementById('nome_equipe').value = usuarioLogado;
+        errorMsg.style.display = 'none';
+        atualizarStatusConexao();
+      } else {
+        errorMsg.style.display = 'block';
+      }
+    }
+
+    function fazerLogout() {
+      document.getElementById('usuario').value = '';
+      document.getElementById('senha').value = '';
+      document.getElementById('loginScreen').style.display = 'block';
+      document.getElementById('appScreen').style.display = 'none';
+      resetFormulario();
+    }
+
+    let currentStep = 1;
+    const totalSteps = 4;
+
+    function changeStep(direction) {
+      document.getElementById(`step-${currentStep}`).classList.remove('active');
+      document.getElementById(`ind-${currentStep}`).classList.remove('active');
+
+      currentStep += direction;
+
+      document.getElementById(`step-${currentStep}`).classList.add('active');
+      document.getElementById(`ind-${currentStep}`).classList.add('active');
+
+      document.getElementById('btnPrev').style.display = currentStep === 1 ? 'none' : 'inline-block';
+      
+      if (currentStep === totalSteps) {
+        document.getElementById('btnNext').style.display = 'none';
+        document.getElementById('btnSubmit').style.display = 'block';
+      } else {
+        document.getElementById('btnNext').style.display = 'inline-block';
+        document.getElementById('btnSubmit').style.display = 'none';
+      }
+    }
+
+    let imagensBase64 = {};
+
+    function previewImage(input, previewId) {
+      const file = input.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const imgElement = document.getElementById(previewId);
+          imgElement.src = e.target.result;
+          imgElement.style.display = 'block';
+          imagensBase64[input.id] = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function capturarGPS(inputId, statusId) {
+      const statusElement = document.getElementById(statusId);
+      const inputElement = document.getElementById(inputId);
+
+      // O GPS via Satélite funciona sem internet!
+      if ("geolocation" in navigator) {
+        statusElement.textContent = "Obtendo GPS por satélite...";
+        statusElement.style.color = "#0066FF";
+
+        navigator.geolocation.getCurrentPosition(
+          function(position) {
+            const lat = position.coords.latitude.toFixed(6);
+            const lng = position.coords.longitude.toFixed(6);
+            inputElement.value = `${lat}, ${lng}`;
+            statusElement.textContent = "✓ Localização capturada pelo GPS!";
+            statusElement.style.color = "#10B981";
+          },
+          function(error) {
+            statusElement.textContent = "Erro ao obter localização. Ative a localização no celular.";
+            statusElement.style.color = "#EF4444";
+          },
+          { enableHighAccuracy: true, timeout: 15000 }
+        );
+      } else {
+        statusElement.textContent = "Geolocalização não suportada.";
+        statusElement.style.color = "#EF4444";
+      }
+    }
+
+    function resetFormulario() {
+      document.getElementById('techForm').reset();
+      document.getElementById('nome_equipe').value = usuarioLogado;
+      imagensBase64 = {};
+      
+      const previews = document.querySelectorAll('.preview');
+      previews.forEach(img => {
+        img.src = '';
+        img.style.display = 'none';
+      });
+
+      document.getElementById('status_c1').textContent = '';
+      document.getElementById('status_c2').textContent = '';
+
+      document.getElementById(`step-${currentStep}`).classList.remove('active');
+      document.getElementById(`ind-${currentStep}`).classList.remove('active');
+      
+      currentStep = 1;
+
+      document.getElementById(`step-1`).classList.add('active');
+      document.getElementById(`ind-1`).classList.add('active');
+
+      document.getElementById('btnPrev').style.display = 'none';
+      document.getElementById('btnNext').style.display = 'inline-block';
+      document.getElementById('btnSubmit').style.display = 'none';
+    }
+
+    // ENVIO INTELIGENTE (ONLINE x OFFLINE)
+    function enviarRelatorio(event) {
+      event.preventDefault();
+
+      const btnSubmit = document.getElementById('btnSubmit');
+
+      const dadosRelatorio = {
+        tecnico_logado: usuarioLogado,
+        codigo_chamado: document.getElementById('codigo_chamado').value,
+        nome_equipe: document.getElementById('nome_equipe').value,
+        geo_caixa_1: document.getElementById('geo_caixa_1').value,
+        geo_caixa_2: document.getElementById('geo_caixa_2').value,
+        foto_deslocamento: imagensBase64['foto_deslocamento'] || '',
+        foto_local_chegada: imagensBase64['foto_local_chegada'] || '',
+        foto_rompimento: imagensBase64['foto_rompimento'] || '',
+        foto_caixas: imagensBase64['foto_caixas'] || ''
+      };
+
+      // SE ESTIVER SEM INTERNET
+      if (!navigator.onLine) {
+        salvarOffline(dadosRelatorio);
+        alert('📡 Você está offline! O relatório foi salvo com segurança no celular e será enviado assim que houver sinal.');
+        resetFormulario();
+        atualizarStatusConexao();
+        return;
+      }
+
+      // SE ESTIVER COM INTERNET
+      btnSubmit.textContent = "⏳ Enviando relatório...";
+      btnSubmit.disabled = true;
+
+      dispararEnvio(dadosRelatorio, function(sucesso) {
+        if (sucesso) {
+          alert('✅ Relatório enviado e gravado com sucesso na planilha!');
+        } else {
+          salvarOffline(dadosRelatorio);
+          alert('⚠️ Houve uma instabilidade. O relatório foi guardado no celular para reenvio!');
+        }
+        btnSubmit.textContent = "Finalizar e Salvar";
+        btnSubmit.disabled = false;
+        resetFormulario();
+        atualizarStatusConexao();
+      });
+    }
+
+    // FUNÇÃO AUXILIAR DE TRANSMISSÃO HTTP
+    function dispararEnvio(dados, callback) {
+      const formData = new FormData();
+      for (let key in dados) {
+        formData.append(key, dados[key]);
+      }
+
+      fetch(URL_GOOGLE_SCRIPT, {
+        method: 'POST',
+        body: formData
+      })
+      .then(() => callback(true))
+      .catch(() => callback(false));
+    }
+
+    // SALVA NO ARMAZENAMENTO INTERNO DO CELULAR (`localStorage`)
+    function salvarOffline(relatorio) {
+      const pendentes = JSON.parse(localStorage.getItem('relatorios_pendentes') || '[]');
+      pendentes.push(relatorio);
+      localStorage.setItem('relatorios_pendentes', JSON.stringify(pendentes));
+    }
+
+    // ENVIA TODOS OS RELATÓRIOS SALVOS QUANDO VOLTA A INTERNET
+    function sincronizarPendentes() {
+      const pendentes = JSON.parse(localStorage.getItem('relatorios_pendentes') || '[]');
+      if (pendentes.length === 0) return;
+
+      const btnSync = document.getElementById('btnSync');
+      btnSync.textContent = "⏳ Enviando...";
+      btnSync.disabled = true;
+
+      let enviados = 0;
+
+      pendentes.forEach((relatorio, index) => {
+        dispararEnvio(relatorio, function(sucesso) {
+          if (sucesso) {
+            enviados++;
+            if (enviados === pendentes.length) {
+              localStorage.removeItem('relatorios_pendentes');
+              alert('⚡ Todos os relatórios offline foram sincronizados com sucesso na planilha!');
+              btnSync.disabled = false;
+              atualizarStatusConexao();
+            }
+          }
+        });
+      });
+    }
+
+    atualizarStatusConexao();
+  </script>
+
+</body>
+</html>
