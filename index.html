@@ -50,6 +50,7 @@
       border: 1px solid var(--border-color);
     }
 
+    /* ESTILO DO CABEÇALHO COM LOGOMARCA */
     .brand-header {
       text-align: center;
       border-bottom: 2px solid var(--bg-body);
@@ -57,20 +58,20 @@
       margin-bottom: 20px;
     }
 
-    .brand-header h1 {
-      margin: 0;
-      font-size: 26px;
-      font-weight: 800;
-      color: var(--primary);
-      text-transform: uppercase;
+    .brand-logo {
+      max-height: 55px;
+      width: auto;
+      display: block;
+      margin: 0 auto;
     }
 
     .brand-header p {
-      margin: 6px 0 0 0;
+      margin: 8px 0 0 0;
       font-size: 13px;
       color: var(--text-muted);
       font-weight: 600;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .status-bar {
@@ -365,8 +366,9 @@
 
   <div class="container">
 
+    <!-- CABEÇALHO ATUALIZADO COM A LOGOMARCA OFICIAL DA ZAAZ -->
     <div class="brand-header">
-      <h1>ZAAZ Telecom</h1>
+      <img src="https://i.ibb.co/3pYyYkP/zaaz-logo.png" alt="ZAAZ Telecom Logo" class="brand-logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 200 60\'><rect width=\'200\' height=\'60\' fill=\'%230066FF\' rx=\'10\'/><text x=\'50%\' y=\'50%\' fill=\'white\' font-family=\'Arial\' font-weight=\'bold\' font-size=\'22\' dominant-baseline=\'middle\' text-anchor=\'middle\'>ZAAZ Telecom</text></svg>'">
       <p>Atendimento Técnico e Infraestrutura</p>
     </div>
 
@@ -637,7 +639,6 @@
       });
     }
 
-    /* ALTERAÇÃO DE SENHA */
     function abrirModalSenha() {
       document.getElementById('modalPass').style.display = 'block';
       document.getElementById('appScreen').style.display = 'none';
@@ -673,7 +674,6 @@
       });
     }
 
-    /* HISTÓRICO DE CHAMADOS NO PAINEL ADMIN */
     function alternarAbaAdmin(aba) {
       const btnUsers = document.getElementById('tabUsersBtn');
       const btnHist = document.getElementById('tabHistBtn');
@@ -753,16 +753,11 @@
       });
     }
 
-    /* FUNÇÃO LOGOUT TOTALMENTE CORRIGIDA */
     function fazerLogout() {
-      // Limpa os campos de login
       document.getElementById('usuario').value = '';
       document.getElementById('senha').value = '';
       
-      // Exibe a tela de login
       document.getElementById('loginScreen').style.display = 'block';
-      
-      // Esconde obrigatoriamente todas as outras telas e modais
       document.getElementById('appScreen').style.display = 'none';
       document.getElementById('adminScreen').style.display = 'none';
       document.getElementById('modalPass').style.display = 'none';
