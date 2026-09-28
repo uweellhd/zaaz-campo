@@ -99,7 +99,7 @@
       font-weight: 700;
     }
 
-    /* CONTROLE DE VISIBILIDADE DAS TELAS */
+    /* CONTROLE DE EXIBIÇÃO DE PAINÉIS */
     .screen { display: none; }
     .screen.active { display: block; }
 
@@ -140,7 +140,18 @@
       margin-top: 10px;
     }
 
-    /* ESTILOS DOS CARDS DE MÉTRICAS DA GERÊNCIA */
+    button.btn-sec {
+      background-color: #E2E8F0;
+      color: var(--text-main);
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 6px;
+    }
+
     .metrics-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -169,7 +180,6 @@
       text-transform: uppercase;
     }
 
-    /* FORMULÁRIO EM ETAPAS DO TÉCNICO */
     .step-indicator {
       display: flex;
       justify-content: space-between;
@@ -236,12 +246,12 @@
 
     <div class="brand-header">
       <h1>NextFlow Enterprise</h1>
-      <p>ZAAZ Telecom • Plataforma Integrada</p>
+      <p>ZAAZ Telecom • Gestão Integrada</p>
     </div>
 
     <!-- 1. TELA DE LOGIN -->
     <div id="loginScreen" class="screen active">
-      <h2 style="text-align:center; font-size:18px;">Acesso Corporativo</h2>
+      <h2 style="text-align:center; font-size:18px;">Acesso ao Sistema</h2>
       <form id="loginForm">
         <div class="form-group">
           <label for="usuario">Usuário:</label>
@@ -298,7 +308,10 @@
             <input type="file" id="f3" accept="image/*" onchange="previewFoto(this, 'p3')">
             <img id="p3" class="preview-img">
           </div>
-          <button type="button" class="btn-primary" onclick="mudarEtapa(1)">Avançar</button>
+          <div style="display:flex; gap:10px;">
+            <button type="button" class="btn-sec" onclick="mudarEtapa(-1)">Voltar</button>
+            <button type="button" class="btn-primary" onclick="mudarEtapa(1)">Avançar</button>
+          </div>
         </div>
 
         <!-- ETAPA 3 -->
@@ -314,7 +327,10 @@
             <input type="file" id="f5" accept="image/*" onchange="previewFoto(this, 'p5')">
             <img id="p5" class="preview-img">
           </div>
-          <button type="button" class="btn-primary" onclick="mudarEtapa(1)">Avançar</button>
+          <div style="display:flex; gap:10px;">
+            <button type="button" class="btn-sec" onclick="mudarEtapa(-1)">Voltar</button>
+            <button type="button" class="btn-primary" onclick="mudarEtapa(1)">Avançar</button>
+          </div>
         </div>
 
         <!-- ETAPA 4 -->
@@ -323,13 +339,16 @@
           <div class="form-group">
             <label>GPS Caixa 1:</label>
             <input type="text" id="gps1" placeholder="Coordenadas GPS" readonly>
-            <button type="button" style="margin-top:4px;" onclick="capturarGPS('gps1')">📍 Capturar GPS</button>
+            <button type="button" class="btn-sec" onclick="capturarGPS('gps1')">📍 Capturar GPS</button>
           </div>
           <div class="form-group">
             <label>Descrição / Solução do Reparo:</label>
             <textarea id="obs" placeholder="Descreva o serviço realizado..." required></textarea>
           </div>
-          <button type="submit" class="btn-primary" style="background-color:var(--success);">Finalizar e Enviar</button>
+          <div style="display:flex; gap:10px;">
+            <button type="button" class="btn-sec" onclick="mudarEtapa(-1)">Voltar</button>
+            <button type="submit" class="btn-primary" style="background-color:var(--success);">Finalizar e Enviar</button>
+          </div>
         </div>
       </form>
     </div>
@@ -359,10 +378,11 @@
           <div class="metric-label">Total Atendimentos</div>
         </div>
         <div class="metric-card">
-          <div class="metric-num" id="totalAtivos">0</div>
+          <div class="metric-num" id="totalAtivos">1</div>
           <div class="metric-label">Técnicos Ativos</div>
         </div>
       </div>
+      <button type="button" class="btn-primary" onclick="carregarMetricasGerencia()">🔄 Atualizar Indicadores</button>
     </div>
 
     <!-- 5. PAINEL ADMIN -->
@@ -375,7 +395,7 @@
         <h3>Cadastrar Novo Colaborador</h3>
         <div class="form-group">
           <label>Usuário:</label>
-          <input type="text" id="newUser" placeholder="Ex: sac.maria" required>
+          <input type="text" id="newUser" placeholder="Ex: tec.joao" required>
         </div>
         <div class="form-group">
           <label>Senha:</label>
@@ -390,7 +410,7 @@
             <option value="admin">🔑 Administrador</option>
           </select>
         </div>
-        <button type="submit" class="btn-primary">➕ Cadastrar Acesso</button>
+        <button type="submit" class="btn-primary">➕ Cadastrar Acesso no Firebase</button>
       </form>
     </div>
 
@@ -400,12 +420,11 @@
     Um produto <strong>NextFlow Enterprise</strong> • ZAAZ Telecom
   </footer>
 
-  <!-- INTEGRANDO OS SDKs DO FIREBASE v10 (MODULAR WEB) -->
+  <!-- INTEGRANDO SDKs FIREBASE v10 -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Suas credenciais oficiais configuradas no Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
       authDomain: "nextflow-telecom.firebaseapp.com",
@@ -416,37 +435,61 @@
       measurementId: "G-W2Z8ZEHGZS"
     };
 
-    // Inicialização da Aplicação e do Firestore Database
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let loggedUser = null;
+    let usuarioAtual = "";
 
-    // LOGIN
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const user = document.getElementById('usuario').value.trim();
-      const pass = document.getElementById('senha').value.trim();
-
-      // Usuários padrão iniciais
-      if (user === "admin" && pass === "123") abrirPainel('adminScreen');
-      else if (user === "tecnico" && pass === "123") {
-        document.getElementById('techUserDisplay').textContent = user;
-        abrirPainel('techScreen');
-      }
-      else if (user === "sac" && pass === "123") abrirPainel('sacNocScreen');
-      else if (user === "gerente" && pass === "123") abrirPainel('managerScreen');
-      else alert("Usuário ou senha incorretos!");
-    });
-
-    function abrirPainel(idTela) {
+    window.abrirPainel = (idTela) => {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById(idTela).classList.add('active');
-    }
+    };
 
     window.logout = () => location.reload();
 
-    // NAVEGAÇÃO ENTRE ETAPAS DO TÉCNICO
+    // LOGIN UNIFICADO COM SUPORTE AOS USUÁRIOS PADRÃO E AO BANCO FIRESTORE
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const u = document.getElementById('usuario').value.trim();
+      const p = document.getElementById('senha').value.trim();
+
+      usuarioAtual = u;
+
+      if (u === "admin" && p === "123") {
+        abrirPainel('adminScreen');
+      } else if (u === "tecnico" && p === "123") {
+        document.getElementById('techUserDisplay').textContent = u;
+        abrirPainel('techScreen');
+      } else if (u === "sac" && p === "123") {
+        abrirPainel('sacNocScreen');
+      } else if (u === "gerente" && p === "123") {
+        abrirPainel('managerScreen');
+        carregarMetricasGerencia();
+      } else {
+        try {
+          const querySnapshot = await getDocs(collection(db, "usuarios"));
+          let achou = false;
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.usuario === u && data.senha === p) {
+              achou = true;
+              if (data.perfil === "tecnico") {
+                document.getElementById('techUserDisplay').textContent = u;
+                abrirPainel('techScreen');
+              } else if (data.perfil === "sac_noc") abrirPainel('sacNocScreen');
+              else if (data.perfil === "gerente") {
+                abrirPainel('managerScreen');
+                carregarMetricasGerencia();
+              } else if (data.perfil === "admin") abrirPainel('adminScreen');
+            }
+          });
+          if (!achou) alert("Usuário ou senha incorretos!");
+        } catch (err) {
+          alert("Erro na conexão: " + err.message);
+        }
+      }
+    });
+
     let currentStep = 1;
     window.mudarEtapa = (dir) => {
       document.getElementById(`step-${currentStep}`).classList.remove('active');
@@ -472,24 +515,85 @@
     window.capturarGPS = (idInput) => {
       navigator.geolocation.getCurrentPosition(pos => {
         document.getElementById(idInput).value = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
-        alert("📍 GPS capturado!");
+        alert("📍 GPS capturado com sucesso!");
       });
     };
 
-    // ENVIO DO RELATÓRIO DO TÉCNICO PARA O FIREBASE FIRESTORE
     document.getElementById('techForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
         await addDoc(collection(db, "relatorios"), {
           chamadoId: document.getElementById('chamadoId').value,
+          tecnico: usuarioAtual,
           gps1: document.getElementById('gps1').value,
           observacao: document.getElementById('obs').value,
           dataHora: new Date().toLocaleString("pt-BR")
         });
-        alert("✅ Relatório gravado com sucesso no Firebase!");
+        alert("✅ Relatório de atendimento salvo com sucesso no Firebase!");
         location.reload();
       } catch (err) {
-        alert("Erro ao gravar: " + err.message);
+        alert("Erro ao salvar relatório: " + err.message);
+      }
+    });
+
+    window.buscarChamadoSacNoc = async () => {
+      const termo = document.getElementById('searchOS').value.trim().toLowerCase();
+      const resDiv = document.getElementById('sacNocResults');
+      resDiv.innerHTML = "<p style='text-align:center;'>⏳ Pesquisando no Firebase...</p>";
+
+      try {
+        const querySnapshot = await getDocs(collection(db, "relatorios"));
+        resDiv.innerHTML = "";
+        let encontrou = false;
+
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (termo === "" || (data.chamadoId && data.chamadoId.toLowerCase().includes(termo))) {
+            encontrou = true;
+            const card = document.createElement('div');
+            card.className = 'card-chamado';
+            card.innerHTML = `
+              <strong>ID Chamado:</strong> ${data.chamadoId}<br>
+              <strong>Técnico:</strong> ${data.tecnico || 'N/A'}<br>
+              <strong>Data/Hora:</strong> ${data.dataHora}<br>
+              <strong>GPS:</strong> ${data.gps1 || 'N/A'}<br>
+              <strong>Status / Solução:</strong> ${data.observacao}
+            `;
+            resDiv.appendChild(card);
+          }
+        });
+
+        if (!encontrou) resDiv.innerHTML = "<p style='text-align:center;'>Nenhum registro encontrado.</p>";
+      } catch (err) {
+        resDiv.innerHTML = "<p style='text-align:center; color:red;'>Erro na busca: " + err.message + "</p>";
+      }
+    };
+
+    window.carregarMetricasGerencia = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "relatorios"));
+        document.getElementById('totalChamados').textContent = querySnapshot.size;
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    document.getElementById('adminForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nu = document.getElementById('newUser').value.trim();
+      const np = document.getElementById('newPass').value.trim();
+      const nr = document.getElementById('newRole').value;
+
+      try {
+        await addDoc(collection(db, "usuarios"), {
+          usuario: nu,
+          senha: np,
+          perfil: nr
+        });
+        alert(`✅ Usuário "${nu}" cadastrado no Firebase com perfil (${nr})!`);
+        document.getElementById('adminForm').reset();
+      } catch (err) {
+        alert("Erro ao cadastrar usuário: " + err.message);
       }
     });
   </script>
