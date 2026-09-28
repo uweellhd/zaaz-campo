@@ -51,25 +51,27 @@
       border: 1px solid var(--border-color);
     }
 
-    /* ESTILO DO CABEÇALHO DA MARCA COM A LOGO PNG LOCAL */
+    /* ESTILO DO CABEÇALHO DA MARCA COM DIMENSÕES AJUSTADAS PARA A LOGO */
     .brand-header {
       text-align: center;
       border-bottom: 2px solid var(--bg-body);
-      padding-bottom: 16px;
+      padding-bottom: 12px;
       margin-bottom: 20px;
+      overflow: hidden; /* Evita que margens da imagem transbordem */
     }
 
     .brand-logo-img {
-      max-height: 65px;
+      /* Aumentamos a altura máxima para compensar as bordas da imagem */
+      max-height: 120px;
       width: auto;
       max-width: 100%;
       display: block;
-      margin: 0 auto;
+      margin: -10px auto -10px auto; /* Margens negativas para aproximar do texto abaixo */
       object-fit: contain;
     }
 
     .brand-header p {
-      margin: 10px 0 0 0;
+      margin: 4px 0 0 0;
       font-size: 13px;
       color: var(--text-muted);
       font-weight: 600;
@@ -369,7 +371,7 @@
 
   <div class="container">
 
-    <!-- CABEÇALHO APONTANDO PARA O FICHEIRO LOCAL logo.png DO REPOSITÓRIO -->
+    <!-- CABEÇALHO COM A LOGO EM DIMENSÕES REAJUSTADAS -->
     <div class="brand-header">
       <img src="logo.png" alt="ZAAZ Telecom Logo" class="brand-logo-img">
       <p>Atendimento Técnico e Infraestrutura</p>
