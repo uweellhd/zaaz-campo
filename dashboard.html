@@ -5,39 +5,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ZAAZ Telecom - NextFlow Enterprise Panel</title>
   
+  <!-- Fonte Google Inter e Estilos Globais -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 
+  <!-- Biblioteca de Gráficos Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="dashboard-body theme-light" id="appBody">
 
-  <!-- BARRA SUPERIOR FIXA WIDESCREEN -->
+  <!-- BARRA SUPERIOR FIXA WIDESCREEN (HEADER AJUSTADO) -->
   <header class="top-nav">
+    <!-- MARCA NO CANTO ESQUERDO: ZAAZ NO TOPO E NEXTFLOW EM DESTAQUE ABAIXO -->
     <div class="nav-brand">
       <h2 class="zaaz-title">ZAAZ TELECOM</h2>
-      <span class="system-subtitle">NextFlow Enterprise System</span>
+      <span class="nextflow-highlight">NextFlow System</span>
     </div>
 
-    <!-- RELÓGIO CENTRALIZADO -->
-    <div class="clock-box-center">
-      <span id="realtimeClock">00:00:00</span>
-      <span id="realtimeDate" class="clock-date">--/--/----</span>
-    </div>
+    <!-- MENU DE NAVEGAÇÃO RÁPIDA MOVIDO PARA A ESQUERDA -->
+    <nav id="adminNavMenu" class="nav-menu">
+      <button class="nav-btn active" onclick="alternarAba('viewGerente')">📊 Diretoria</button>
+      <button class="nav-btn" onclick="alternarAba('viewNoc')">🚨 NOC</button>
+      <button class="nav-btn" onclick="alternarAba('viewSac')">📞 SAC / Suporte</button>
+      <button class="nav-btn" onclick="alternarAba('viewTech')">👷 Técnico</button>
+    </nav>
 
+    <!-- GRUPO DA DIREITA: RELÓGIO, TEMA, USUÁRIO E BOTÃO SAIR -->
     <div class="nav-right-group">
-      <!-- MENU DE NAVEGAÇÃO RÁPIDA (HABILITADO PARA ADMIN / PERFIS) -->
-      <nav id="adminNavMenu" class="nav-menu" style="display: none;">
-        <button class="nav-btn active" onclick="alternarAba('viewGerente')">📊 Diretoria</button>
-        <button class="nav-btn" onclick="alternarAba('viewNoc')">🚨 NOC</button>
-        <button class="nav-btn" onclick="alternarAba('viewSac')">📞 SAC / Suporte</button>
-        <button class="nav-btn" onclick="alternarAba('viewTech')">👷 Técnico</button>
-      </nav>
+      <!-- RELÓGIO CORPORATIVO EM BLOCO FLEX (SEM SOBREPOSIÇÃO) -->
+      <div class="clock-box-inline">
+        <span id="realtimeClock">00:00:00</span>
+        <span id="realtimeDate" class="clock-date">--/--/----</span>
+      </div>
 
+      <!-- SELETOR DE TEMAS COM CORES ZAAZ -->
       <select id="themeSelector" class="theme-select" onchange="mudarTemaSistema(this.value)">
-        <option value="theme-light">☀️ Tema Claro</option>
+        <option value="theme-light">☀️ Tema Claro ZAAZ</option>
         <option value="theme-dark">🌙 Tema Escuro</option>
         <option value="theme-neon">⚡ Tema Neon</option>
       </select>
@@ -45,6 +50,7 @@
       <div class="user-badge-box">
         <span id="userBadge">Carregando perfil...</span>
       </div>
+      
       <button class="btn-logout-sm" onclick="sair()">Sair</button>
     </div>
   </header>
@@ -73,7 +79,6 @@
         </div>
       </div>
 
-      <!-- INTERATIVO: CLIQUE NO ESTADO FILTRA OS DADOS -->
       <h4 class="section-subtitle">📍 Filtrar Painel por Estado (Clique no card para isolar)</h4>
       <div class="kpi-grid state-grid">
         <div class="kpi-card state-card" id="cardSp" onclick="filtrarPainelPorEstado('SP')">
@@ -138,7 +143,7 @@
       <div id="sacResultsList" class="incidents-grid-list"></div>
     </section>
 
-    <!-- 4. PAINEL DO TÉCNICO DE CAMPO COM RETENÇÃO DE ETAPA E TRAVAS -->
+    <!-- 4. PAINEL DO TÉCNICO DE CAMPO -->
     <section id="viewTech" class="view-panel">
       <h3 class="panel-title">👷 Atendimento Técnico de Rua</h3>
       
@@ -256,7 +261,7 @@
 
   </main>
 
-  <!-- MODAL DE DETALHES COM BARRA LATERAL E TIMELINE COMPLETA -->
+  <!-- MODAL DE DETALHES COM BARRA LATERAL E TIMELINE -->
   <div id="modalDetalhesIncidente" class="modal-overlay">
     <div class="modal-content modal-widescreen-layout">
       <div class="modal-header">
@@ -264,14 +269,12 @@
         <button class="modal-close" onclick="fecharModal()">✕</button>
       </div>
       <div class="modal-body modal-grid-sidebar">
-        <!-- BARRA LATERAL ESQUERDA (RESUMO DAS ETAPAS) -->
         <div class="modal-sidebar-nav">
           <div id="modalInfoBox" class="info-details-box"></div>
           <h4 class="section-subtitle" style="margin-top:16px;">📌 Etapas da Timeline</h4>
           <div id="modalSidebarSteps" class="sidebar-steps-list"></div>
         </div>
 
-        <!-- CONTEÚDO PRINCIPAL (TIMELINE DETALHADA E FOTOS) -->
         <div class="modal-main-timeline">
           <h4 class="section-subtitle">⏱️ Histórico de Progresso do Técnico</h4>
           <div id="modalTimelineList" class="timeline-container">
@@ -282,7 +285,7 @@
     </div>
   </div>
 
-  <!-- LIGHTBOX / ZOOM DE IMAGEM EM TELA CHEIA -->
+  <!-- LIGHTBOX / ZOOM DE IMAGEM -->
   <div id="lightboxOverlay" class="lightbox-overlay" onclick="fecharZoomFoto()">
     <span class="lightbox-close">✕</span>
     <img id="lightboxImage" src="" alt="Zoom Foto">
