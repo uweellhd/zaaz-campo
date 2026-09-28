@@ -43,57 +43,32 @@
       <div id="gerenteIncidentesList"></div>
     </section>
 
-    <!-- 2. PAINEL DO NOC (CADASTRO DE COMUNICADOS) -->
+    <!-- 2. PAINEL DO NOC (CADASTRO RÁPIDO VIA CAIXA ÚNICA) -->
     <section id="viewNoc" class="view-panel">
-      <h3 class="panel-title">🚨 Registrar Comunicado de Incidente</h3>
+      <h3 class="panel-title">🚨 Leitura Rápida de Comunicado</h3>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+        Cole abaixo o texto do comunicado de incidente. O sistema extrairá os campos e gerará o ID automaticamente!
+      </p>
       
-      <form id="formNocIncidente" class="form-grid">
+      <form id="formNocIncidente">
         <div class="form-group">
-          <label for="nocId">ID do Incidente:</label>
-          <input type="text" id="nocId" placeholder="Ex: 9842" required>
-        </div>
-        <div class="form-group">
-          <label for="nocOs">Ordem de Serviço (OS):</label>
-          <input type="text" id="nocOs" placeholder="Ex: 20260928111752523246" required>
-        </div>
-        <div class="form-group">
-          <label for="nocCidades">Cidades Afetadas:</label>
-          <input type="text" id="nocCidades" placeholder="Ex: Buri / São Paulo" required>
-        </div>
-        <div class="form-group">
-          <label for="nocOlt">OLT:</label>
-          <input type="text" id="nocOlt" placeholder="Ex: PRD-OLT-FB-BRI-DC" required>
-        </div>
-        <div class="form-group">
-          <label for="nocPortas">Portas Afetadas:</label>
-          <input type="text" id="nocPortas" placeholder="Ex: 1/2" required>
-        </div>
-        <div class="form-group">
-          <label for="nocIncidenteTipo">Tipo de Incidente:</label>
-          <input type="text" id="nocIncidenteTipo" placeholder="Ex: REDE DE ACESSO" required>
-        </div>
-        <div class="form-group">
-          <label for="nocClientesCount">Clientes Afetados (Nº):</label>
-          <input type="number" id="nocClientesCount" placeholder="Ex: 11" required>
-        </div>
-        <div class="form-group">
-          <label for="nocResponsavel">Responsável:</label>
-          <input type="text" id="nocResponsavel" placeholder="Ex: LUCAS AUGUSTO DE PAULA" required>
-        </div>
-        <div class="form-group">
-          <label for="nocPrevisao">Previsão de Solução:</label>
-          <input type="text" id="nocPrevisao" placeholder="Ex: 17:17 28-09-2026" required>
-        </div>
-        <div class="form-group">
-          <label for="nocStatus">Status Atual:</label>
-          <input type="text" id="nocStatus" placeholder="Ex: SUPERVISOR INFORMADO" required>
-        </div>
-        <div class="form-group full-width">
-          <label for="nocDescricao">Descrição detalhada:</label>
-          <textarea id="nocDescricao" placeholder="Ex: 11 clientes com LOS. Acionado supervisor..." required></textarea>
+          <label for="nocTextoComunicado">Cole o Comunicado Oficial aqui:</label>
+          <textarea id="nocTextoComunicado" style="min-height: 220px; font-family: monospace; font-size: 13px;" placeholder="🚨 COMUNICADO DE INCIDENTE - REDE GPON 🚨
+ID: 9842
+CIDADES AFETADAS: Buri / São Paulo
+OLT: PRD-OLT-FB-BRI-DC
+PORTAS AFETADAS: 1/2
+INCIDENTE: REDE DE ACESSO
+DESCRIÇÃO: 11 clientes com LOS. acionado supervisor
+INÍCIO: 10:54 28-09-2026
+PREVISÃO: 17:17 28-09-2026
+CLIENTES AFETADOS: 11
+RESPONSÁVEL: LUCAS AUGUSTO DE PAULA
+ORDEM DE SERVIÇO: 20260928111752523246
+STATUS ATUAL: SUPERVISOR INFORMADO" required></textarea>
         </div>
 
-        <button type="submit" id="btnSalvarNoc" class="btn-primary full-width">Publicar Comunicado no Sistema</button>
+        <button type="submit" id="btnSalvarNoc" class="btn-primary" style="margin-top: 10px;">⚡ Processar e Publicar Comunicado</button>
       </form>
     </section>
 
