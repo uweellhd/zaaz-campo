@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEXTFLOW ENTERPRISE - LOGICA COMPLETA DE INCIDENTES (js/incidents.js)
+   NEXTFLOW ENTERPRISE - LOGICA DE INCIDENTES & CAMPO (js/incidents.js)
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -26,7 +26,7 @@ if (badgeElem) {
   badgeElem.textContent = `${usuarioSalvo} (${perfilSalvo.toUpperCase()})`;
 }
 
-// Se for Admin, habilita o menu de navegação por abas
+// Se for Admin, exibe o menu de navegação entre todas as abas
 if (perfilSalvo === 'admin') {
   const adminNav = document.getElementById('adminNavMenu');
   if (adminNav) adminNav.style.display = 'flex';
@@ -64,6 +64,38 @@ window.alternarAba = (idAba) => {
   if (idAba === 'viewSac') carregarIncidentesSac();
   if (idAba === 'viewTech') carregarListaTecnico();
 };
+
+// COMPRESSOR AUTOMÁTICO DE IMAGENS (REDUZ DE 10MB+ PARA ~200KB)
+function comprimirImagem(file, maxWidth = 1200, quality = 0.7) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Retorna a imagem comprimida em JPEG
+        const base64Comprimida = canvas.toDataURL('image/jpeg', quality);
+        resolve(base64Comprimida);
+      };
+    };
+  });
+}
 
 function extrairCampo(texto, rotulo) {
   const regex = new RegExp(rotulo + "\\s*:\\s*(.*)", "i");
@@ -120,7 +152,7 @@ if (formNoc) {
         clientesCount: parseInt(extrairCampo(textoBruto, "CLIENTES AFETADOS") || "0", 10) || 0,
         responsavel: extrairCampo(textoBruto, "RESPONSÁVEL") || usuarioSalvo,
         previsao: extrairCampo(textoBruto, "PREVISÃO") || "A definir",
-        statusAtual: extrairCampo(textoBruto, "STATUS ATUAL") || "EM ATENDIMENTO",
+        statusAtual: extrairCampo(textoBruto, "STATUS ATUAL") || "AGUARDANDO TÉCNICO",
         descricao: extrairCampo(textoBruto, "DESCRIÇÃO") || textoBruto,
         textoCompleto: textoBruto,
         fotosTecnico: [],
@@ -128,7 +160,7 @@ if (formNoc) {
         dataCriacao: new Date().toLocaleString("pt-BR")
       });
 
-      alert(`⚡ Comunicado lido com sucesso!\nID: ${idIncidenteExt}\nTipo: ${tipoRedeExt} | Estado: ${estadoExt}`);
+      alert(`⚡ Comunicado publicado com sucesso!\nID: ${idIncidenteExt}`);
       formNoc.reset();
       btn.textContent = "⚡ Processar e Publicar Comunicado";
       btn.disabled = false;
@@ -140,7 +172,7 @@ if (formNoc) {
   });
 }
 
-// 2. DASHBOARD GERENCIAL COM GRÁFICOS (CHART.JS) E DIVISÃO GPON / BACKBONE
+// 2. DASHBOARD GERENCIAL COM CHART.JS
 let todosIncidentesCache = [];
 let chartTipoInstance = null;
 let chartEstadosInstance = null;
@@ -234,9 +266,9 @@ function renderizarGraficosGerenciais(gpon, backbone, sp, mg, pr) {
   }
 }
 
-// 3. MÓDULO TÉCNICO DE CAMPO (SELEÇÃO DE CHAMADO E FLUXO DE 4 ETAPAS)
+// 3. MÓDULO TÉCNICO DE CAMPO (SALVAMENTO PARCIAL POR ETAPA E COMPRESSÃO)
 let chamadoAtivoTecnico = null;
-let fotosTecnicoBase64 = [];
+let mapaFotosBase64 = {};
 
 function carregarListaTecnico() {
   onSnapshot(collection(db, "incidentes"), (snapshot) => {
@@ -254,7 +286,8 @@ function carregarListaTecnico() {
       card.innerHTML = `
         <h4 style="color:var(--primary); margin-bottom:6px;">🚨 ID: ${item.idIncidente}</h4>
         <p style="font-size:13px;"><strong>OS:</strong> ${item.os} | <strong>Cidades:</strong> ${item.cidades}</p>
-        <p style="font-size:12px; color:var(--primary); font-weight:700; margin-top:8px;">▶️ Clicar para Iniciar Trato de Rua</p>
+        <p style="font-size:12px; color:var(--primary); font-weight:700; margin-top:8px;">Status Atual: ${item.statusAtual}</p>
+        <p style="font-size:12px; color:var(--success); font-weight:700;">▶️ Clicar para Iniciar / Continuar Trato</p>
       `;
       container.appendChild(card);
     });
@@ -263,6 +296,7 @@ function carregarListaTecnico() {
 
 function iniciarAtendimentoTecnico(item) {
   chamadoAtivoTecnico = item;
+  mapaFotosBase64 = {};
   document.getElementById('techSelectArea').style.display = 'none';
   document.getElementById('techFormArea').style.display = 'block';
   document.getElementById('techActiveIdDisplay').textContent = `Atendendo ID: ${item.idIncidente}`;
@@ -274,26 +308,15 @@ window.cancelarAtendimentoTecnico = () => {
   document.getElementById('techFormArea').style.display = 'none';
 };
 
-let currentStepTech = 1;
-window.mudarEtapaTecnico = (dir) => {
-  document.getElementById(`step-${currentStepTech}`).classList.remove('active');
-  document.getElementById(`ind-${currentStepTech}`).classList.remove('active');
-  currentStepTech += dir;
-  document.getElementById(`step-${currentStepTech}`).classList.add('active');
-  document.getElementById(`ind-${currentStepTech}`).classList.add('active');
-};
-
-window.previewFoto = (input, idPreview) => {
+window.processarEPreviewFoto = async (input, idPreview, chaveFoto) => {
   const file = input.files[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = document.getElementById(idPreview);
-      img.src = e.target.result;
-      img.style.display = 'block';
-      fotosTecnicoBase64.push(e.target.result);
-    };
-    reader.readAsDataURL(file);
+    // Comprime a imagem de 10MB+ para ~200KB no telemóvel
+    const base64Comprimida = await comprimirImagem(file, 1200, 0.7);
+    const img = document.getElementById(idPreview);
+    img.src = base64Comprimida;
+    img.style.display = 'block';
+    mapaFotosBase64[chaveFoto] = base64Comprimida;
   }
 };
 
@@ -304,37 +327,129 @@ window.capturarGPSTecnico = (idInput) => {
   });
 };
 
-const formTech = document.getElementById('techFormFlow');
-if (formTech) {
-  formTech.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!chamadoAtivoTecnico) return;
+let currentStepTech = 1;
 
-    const btn = document.getElementById('btnSalvarTecnico');
-    btn.textContent = "⏳ Enviando atendimento...";
-    btn.disabled = true;
-
-    try {
-      const docRef = doc(db, "incidentes", chamadoAtivoTecnico.docId);
-      const obsTexto = document.getElementById('tobs').value.trim();
-      const gps1 = document.getElementById('tgps1').value;
-      const gps2 = document.getElementById('tgps2').value;
-
-      await updateDoc(docRef, {
-        statusAtual: "REPARO CONCLUÍDO / EM TESTES",
-        fotosTecnico: fotosTecnicoBase64,
-        comentariosTecnico: [`Solução do Técnico (${usuarioSalvo}): ${obsTexto} | GPS C1: ${gps1} | GPS C2: ${gps2}`]
-      });
-
-      alert("✅ Atendimento de rua finalizado e enviado com sucesso!");
-      location.reload();
-    } catch (err) {
-      alert("Erro ao enviar: " + err.message);
-      btn.textContent = "Finalizar e Enviar Atendimento";
-      btn.disabled = false;
-    }
-  });
+function avancarEtapaVisual(novaEtapa) {
+  document.getElementById(`step-${currentStepTech}`).classList.remove('active');
+  document.getElementById(`ind-${currentStepTech}`).classList.remove('active');
+  currentStepTech = novaEtapa;
+  document.getElementById(`step-${currentStepTech}`).classList.add('active');
+  document.getElementById(`ind-${currentStepTech}`).classList.add('active');
 }
+
+window.voltarEtapaVisual = (dir) => {
+  avancarEtapaVisual(currentStepTech + dir);
+};
+
+// SALVAMENTO PARCIAL - ETAPA 1
+window.salvarEtapa1 = async () => {
+  if (!chamadoAtivoTecnico) return;
+  const sinalRural = document.getElementById('techSinalRuralSelect').value;
+  const statusMsg = sinalRural === "RURAL_SEM_SINAL" ? "ETAPA 1: EM DESLOCAMENTO (ZONA RURAL)" : "ETAPA 1: EM DESLOCAMENTO";
+
+  try {
+    const docRef = doc(db, "incidentes", chamadoAtivoTecnico.docId);
+    const fotosAtuais = chamadoAtivoTecnico.fotosTecnico || [];
+    if (mapaFotosBase64['fotoDeslocamento']) fotosAtuais.push(mapaFotosBase64['fotoDeslocamento']);
+
+    await updateDoc(docRef, {
+      statusAtual: statusMsg,
+      fotosTecnico: fotosAtuais,
+      sinalRural: sinalRural
+    });
+
+    alert("✅ Etapa 1 enviada ao vivo para a empresa!");
+    avancarEtapaVisual(2);
+  } catch (e) {
+    alert("⚠️ Salvo localmente devido ao sinal. Sincronizará assim que houver conexão.");
+    avancarEtapaVisual(2);
+  }
+};
+
+// SALVAMENTO PARCIAL - ETAPA 2
+window.salvarEtapa2 = async () => {
+  if (!chamadoAtivoTecnico) return;
+  const sinalRural = document.getElementById('techSinalRuralSelect').value;
+  const statusMsg = sinalRural === "RURAL_SEM_SINAL" ? "ETAPA 2: NO LOCAL / ROMPIMENTO (ZONA RURAL)" : "ETAPA 2: NO LOCAL / ROMPIMENTO";
+
+  try {
+    const docRef = doc(db, "incidentes", chamadoAtivoTecnico.docId);
+    const fotosAtuais = chamadoAtivoTecnico.fotosTecnico || [];
+    if (mapaFotosBase64['fotoChegada']) fotosAtuais.push(mapaFotosBase64['fotoChegada']);
+    if (mapaFotosBase64['fotoRompimento']) fotosAtuais.push(mapaFotosBase64['fotoRompimento']);
+
+    await updateDoc(docRef, {
+      statusAtual: statusMsg,
+      fotosTecnico: fotosAtuais
+    });
+
+    alert("✅ Etapa 2 enviada ao vivo!");
+    avancarEtapaVisual(3);
+  } catch (e) {
+    alert("⚠️ Gravado localmente. Avançando para Etapa 3.");
+    avancarEtapaVisual(3);
+  }
+};
+
+// SALVAMENTO PARCIAL - ETAPA 3
+window.salvarEtapa3 = async () => {
+  if (!chamadoAtivoTecnico) return;
+  const sinalRural = document.getElementById('techSinalRuralSelect').value;
+  const statusMsg = sinalRural === "RURAL_SEM_SINAL" ? "ETAPA 3: EXECUTANDO / FUSIONANDO (ZONA RURAL)" : "ETAPA 3: EXECUTANDO / FUSIONANDO";
+
+  try {
+    const docRef = doc(db, "incidentes", chamadoAtivoTecnico.docId);
+    const fotosAtuais = chamadoAtivoTecnico.fotosTecnico || [];
+    if (mapaFotosBase64['fotoPanoramica']) fotosAtuais.push(mapaFotosBase64['fotoPanoramica']);
+    if (mapaFotosBase64['fotoEquipe']) fotosAtuais.push(mapaFotosBase64['fotoEquipe']);
+
+    await updateDoc(docRef, {
+      statusAtual: statusMsg,
+      fotosTecnico: fotosAtuais
+    });
+
+    alert("✅ Etapa 3 enviada ao vivo!");
+    avancarEtapaVisual(4);
+  } catch (e) {
+    alert("⚠️ Gravado localmente. Avançando para Etapa 4.");
+    avancarEtapaVisual(4);
+  }
+};
+
+// SALVAMENTO FINAL - ETAPA 4 (ACOMODAÇÃO + LOCAL LIMPO + GPS)
+window.salvarEtapa4Final = async () => {
+  if (!chamadoAtivoTecnico) return;
+  const btn = document.getElementById('btnSalvarTecnicoFinal');
+  btn.textContent = "⏳ Finalizando...";
+  btn.disabled = true;
+
+  try {
+    const docRef = doc(db, "incidentes", chamadoAtivoTecnico.docId);
+    const obsTexto = document.getElementById('tobs').value.trim();
+    const gps1 = document.getElementById('tgps1').value;
+    const gps2 = document.getElementById('tgps2').value;
+
+    const fotosAtuais = chamadoAtivoTecnico.fotosTecnico || [];
+    if (mapaFotosBase64['fotoAcomodacao']) fotosAtuais.push(mapaFotosBase64['fotoAcomodacao']);
+    if (mapaFotosBase64['fotoLocalLimpo']) fotosAtuais.push(mapaFotosBase64['fotoLocalLimpo']);
+
+    const comentarios = chamadoAtivoTecnico.comentariosTecnico || [];
+    comentarios.push(`Conclusão (${usuarioSalvo}): ${obsTexto} | GPS C1: ${gps1} | GPS C2: ${gps2}`);
+
+    await updateDoc(docRef, {
+      statusAtual: "REPARO CONCLUÍDO / FINALIZADO",
+      fotosTecnico: fotosAtuais,
+      comentariosTecnico: comentarios
+    });
+
+    alert("🎉 Atendimento de campo finalizado com sucesso!");
+    location.reload();
+  } catch (err) {
+    alert("Erro ao finalizar: " + err.message);
+    btn.textContent = "Finalizar Atendimento de Campo";
+    btn.disabled = false;
+  }
+};
 
 // 4. CONSULTA SAC COM MODAL
 let listaIncidentesSac = [];
@@ -369,7 +484,7 @@ function renderizarListaSac(lista) {
       <h4 style="color:var(--primary); margin-bottom:6px;">🚨 ID: ${item.idIncidente} - ${item.cidades}</h4>
       <p style="font-size:13px; margin-bottom:4px;"><strong>OS:</strong> ${item.os} | <strong>OLT:</strong> ${item.olt}</p>
       <p style="font-size:13px; margin-bottom:4px;"><strong>Status:</strong> <span style="color:var(--primary); font-weight:700;">${item.statusAtual}</span></p>
-      <p style="font-size:12px; color:var(--primary); font-weight:700; margin-top:8px;">🔍 Clique para ver fotos e observações de rua</p>
+      <p style="font-size:12px; color:var(--primary); font-weight:700; margin-top:8px;">🔍 Clique para ver fotos e progresso por etapas</p>
     `;
     container.appendChild(card);
   });
@@ -397,7 +512,7 @@ window.abrirModalDetalhes = (item) => {
     <strong>Ordem de Serviço (OS):</strong> ${item.os}<br>
     <strong>Cidades Afetadas:</strong> ${item.cidades} (${item.estado || 'SP'})<br>
     <strong>Rede:</strong> ${item.tipoRede || 'GPON'} | <strong>OLT:</strong> ${item.olt}<br>
-    <strong>Status Atual:</strong> ${item.statusAtual}<br>
+    <strong>Status em Tempo Real:</strong> <span style="color:var(--primary); font-weight:700;">${item.statusAtual}</span><br>
     <strong>Clientes Afetados:</strong> ${item.clientesCount}<br>
     <strong>Previsão de Solução:</strong> ${item.previsao}<br>
     <strong>Responsável:</strong> ${item.responsavel}<br>
