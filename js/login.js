@@ -1,11 +1,11 @@
 /* ==========================================================================
-   NEXTFLOW ENTERPRISE - LÓGICA DE AUTENTICAÇÃO E SAUDAÇÃO (js/login.js)
+   NEXTFLOW ENTERPRISE - LOGICA DE AUTENTICAÇÃO (js/login.js)
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Credenciais Oficiais do Firebase
+// Credenciais do Firebase ZAAZ Telecom
 const firebaseConfig = {
   apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
   authDomain: "nextflow-telecom.firebaseapp.com",
@@ -16,7 +16,6 @@ const firebaseConfig = {
   measurementId: "G-W2Z8ZEHGZS"
 };
 
-// Inicialização da App e do Firestore Database
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -49,12 +48,13 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     let loginSucesso = false;
     let usuarioDados = null;
 
-    // Teste de logins de contingência padrão
+    // Logins padrão de acesso rápido por perfil
     const padroes = {
       "admin": { usuario: "Administrador", perfil: "admin", senha: "123" },
       "tecnico": { usuario: "Técnico de Campo", perfil: "tecnico", senha: "123" },
-      "sac": { usuario: "Atendente SAC", perfil: "sac_noc", senha: "123" },
-      "gerente": { usuario: "Gerente Operacional", perfil: "gerente", senha: "123" }
+      "noc": { usuario: "Operador NOC", perfil: "noc", senha: "123" },
+      "sac": { usuario: "Atendente SAC", perfil: "sac", senha: "123" },
+      "gerente": { usuario: "Gerente / Diretor", perfil: "gerente", senha: "123" }
     };
 
     if (padroes[userInput] && padroes[userInput].senha === passInput) {
@@ -73,14 +73,23 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     }
 
     if (loginSucesso) {
-      // Exibe a tela de boas-vindas personalizada
+      // Exibe mensagem de boas-vindas e redireciona para a Dashboard
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('welcomeSection').style.display = 'block';
 
       const textoSaudacao = obterSaudacao();
       document.getElementById('saudacaoTexto').textContent = `${textoSaudacao}, ${usuarioDados.usuario}!`;
-      document.getElementById('usuarioNomeDisplay').textContent = "Acesso autenticado com sucesso na plataforma.";
+      document.getElementById('usuarioNomeDisplay').textContent = "Redirecionando para o painel operacional...";
       document.getElementById('perfilBadge').textContent = `Perfil: ${usuarioDados.perfil.toUpperCase()}`;
+
+      // Armazena credenciais ativas e redireciona após 1.2 segundos
+      localStorage.setItem('user_nome', usuarioDados.usuario);
+      localStorage.setItem('user_perfil', usuarioDados.perfil);
+
+      setTimeout(() => {
+        window.location.href = 'dashboard.html';
+      }, 1200);
+
     } else {
       errorMsg.style.display = 'block';
       btnLogin.textContent = "Entrar no Sistema";
