@@ -3,7 +3,7 @@
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // Credenciais do Firebase ZAAZ Telecom
 const firebaseConfig = {
@@ -19,7 +19,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Recupera informações da sessão atual
+// Recupera informações da sessão ativa
 const perfilSalvo = localStorage.getItem('user_perfil') || 'sac';
 const usuarioSalvo = localStorage.getItem('user_nome') || 'Colaborador';
 
@@ -46,38 +46,73 @@ function configurarTelasPorPerfil() {
   }
 }
 
-// 1. REGISTRO DE COMUNICADO PELO NOC
+// FUNÇÃO AUXILIAR: EXTRAI UM CAMPO DO TEXTO COLADO VIA EXPRESSÃO REGULAR
+function extrairCampo(texto, rotulo) {
+  const regex = new RegExp(rotulo + "\\s*:\\s*(.*)", "i");
+  const match = texto.match(regex);
+  return match ? match[1].trim() : "";
+}
+
+// FUNÇÃO AUXILIAR: GERA UM ID AUTOMÁTICO CASO O TEXTO NÃO TENHA
+function gerarIdAutomatico() {
+  const numeroAleatorio = Math.floor(1000 + Math.random() * 9000);
+  return `INC-${numeroAleatorio}`;
+}
+
+// 1. REGISTRO AUTOMÁTICO DO COMUNICADO PELO NOC (LEITURA DO TEXTO)
 const formNoc = document.getElementById('formNocIncidente');
 if (formNoc) {
   formNoc.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('btnSalvarNoc');
-    btn.textContent = "⏳ Registrando...";
+    const textoBruto = document.getElementById('nocTextoComunicado').value.trim();
+
+    btn.textContent = "⏳ Lendo comunicado e salvando...";
     btn.disabled = true;
 
     try {
+      // Extração automática de cada campo do texto colado
+      let idIncidenteExt = extrairCampo(textoBruto, "ID");
+      if (!idIncidenteExt) {
+        idIncidenteExt = gerarIdAutomatico();
+      }
+
+      const osExt = extrairCampo(textoBruto, "ORDEM DE SERVIÇO") || "Não informada";
+      const cidadesExt = extrairCampo(textoBruto, "CIDADES AFETADAS") || "Geral";
+      const oltExt = extrairCampo(textoBruto, "OLT") || "N/A";
+      const portasExt = extrairCampo(textoBruto, "PORTAS AFETADAS") || "N/A";
+      const tipoExt = extrairCampo(textoBruto, "INCIDENTE") || "REDE";
+      const clientesExtStr = extrairCampo(textoBruto, "CLIENTES AFETADOS") || "0";
+      const clientesCountExt = parseInt(clientesExtStr, 10) || 0;
+      const responsavelExt = extrairCampo(textoBruto, "RESPONSÁVEL") || usuarioSalvo;
+      const previsaoExt = extrairCampo(textoBruto, "PREVISÃO") || "A definir";
+      const statusExt = extrairCampo(textoBruto, "STATUS ATUAL") || "EM ATENDIMENTO";
+      const descricaoExt = extrairCampo(textoBruto, "DESCRIÇÃO") || textoBruto;
+
+      // Gravação dos dados extraídos no Firebase Firestore
       await addDoc(collection(db, "incidentes"), {
-        idIncidente: document.getElementById('nocId').value.trim(),
-        os: document.getElementById('nocOs').value.trim(),
-        cidades: document.getElementById('nocCidades').value.trim(),
-        olt: document.getElementById('nocOlt').value.trim(),
-        portas: document.getElementById('nocPortas').value.trim(),
-        incidenteTipo: document.getElementById('nocIncidenteTipo').value.trim(),
-        clientesCount: Number(document.getElementById('nocClientesCount').value),
-        responsavel: document.getElementById('nocResponsavel').value.trim(),
-        previsao: document.getElementById('nocPrevisao').value.trim(),
-        statusAtual: document.getElementById('nocStatus').value.trim(),
-        descricao: document.getElementById('nocDescricao').value.trim(),
+        idIncidente: idIncidenteExt,
+        os: osExt,
+        cidades: cidadesExt,
+        olt: oltExt,
+        portas: portasExt,
+        incidenteTipo: tipoExt,
+        clientesCount: clientesCountExt,
+        responsavel: responsavelExt,
+        previsao: previsaoExt,
+        statusAtual: statusExt,
+        descricao: descricaoExt,
+        textoCompleto: textoBruto,
         dataCriacao: new Date().toLocaleString("pt-BR")
       });
 
-      alert("🚨 Comunicado de incidente publicado com sucesso!");
+      alert(`⚡ Comunicado lido com sucesso!\nID do Incidente: ${idIncidenteExt}`);
       formNoc.reset();
-      btn.textContent = "Publicar Comunicado no Sistema";
+      btn.textContent = "⚡ Processar e Publicar Comunicado";
       btn.disabled = false;
     } catch (err) {
-      alert("Erro ao registrar comunicado: " + err.message);
-      btn.textContent = "Publicar Comunicado no Sistema";
+      alert("Erro ao processar comunicado: " + err.message);
+      btn.textContent = "⚡ Processar e Publicar Comunicado";
       btn.disabled = false;
     }
   });
