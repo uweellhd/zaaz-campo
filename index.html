@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZAAZ Telecom - Sistema Integrado de Campo, NOC e SAC</title>
+  <title>ZAAZ Telecom - NextFlow 2.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -76,38 +76,28 @@
       letter-spacing: 0.5px;
     }
 
-    .status-bar {
-      padding: 10px 14px;
-      border-radius: 10px;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 16px;
+    .user-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      background-color: #F8FAFC;
+      border: 1px solid var(--border-color);
+      padding: 10px 14px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      font-weight: 600;
     }
 
-    .status-online {
-      background-color: #ECFDF5;
-      color: #065F46;
-      border: 1px solid #A7F3D0;
-    }
-
-    .status-offline {
-      background-color: #FFFBEB;
-      color: #92400E;
-      border: 1px solid #FDE68A;
-    }
-
-    .btn-sync {
-      background-color: var(--warning);
-      color: white;
-      border: none;
+    .btn-logout {
+      background-color: #F1F5F9;
+      color: var(--danger);
+      border: 1px solid #FECDD3;
       padding: 6px 12px;
-      border-radius: 6px;
+      border-radius: 8px;
+      cursor: pointer;
       font-size: 11px;
       font-weight: 700;
-      cursor: pointer;
     }
 
     h2 {
@@ -125,108 +115,9 @@
       margin-bottom: 20px;
     }
 
-    .login-box {
-      display: block;
-    }
-
-    .error-message {
-      color: var(--danger);
-      font-size: 13px;
-      font-weight: 600;
-      text-align: center;
-      margin-top: 12px;
-      display: none;
-      background-color: #FEF2F2;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #FCA5A5;
-    }
-
-    .user-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background-color: #F8FAFC;
-      border: 1px solid var(--border-color);
-      padding: 10px 14px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .user-actions {
-      display: flex;
-      gap: 6px;
-    }
-
-    .btn-action-sm {
-      background-color: #F1F5F9;
-      color: var(--text-main);
-      border: 1px solid var(--border-color);
-      padding: 6px 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 700;
-    }
-
-    .btn-logout {
-      background-color: #F1F5F9;
-      color: var(--danger);
-      border: 1px solid #FECDD3;
-      padding: 6px 10px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 700;
-    }
-
-    .app-box, .admin-box, .noc-box, .sac-box, .modal-pass {
-      display: none;
-    }
-
-    .step-indicator {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 24px;
-      background-color: #F8FAFC;
-      padding: 6px;
-      border-radius: 12px;
-      border: 1px solid var(--border-color);
-    }
-
-    .step-number {
-      flex: 1;
-      text-align: center;
-      padding: 8px 0;
-      font-weight: 700;
-      color: var(--text-muted);
-      font-size: 12px;
-      border-radius: 8px;
-    }
-
-    .step-number.active {
-      color: #FFFFFF;
-      background-color: var(--primary);
-    }
-
-    .step {
-      display: none;
-    }
-
-    .step.active {
-      display: block;
-    }
-
-    .step h3 {
-      font-size: 16px;
-      color: var(--primary);
-      margin-top: 0;
-      margin-bottom: 16px;
-      border-left: 4px solid var(--primary);
-      padding-left: 8px;
-    }
+    /* CONTROLE DE EXIBIÇÃO DE PAINÉIS */
+    .login-box { display: block; }
+    .app-box, .noc-box, .sac-box, .admin-box { display: none; }
 
     .form-group {
       margin-bottom: 18px;
@@ -257,10 +148,72 @@
       min-height: 80px;
     }
 
-    input[readonly] {
-      background-color: #E2E8F0;
-      color: #475569;
-      cursor: not-allowed;
+    button.btn-primary {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 14px 20px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    button.btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .error-message {
+      color: var(--danger);
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      margin-top: 12px;
+      display: none;
+      background-color: #FEF2F2;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #FCA5A5;
+    }
+
+    /* ESTILOS DO FORMULÁRIO POR ETAPAS (TÉCNICO) */
+    .step-indicator {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      background-color: #F8FAFC;
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .step-number {
+      flex: 1;
+      text-align: center;
+      padding: 8px 0;
+      font-weight: 700;
+      color: var(--text-muted);
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    .step-number.active {
+      color: #FFFFFF;
+      background-color: var(--primary);
+    }
+
+    .step { display: none; }
+    .step.active { display: block; }
+
+    .step h3 {
+      font-size: 16px;
+      color: var(--primary);
+      margin-top: 0;
+      margin-bottom: 16px;
+      border-left: 4px solid var(--primary);
+      padding-left: 8px;
     }
 
     .btn-geo {
@@ -274,14 +227,6 @@
       font-size: 13px;
       font-weight: 600;
       width: 100%;
-    }
-
-    .geo-status {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--success);
-      margin-top: 6px;
-      display: block;
     }
 
     .preview {
@@ -301,50 +246,50 @@
       gap: 12px;
     }
 
-    button.nav-btn, button.btn-login, button.btn-add-user, button.btn-search {
-      padding: 14px 20px;
-      border: none;
-      border-radius: 10px;
-      font-weight: 700;
-      font-size: 14px;
-      cursor: pointer;
-    }
-
-    .btn-login, .btn-add-user, .btn-search {
-      background-color: var(--primary);
-      color: white;
-      width: 100%;
-      margin-top: 10px;
-    }
-
     .btn-prev {
       background-color: #E2E8F0;
       color: var(--text-main);
+      border: none;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 700;
       flex: 1;
+      cursor: pointer;
     }
 
     .btn-next {
       background-color: var(--primary);
       color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 700;
       flex: 1;
+      cursor: pointer;
     }
 
     .btn-submit {
       background-color: var(--success);
       color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 700;
       width: 100%;
+      cursor: pointer;
     }
 
-    .result-card {
+    /* ESTILOS DOS CARTÕES DE CONSULTA (NOC / SAC) */
+    .card-resultado {
       background-color: #F8FAFC;
       border: 1px solid var(--border-color);
       border-radius: 12px;
       padding: 16px;
-      margin-bottom: 16px;
+      margin-top: 16px;
       font-size: 13px;
     }
 
-    .result-card strong {
+    .card-resultado strong {
       color: var(--primary);
     }
 
@@ -357,21 +302,10 @@
 
     .photos-grid img {
       width: 100%;
-      height: 100px;
+      height: 110px;
       object-fit: cover;
       border-radius: 8px;
       border: 1px solid var(--border-color);
-    }
-
-    .badge-rural {
-      background-color: #FEF3C7;
-      color: #92400E;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 700;
-      display: inline-block;
-      margin-bottom: 8px;
     }
 
     .nextflow-footer {
@@ -397,18 +331,13 @@
 
     <div class="brand-header">
       <img src="logo.png" alt="ZAAZ Telecom Logo" class="brand-logo-img">
-      <p>Plataforma Integrada: Campo • NOC • SAC</p>
+      <p>NextFlow 2.0 • Sistema Integrado</p>
     </div>
 
-    <div id="statusBar" class="status-bar status-online">
-      <span id="statusText">🌐 Conectado à Internet</span>
-      <button id="btnSync" class="btn-sync" onclick="sincronizarPendentes()" style="display:none;">⚡ Enviar Pendentes</button>
-    </div>
-
-    <!-- TELA DE LOGIN -->
+    <!-- 1. TELA DE LOGIN -->
     <div id="loginScreen" class="login-box">
       <h2>Acesso ao Sistema</h2>
-      <p class="subtitle">Insira suas credenciais corporativas</p>
+      <p class="subtitle">Informe suas credenciais para continuar</p>
 
       <form id="loginForm" onsubmit="validarLogin(event)">
         <div class="form-group">
@@ -421,62 +350,169 @@
           <input type="password" id="senha" placeholder="Digite sua senha" required>
         </div>
 
-        <button type="submit" id="btnLogin" class="btn-login">Entrar no Sistema</button>
+        <button type="submit" id="btnLogin" class="btn-primary">Entrar no Sistema</button>
         <p id="loginError" class="error-message">Usuário ou senha incorretos!</p>
       </form>
     </div>
 
-    <!-- PAINEL NOC (BUSCA + ALIMENTAÇÃO DE CLIENTES E ETA) -->
+    <!-- 2. PAINEL TÉCNICO (CAMPO) -->
+    <div id="appScreen" class="app-box">
+      <div class="user-header">
+        <span>Técnico: <strong id="loggedUserDisplay"></strong></span>
+        <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
+      </div>
+
+      <h2>Relatório de Atendimento</h2>
+      <p class="subtitle">Registro de reparo em campo</p>
+
+      <div class="step-indicator">
+        <span class="step-number active" id="ind-1">Etapa 1</span>
+        <span class="step-number" id="ind-2">Etapa 2</span>
+        <span class="step-number" id="ind-3">Etapa 3</span>
+        <span class="step-number" id="ind-4">Etapa 4</span>
+      </div>
+
+      <form id="techForm" onsubmit="enviarRelatorioCampo(event)">
+
+        <!-- ETAPA 1 -->
+        <div class="step active" id="step-1">
+          <h3>1. Identificação e Partida</h3>
+          <div class="form-group">
+            <label for="codigo_chamado">Código / ID do Chamado:</label>
+            <input type="text" id="codigo_chamado" placeholder="Ex: OS-2026-99" required>
+          </div>
+          <div class="form-group">
+            <label for="nome_equipe">Técnico Responsável:</label>
+            <input type="text" id="nome_equipe" readonly required>
+          </div>
+          <div class="form-group">
+            <label for="foto_deslocamento">Foto do Deslocamento:</label>
+            <input type="file" id="foto_deslocamento" accept="image/*" onchange="previewImage(this, 'prev1')">
+            <img id="prev1" class="preview" alt="Pré-visualização 1">
+          </div>
+        </div>
+
+        <!-- ETAPA 2 -->
+        <div class="step" id="step-2">
+          <h3>2. Chegada e Rompimento</h3>
+          <div class="form-group">
+            <label for="tipo_ambiente">Ambiente:</label>
+            <select id="tipo_ambiente">
+              <option value="Urbano">🏙️ Urbano</option>
+              <option value="Zona Rural">🌾 Zona Rural (Carregamento estendido)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="foto_local_chegada">Foto do Local da Chegada:</label>
+            <input type="file" id="foto_local_chegada" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_1')">
+            <img id="prev2_1" class="preview" alt="Pré-visualização 2.1">
+          </div>
+          <div class="form-group">
+            <label for="foto_rompimento">Foto do Rompimento:</label>
+            <input type="file" id="foto_rompimento" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_2')">
+            <img id="prev2_2" class="preview" alt="Pré-visualização 2.2">
+          </div>
+        </div>
+
+        <!-- ETAPA 3 -->
+        <div class="step" id="step-3">
+          <h3>3. Execução Técnica</h3>
+          <div class="form-group">
+            <label for="foto_panoramica">Foto Panorâmica:</label>
+            <input type="file" id="foto_panoramica" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_1')">
+            <img id="prev3_1" class="preview" alt="Pré-visualização 3.1">
+          </div>
+          <div class="form-group">
+            <label for="foto_equipe">Foto da Equipe Atuando:</label>
+            <input type="file" id="foto_equipe" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_2')">
+            <img id="prev3_2" class="preview" alt="Pré-visualização 3.2">
+          </div>
+        </div>
+
+        <!-- ETAPA 4 -->
+        <div class="step" id="step-4">
+          <h3>4. Finalização e GPS</h3>
+          <div class="form-group">
+            <label for="geo_caixa_1">GPS Caixa 1:</label>
+            <input type="text" id="geo_caixa_1" placeholder="Coordenadas GPS" readonly>
+            <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_1')">📍 Capturar GPS Caixa 1</button>
+          </div>
+          <div class="form-group">
+            <label for="geo_caixa_2">GPS Caixa 2:</label>
+            <input type="text" id="geo_caixa_2" placeholder="Coordenadas GPS" readonly>
+            <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_2')">📍 Capturar GPS Caixa 2</button>
+          </div>
+
+          <div class="form-group">
+            <label for="observacao_reparo">Motivo do Rompimento e Solução:</label>
+            <textarea id="observacao_reparo" placeholder="Descreva a causa e ação realizada..." required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="foto_caixas">Foto das Caixas Acomodadas:</label>
+            <input type="file" id="foto_caixas" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4')">
+            <img id="prev4" class="preview" alt="Pré-visualização 4">
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button type="button" class="btn-prev" id="btnPrev" onclick="mudarEtapa(-1)" style="display:none;">Voltar</button>
+          <button type="button" class="btn-next" id="btnNext" onclick="mudarEtapa(1)">Avançar</button>
+          <button type="submit" class="btn-submit" id="btnSubmit" style="display:none;">Finalizar e Salvar</button>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- 3. PAINEL NOC -->
     <div id="nocScreen" class="noc-box">
       <div class="user-header">
         <span>Painel: <strong>NOC (Operações de Rede)</strong></span>
         <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
       </div>
 
-      <h2>Monitoramento & Clientes</h2>
-      <p class="subtitle">Pesquise por ID do chamado ou cliente afetado</p>
+      <h2>Monitoramento NOC</h2>
+      <p class="subtitle">Pesquise chamados e alimente clientes afetados / ETA</p>
 
       <div class="form-group">
-        <label for="buscaNocInput">ID do Chamado ou Cliente:</label>
-        <input type="text" id="buscaNocInput" placeholder="Ex: OS-2026-99 ou Bairro Centro">
-        <button type="button" class="btn-search" onclick="realizarBuscaNoc()">🔍 Pesquisar Chamado</button>
+        <input type="text" id="buscaNocInput" placeholder="Digite o ID da OS ou Bairro/Região">
+        <button type="button" class="btn-primary" onclick="buscarChamadosNoc()">🔍 Pesquisar Chamado</button>
       </div>
 
-      <div id="nocResultadosContainer"></div>
+      <div id="nocContainer"></div>
     </div>
 
-    <!-- PAINEL SAC (CONSULTA RÁPIDA READ-ONLY) -->
+    <!-- 4. PAINEL SAC (SOMENTE LEITURA) -->
     <div id="sacScreen" class="sac-box">
       <div class="user-header">
         <span>Painel: <strong>SAC (Atendimento ao Cliente)</strong></span>
         <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
       </div>
 
-      <h2>Consulta de Atendimentos</h2>
-      <p class="subtitle">Visualização rápida de status e fotos para informe de clientes</p>
+      <h2>Consulta Rápida SAC</h2>
+      <p class="subtitle">Consulte o status do reparo para informar o cliente</p>
 
       <div class="form-group">
-        <label for="buscaSacInput">Código do Chamado:</label>
         <input type="text" id="buscaSacInput" placeholder="Digite o ID da OS">
-        <button type="button" class="btn-search" onclick="realizarBuscaSac()">🔍 Consultar Status</button>
+        <button type="button" class="btn-primary" onclick="buscarChamadosSac()">🔍 Consultar Status</button>
       </div>
 
-      <div id="sacResultadosContainer"></div>
+      <div id="sacContainer"></div>
     </div>
 
-    <!-- PAINEL ADMIN E PAINEL TÉCNICO PERMANECEM INTEGREDOS -->
+    <!-- 5. PAINEL ADMIN -->
     <div id="adminScreen" class="admin-box">
       <div class="user-header">
-        <span>Painel: <strong>Administrador / Gerência</strong></span>
+        <span>Painel: <strong>Administrador</strong></span>
         <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
       </div>
 
-      <h2>Gestão Geral</h2>
-      <p class="subtitle">Cadastre usuários com os perfis: tecnico, noc, sac ou admin</p>
+      <h2>Gestão de Usuários</h2>
+      <p class="subtitle">Cadastre novos acessos para a equipe</p>
 
-      <form id="addUserForm" onsubmit="cadastrarUsuarioNaPlanilha(event)">
+      <form id="addUserForm" onsubmit="cadastrarUsuario(event)">
         <div class="form-group">
-          <label for="novo_usuario">Nome do Usuário:</label>
+          <label for="novo_usuario">Usuário:</label>
           <input type="text" id="novo_usuario" placeholder="Ex: sac.maria" required>
         </div>
         <div class="form-group">
@@ -492,211 +528,100 @@
             <option value="admin">🔑 Administrador</option>
           </select>
         </div>
-        <button type="submit" id="btnAddUser" class="btn-add-user">➕ Cadastrar Usuário</button>
-      </form>
-    </div>
-
-    <!-- FORMULÁRIO TÉCNICO (CAMPO) -->
-    <div id="appScreen" class="app-box">
-
-      <div class="user-header">
-        <span>Técnico: <strong id="loggedUserDisplay"></strong></span>
-        <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
-      </div>
-
-      <h2>Relatório de Atendimento</h2>
-
-      <div class="step-indicator">
-        <span class="step-number active" id="ind-1">Etapa 1</span>
-        <span class="step-number" id="ind-2">Etapa 2</span>
-        <span class="step-number" id="ind-3">Etapa 3</span>
-        <span class="step-number" id="ind-4">Etapa 4</span>
-      </div>
-
-      <form id="techForm" onsubmit="enviarRelatorio(event)">
-
-        <!-- ETAPA 1 -->
-        <div class="step active" id="step-1">
-          <h3>1. Comunicado e Deslocamento</h3>
-          <div class="form-group">
-            <label for="codigo_chamado">Código / ID do Chamado:</label>
-            <input type="text" id="codigo_chamado" placeholder="Ex: OS-2026-99" required>
-          </div>
-          <div class="form-group">
-            <label for="nome_equipe">Técnico Responsável:</label>
-            <input type="text" id="nome_equipe" readonly required>
-          </div>
-          <div class="form-group">
-            <label for="foto_deslocamento">Foto do Deslocamento / Partida:</label>
-            <input type="file" id="foto_deslocamento" accept="image/*" onchange="previewImage(this, 'prev1')">
-            <img id="prev1" class="preview" alt="Pré-visualização foto 1">
-          </div>
-        </div>
-
-        <!-- ETAPA 2 (COM FLAG RURAL) -->
-        <div class="step" id="step-2">
-          <h3>2. Chegada e Ambiente</h3>
-          <div class="form-group">
-            <label for="tipo_ambiente">Tipo de Ambiente:</label>
-            <select id="tipo_ambiente">
-              <option value="Urbano">🏙️ Urbano (Sinal Normal)</option>
-              <option value="Zona Rural">🌾 Zona Rural (Fotos podem demorar a carregar)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="foto_local_chegada">Foto do Local da Chegada:</label>
-            <input type="file" id="foto_local_chegada" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_1')">
-            <img id="prev2_1" class="preview" alt="Pré-visualização local">
-          </div>
-          <div class="form-group">
-            <label for="foto_rompimento">Foto do Rompimento Localizado:</label>
-            <input type="file" id="foto_rompimento" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_2')">
-            <img id="prev2_2" class="preview" alt="Pré-visualização rompimento">
-          </div>
-        </div>
-
-        <!-- ETAPA 3 -->
-        <div class="step" id="step-3">
-          <h3>3. Execução do Serviço</h3>
-          <div class="form-group">
-            <label for="foto_panoramica">Foto Panorâmica do Local:</label>
-            <input type="file" id="foto_panoramica" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_1')">
-            <img id="prev3_1" class="preview" alt="Pré-visualização panorâmica">
-          </div>
-          <div class="form-group">
-            <label for="foto_equipe">Foto da Equipe Atuando:</label>
-            <input type="file" id="foto_equipe" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_2')">
-            <img id="prev3_2" class="preview" alt="Pré-visualização equipe">
-          </div>
-        </div>
-
-        <!-- ETAPA 4 -->
-        <div class="step" id="step-4">
-          <h3>4. Finalização e GPS</h3>
-          <div class="form-group">
-            <label for="geo_caixa_1">Geolocalização Caixa 1:</label>
-            <input type="text" id="geo_caixa_1" placeholder="Coordenadas GPS" readonly>
-            <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_1', 'status_c1')">📍 Capturar GPS Caixa 1</button>
-            <span id="status_c1" class="geo-status"></span>
-          </div>
-          <div class="form-group">
-            <label for="geo_caixa_2">Geolocalização Caixa 2:</label>
-            <input type="text" id="geo_caixa_2" placeholder="Coordenadas GPS" readonly>
-            <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_2', 'status_c2')">📍 Capturar GPS Caixa 2</button>
-            <span id="status_c2" class="geo-status"></span>
-          </div>
-
-          <div class="form-group">
-            <label for="observacao_reparo">Motivo do Rompimento e Solução:</label>
-            <textarea id="observacao_reparo" placeholder="Descreva a causa e ação realizada..." required></textarea>
-          </div>
-
-          <div class="form-group">
-            <label for="foto_caixas">Foto das Caixas Acomodadas:</label>
-            <input type="file" id="foto_caixas" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_1')">
-            <img id="prev4_1" class="preview" alt="Pré-visualização caixas">
-          </div>
-        </div>
-
-        <!-- NAVEGAÇÃO -->
-        <div class="buttons">
-          <button type="button" class="nav-btn btn-prev" id="btnPrev" onclick="changeStep(-1)" style="display:none;">Voltar</button>
-          <button type="button" class="nav-btn btn-next" id="btnNext" onclick="changeStep(1)">Avançar</button>
-          <button type="submit" class="nav-btn btn-submit" id="btnSubmit" style="display:none;">Finalizar e Salvar</button>
-        </div>
-
+        <button type="submit" id="btnAddUser" class="btn-primary">➕ Cadastrar Usuário</button>
       </form>
     </div>
 
   </div>
 
   <footer class="nextflow-footer">
-    Um produto <strong>NextFlow</strong> • ZAAZ Telecom
+    Um produto <strong>NextFlow 2.0</strong> • ZAAZ Telecom
   </footer>
 
   <script>
-    const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzL7VYWpBFq_xGjoZiBmNMHZvc8mc3O6hW00-8UShwV4uKwtkShCFN8JLYnrKgsx5bW/exec";
+    // Cole aqui a sua nova URL do Web App gerada no Apps Script
+    const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzaRX70X6Zap89XydxOo6L-P8913362uU5IMB24LvJ22p8LOgx2tM7cPo6eGtI68-Os/exec";
 
-    let usuariosAtivos = [];
+    let listaUsuarios = [];
     let usuarioLogado = "";
 
-    function carregarUsuariosDaPlanilha(callback) {
-      fetch(URL_GOOGLE_SCRIPT + "?t=" + new Date().getTime())
+    function carregarUsuariosBD(callback) {
+      fetch(`${URL_GOOGLE_SCRIPT}?tipo=usuarios&t=${new Date().getTime()}`)
         .then(res => res.json())
         .then(data => {
-          usuariosAtivos = (Array.isArray(data) && data.length > 0) ? data : [{ usuario: "admin", senha: "123", perfil: "admin" }];
+          listaUsuarios = Array.isArray(data) ? data : [];
           if (callback) callback();
         })
         .catch(() => {
-          usuariosAtivos = [{ usuario: "admin", senha: "123", perfil: "admin" }];
           if (callback) callback();
         });
     }
 
     function validarLogin(event) {
       event.preventDefault();
-      const userInput = document.getElementById('usuario').value.trim();
-      const passInput = document.getElementById('senha').value.trim();
-      const errorMsg = document.getElementById('loginError');
+      const btn = document.getElementById('btnLogin');
+      btn.textContent = "⏳ Validando...";
+      btn.disabled = true;
 
-      carregarUsuariosDaPlanilha(function() {
-        const u = usuariosAtivos.find(u => String(u.usuario) === userInput && String(u.senha) === passInput);
+      const user = document.getElementById('usuario').value.trim();
+      const pass = document.getElementById('senha').value.trim();
+
+      carregarUsuariosBD(function() {
+        btn.textContent = "Entrar no Sistema";
+        btn.disabled = false;
+
+        const u = listaUsuarios.find(item => String(item.usuario) === user && String(item.senha) === pass);
 
         if (u) {
           usuarioLogado = u.usuario;
           document.getElementById('loginScreen').style.display = 'none';
 
-          if (u.perfil === "admin") {
-            document.getElementById('adminScreen').style.display = 'block';
-          } else if (u.perfil === "noc") {
-            document.getElementById('nocScreen').style.display = 'block';
-          } else if (u.perfil === "sac") {
-            document.getElementById('sacScreen').style.display = 'block';
-          } else {
+          if (u.perfil === "admin") document.getElementById('adminScreen').style.display = 'block';
+          else if (u.perfil === "noc") document.getElementById('nocScreen').style.display = 'block';
+          else if (u.perfil === "sac") document.getElementById('sacScreen').style.display = 'block';
+          else {
             document.getElementById('appScreen').style.display = 'block';
             document.getElementById('loggedUserDisplay').textContent = usuarioLogado;
             document.getElementById('nome_equipe').value = usuarioLogado;
           }
         } else {
-          errorMsg.style.display = 'block';
+          document.getElementById('loginError').style.display = 'block';
         }
       });
     }
 
-    // BUSCA REALIZADA PELO NOC
-    function realizarBuscaNoc() {
+    /* FUNÇÕES DO NOC */
+    function buscarChamadosNoc() {
       const termo = document.getElementById('buscaNocInput').value.trim();
-      const container = document.getElementById('nocResultadosContainer');
-      container.innerHTML = "<p style='text-align:center;'>⏳ Pesquisando no banco de dados...</p>";
+      const container = document.getElementById('nocContainer');
+      container.innerHTML = "<p style='text-align:center;'>⏳ Pesquisando...</p>";
 
-      fetch(`${URL_GOOGLE_SCRIPT}?tipo=busca_id&termo=${encodeURIComponent(termo)}&t=${new Date().getTime()}`)
+      fetch(`${URL_GOOGLE_SCRIPT}?tipo=busca&termo=${encodeURIComponent(termo)}&t=${new Date().getTime()}`)
         .then(res => res.json())
         .then(data => {
           if (!data || data.length === 0) {
-            container.innerHTML = "<p style='text-align:center;'>Nenhum atendimento encontrado.</p>";
+            container.innerHTML = "<p style='text-align:center;'>Nenhum registro encontrado.</p>";
             return;
           }
-
           container.innerHTML = "";
           data.forEach(item => {
             const card = document.createElement('div');
-            card.className = 'result-card';
+            card.className = 'card-resultado';
             card.innerHTML = `
-              ${item.ambiente === 'Zona Rural' ? '<span class="badge-rural">🌾 ZONA RURAL - Fotos em carregamento</span>' : ''}
-              <br><strong>ID Chamado:</strong> ${item.chamadoId}<br>
+              <strong>ID Chamado:</strong> ${item.chamadoId}<br>
               <strong>Técnico:</strong> ${item.tecnico} | <strong>Data:</strong> ${item.dataHora}<br>
               <strong>Motivo/Solução:</strong> ${item.observacao}<br>
               
               <div style="margin-top:10px; background:#E2E8F0; padding:10px; border-radius:8px;">
                 <strong>Alimentar Informações (NOC):</strong>
-                <input type="text" id="cli_${item.chamadoId}" value="${item.clientesAfetados || ''}" placeholder="Lista de Clientes / Bairro Afetado" style="margin-top:4px;">
-                <input type="text" id="eta_${item.chamadoId}" value="${item.previsaoSolucao || ''}" placeholder="Previsão de Solução (ETA)" style="margin-top:4px;">
-                <button type="button" class="btn-search" style="margin-top:6px; padding:8px;" onclick="salvarInformacoesNoc('${item.chamadoId}')">💾 Salvar Atualização NOC</button>
+                <input type="text" id="cli_${item.chamadoId}" value="${item.clientesAfetados || ''}" placeholder="Clientes / Bairro Afetado" style="margin-top:4px;">
+                <input type="text" id="eta_${item.chamadoId}" value="${item.previsaoSolucao || ''}" placeholder="Previsão ETA" style="margin-top:4px;">
+                <button type="button" class="btn-primary" style="margin-top:6px; padding:8px;" onclick="salvarAtualizacaoNoc('${item.chamadoId}')">💾 Salvar Atualização NOC</button>
               </div>
 
               <div class="photos-grid">
-                ${item.fotoRompimento ? `<img src="${item.fotoRompimento}" alt="Foto Rompimento">` : ''}
-                ${item.fotoCaixas ? `<img src="${item.fotoCaixas}" alt="Foto Caixas">` : ''}
+                ${item.foto3 ? `<img src="${item.foto3}" alt="Rompimento">` : ''}
+                ${item.foto6 ? `<img src="${item.foto6}" alt="Caixas">` : ''}
               </div>
             `;
             container.appendChild(card);
@@ -704,40 +629,39 @@
         });
     }
 
-    function salvarInformacoesNoc(chamadoId) {
+    function salvarAtualizacaoNoc(chamadoId) {
       const clientes = document.getElementById(`cli_${chamadoId}`).value;
       const eta = document.getElementById(`eta_${chamadoId}`).value;
 
       fetch(`${URL_GOOGLE_SCRIPT}?acao=atualizarNoc&codigo_chamado=${encodeURIComponent(chamadoId)}&clientes_afetados=${encodeURIComponent(clientes)}&previsao_solucao=${encodeURIComponent(eta)}`, { method: 'POST' })
-        .then(() => alert("✅ Informações salvas com sucesso no sistema!"));
+        .then(() => alert("✅ Atualização salva com sucesso no banco do NOC!"));
     }
 
-    // BUSCA REALIZADA PELO SAC (READ ONLY)
-    function realizarBuscaSac() {
+    /* FUNÇÕES DO SAC */
+    function buscarChamadosSac() {
       const termo = document.getElementById('buscaSacInput').value.trim();
-      const container = document.getElementById('sacResultadosContainer');
+      const container = document.getElementById('sacContainer');
       container.innerHTML = "<p style='text-align:center;'>⏳ Consultando...</p>";
 
-      fetch(`${URL_GOOGLE_SCRIPT}?tipo=busca_id&termo=${encodeURIComponent(termo)}&t=${new Date().getTime()}`)
+      fetch(`${URL_GOOGLE_SCRIPT}?tipo=busca&termo=${encodeURIComponent(termo)}&t=${new Date().getTime()}`)
         .then(res => res.json())
         .then(data => {
           if (!data || data.length === 0) {
-            container.innerHTML = "<p style='text-align:center;'>Nenhum registro encontrado para o cliente.</p>";
+            container.innerHTML = "<p style='text-align:center;'>Nenhum registro encontrado.</p>";
             return;
           }
-
           container.innerHTML = "";
           data.forEach(item => {
             const card = document.createElement('div');
-            card.className = 'result-card';
+            card.className = 'card-resultado';
             card.innerHTML = `
               <strong>ID Chamado:</strong> ${item.chamadoId}<br>
               <strong>Status do Reparo:</strong> ${item.observacao}<br>
-              <strong>Previsão para o Cliente (ETA):</strong> <span style="color:var(--primary); font-weight:700;">${item.previsaoSolucao || 'Em análise'}</span><br>
-              <strong>Clientes/Região Afetada:</strong> ${item.clientesAfetados || 'Geral'}<br>
+              <strong>Previsão de Solução (ETA):</strong> <span style="color:var(--primary); font-weight:700;">${item.previsaoSolucao}</span><br>
+              <strong>Clientes/Região:</strong> ${item.clientesAfetados}<br>
               <div class="photos-grid">
-                ${item.fotoRompimento ? `<img src="${item.fotoRompimento}">` : ''}
-                ${item.fotoCaixas ? `<img src="${item.fotoCaixas}">` : ''}
+                ${item.foto3 ? `<img src="${item.foto3}">` : ''}
+                ${item.foto6 ? `<img src="${item.foto6}">` : ''}
               </div>
             `;
             container.appendChild(card);
@@ -745,15 +669,16 @@
         });
     }
 
-    function cadastrarUsuarioNaPlanilha(event) {
+    /* CADASTRO DE USUÁRIOS (ADMIN) */
+    function cadastrarUsuario(event) {
       event.preventDefault();
-      const novoUser = document.getElementById('novo_usuario').value.trim();
-      const novaSenha = document.getElementById('nova_senha').value.trim();
+      const user = document.getElementById('novo_usuario').value.trim();
+      const pass = document.getElementById('nova_senha').value.trim();
       const perfil = document.getElementById('perfil_usuario').value;
 
-      fetch(`${URL_GOOGLE_SCRIPT}?acao=cadastrarUsuario&novo_usuario=${encodeURIComponent(novoUser)}&nova_senha=${encodeURIComponent(novaSenha)}&perfil=${encodeURIComponent(perfil)}`, { method: 'POST' })
+      fetch(`${URL_GOOGLE_SCRIPT}?acao=cadastrarUsuario&novo_usuario=${encodeURIComponent(user)}&nova_senha=${encodeURIComponent(pass)}&perfil=${encodeURIComponent(perfil)}`, { method: 'POST' })
         .then(() => {
-          alert(`✅ Usuário "${novoUser}" (${perfil}) cadastrado com sucesso!`);
+          alert(`✅ Usuário "${user}" (${perfil}) cadastrado com sucesso!`);
           document.getElementById('addUserForm').reset();
         });
     }
@@ -762,11 +687,12 @@
       location.reload();
     }
 
+    /* FORMULÁRIO TÉCNICO POR ETAPAS */
     let currentStep = 1;
-    function changeStep(direction) {
+    function mudarEtapa(direcao) {
       document.getElementById(`step-${currentStep}`).classList.remove('active');
       document.getElementById(`ind-${currentStep}`).classList.remove('active');
-      currentStep += direction;
+      currentStep += direcao;
       document.getElementById(`step-${currentStep}`).classList.add('active');
       document.getElementById(`ind-${currentStep}`).classList.add('active');
       document.getElementById('btnPrev').style.display = currentStep === 1 ? 'none' : 'inline-block';
@@ -793,18 +719,18 @@
       }
     }
 
-    function capturarGPS(inputId, statusId) {
+    function capturarGPS(inputId) {
       navigator.geolocation.getCurrentPosition(pos => {
         document.getElementById(inputId).value = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
-        document.getElementById(statusId).textContent = "✓ Localização capturada pelo GPS!";
+        alert("📍 Coordenadas capturadas!");
       });
     }
 
-    function enviarRelatorio(event) {
+    function enviarRelatorioCampo(event) {
       event.preventDefault();
-      const btnSubmit = document.getElementById('btnSubmit');
-      btnSubmit.textContent = "⏳ Enviando...";
-      btnSubmit.disabled = true;
+      const btn = document.getElementById('btnSubmit');
+      btn.textContent = "⏳ Enviando relatório...";
+      btn.disabled = true;
 
       const formData = new FormData();
       formData.append('tecnico_logado', usuarioLogado);
@@ -823,12 +749,12 @@
 
       fetch(URL_GOOGLE_SCRIPT, { method: 'POST', body: formData })
         .then(() => {
-          alert('✅ Relatório finalizado e enviado com sucesso!');
+          alert('✅ Relatório técnico salvo com sucesso!');
           location.reload();
         });
     }
 
-    carregarUsuariosDaPlanilha();
+    carregarUsuariosBD();
   </script>
 
 </body>
