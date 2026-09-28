@@ -4,11 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ZAAZ Telecom - Registro de Campo</title>
+  <!-- Fonte Inter do Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
   <style>
+    /* VARIÁVEIS DE CORES E ESTILO */
     :root {
       --primary: #0066FF;
       --primary-hover: #0052CC;
@@ -50,6 +52,7 @@
       border: 1px solid var(--border-color);
     }
 
+    /* TOPO E IDENTIDADE VISUAL */
     .brand-header {
       text-align: center;
       border-bottom: 2px solid var(--bg-body);
@@ -73,6 +76,7 @@
       text-transform: uppercase;
     }
 
+    /* BARRA DE STATUS DE INTERNET */
     .status-bar {
       padding: 10px 14px;
       border-radius: 10px;
@@ -167,6 +171,7 @@
       display: none;
     }
 
+    /* INDICADOR DE ETAPAS (STEPPER) */
     .step-indicator {
       display: flex;
       justify-content: space-between;
@@ -309,6 +314,7 @@
       width: 100%;
     }
 
+    /* TABELA DO PAINEL ADMIN */
     .user-table {
       width: 100%;
       border-collapse: collapse;
@@ -353,7 +359,7 @@
       <p>Atendimento Técnico e Infraestrutura</p>
     </div>
 
-    <!-- INDICADOR DE STATUS DA INTERNET -->
+    <!-- BARRA DE STATUS DE CONEXÃO -->
     <div id="statusBar" class="status-bar status-online">
       <span id="statusText">🌐 Conectado à Internet</span>
       <button id="btnSync" class="btn-sync" onclick="sincronizarPendentes()" style="display:none;">⚡ Enviar Pendentes</button>
@@ -380,7 +386,7 @@
       </form>
     </div>
 
-    <!-- TELA DO PAINEL ADMINISTRATIVO (CADASTRO DE TÉCNICOS NA PLANILHA) -->
+    <!-- PAINEL ADMINISTRATIVO (CADASTRO DE USUÁRIOS) -->
     <div id="adminScreen" class="admin-box">
       <div class="user-header">
         <span>Painel: <strong>Administrador</strong></span>
@@ -413,7 +419,7 @@
           </tr>
         </thead>
         <tbody id="listaUsuariosBody">
-          <!-- Carregado via consulta na Planilha -->
+          <!-- Dados carregados da planilha -->
         </tbody>
       </table>
     </div>
@@ -537,6 +543,7 @@
   </footer>
 
   <script>
+    /* SUA URL DO GOOGLE APPS SCRIPT */
     const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzL7VYWpBFq_xGjoZiBmNMHZvc8mc3O6hW00-8UShwV4uKwtkShCFN8JLYnrKgsx5bW/exec";
 
     let usuariosAtivos = [];
@@ -567,15 +574,14 @@
       }
     }
 
-    // BUSCA USUÁRIOS DIRETO DA PLANILHA DO GOOGLE NO INÍCIO
+    // CARREGA A LISTA DE USUÁRIOS DA PLANILHA DO GOOGLE (COM CARIMBO DE TEMPO PARA EVITAR CACHE)
     function carregarUsuariosDaPlanilha(callback) {
-      fetch(URL_GOOGLE_SCRIPT)
+      fetch(URL_GOOGLE_SCRIPT + "?t=" + new Date().getTime())
         .then(response => response.json())
         .then(data => {
           if (Array.isArray(data) && data.length > 0) {
             usuariosAtivos = data;
           } else {
-            // Backup local de segurança caso a planilha esteja vazia na primeira vez
             usuariosAtivos = [
               { usuario: "admin", senha: "123", perfil: "admin" },
               { usuario: "tecnico", senha: "123", perfil: "tecnico" }
@@ -592,7 +598,7 @@
         });
     }
 
-    // VALIDAR LOGIN CONSULTANDO A PLANILHA DO GOOGLE
+    // VALIDA O LOGIN CONSULTANDO A LISTA OBTIDA DA PLANILHA
     function validarLogin(event) {
       event.preventDefault();
 
@@ -632,7 +638,7 @@
       });
     }
 
-    // CADASTRAR NOVO TÉCNICO DIRETAMENTE NA PLANILHA DO GOOGLE
+    // ENVIA NOVO TÉCNICO DIRETAMENTE PARA A PLANILHA DO GOOGLE
     function cadastrarUsuarioNaPlanilha(event) {
       event.preventDefault();
       
@@ -643,12 +649,14 @@
       const novoUser = document.getElementById('novo_usuario').value.trim();
       const novaSenha = document.getElementById('nova_senha').value.trim();
 
+      // Passamos a 'acao' diretamente na URL do envio
+      const urlComAcao = URL_GOOGLE_SCRIPT + "?acao=cadastrarUsuario";
+
       const formData = new FormData();
-      formData.append("acao", "cadastrarUsuario");
       formData.append("novo_usuario", novoUser);
       formData.append("nova_senha", novaSenha);
 
-      fetch(URL_GOOGLE_SCRIPT, {
+      fetch(urlComAcao, {
         method: 'POST',
         body: formData
       })
@@ -663,8 +671,8 @@
           renderizarListaUsuarios();
         });
       })
-      .catch(() => {
-        alert('⚠️ Erro ao cadastrar usuário na planilha. Verifique sua conexão.');
+      .catch((error) => {
+        alert('⚠️ Erro ao cadastrar usuário na planilha. Verifique a conexão.');
         btnAddUser.textContent = "➕ Cadastrar Técnico no Google Sheets";
         btnAddUser.disabled = false;
       });
