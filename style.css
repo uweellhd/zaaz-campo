@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEXTFLOW ENTERPRISE - ESTILIZAÇÃO EXPANDIDA (style.css)
+   NEXTFLOW ENTERPRISE - ESTILIZAÇÃO COMPLETA (style.css)
    ========================================================================== */
 
 :root {
@@ -12,6 +12,7 @@
   --border-color: #E2E8F0;
   --success: #10B981;
   --danger: #EF4444;
+  --warning: #F59E0B;
 }
 
 * {
@@ -21,7 +22,6 @@
   padding: 0;
 }
 
-/* TELA DE LOGIN */
 body {
   background: var(--bg-gradient);
   min-height: 100vh;
@@ -118,6 +118,28 @@ input:focus, textarea:focus {
   background-color: var(--primary-hover);
 }
 
+.btn-sec {
+  background-color: #E2E8F0;
+  color: var(--text-main);
+  border: none;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+}
+
+.btn-sec-sm {
+  background: #E2E8F0;
+  color: var(--text-main);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .error-box {
   display: none;
   background-color: #FEF2F2;
@@ -159,7 +181,7 @@ input:focus, textarea:focus {
   margin-bottom: 20px;
 }
 
-/* LAYOUT EXPANDIDO DA DASHBOARD (DESKTOP E WIDESCREEN) */
+/* LAYOUT EXPANDIDO DA DASHBOARD */
 .dashboard-body {
   background: #F1F5F9;
   min-height: 100vh;
@@ -284,10 +306,10 @@ input:focus, textarea:focus {
   background: #059669;
 }
 
-/* INDICADORES E KPIs */
+/* CARDS DE KPIS */
 .kpi-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 20px;
   margin-bottom: 24px;
 }
@@ -309,7 +331,6 @@ input:focus, textarea:focus {
   color: var(--text-muted);
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .kpi-value {
@@ -326,19 +347,94 @@ input:focus, textarea:focus {
   color: var(--text-main);
 }
 
-.alert-text {
-  color: var(--danger) !important;
+.alert-text { color: var(--danger) !important; }
+.warning-text { color: var(--warning) !important; }
+
+/* GRÁFICOS GERENCIAIS */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
 }
 
-.section-subtitle {
-  font-size: 14px;
+.chart-card {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.chart-card h5 {
+  font-size: 13px;
   color: var(--text-muted);
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+  text-align: center;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
-/* LISTA DE INCIDENTES EM GRID DUAL */
+/* MÓDULO DO TÉCNICO DE CAMPO */
+.tech-flow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.active-incident-badge {
+  background: #E0F2FE;
+  color: #0369A1;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.step-indicator {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  background-color: #F8FAFC;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.step-number {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.step-number.active {
+  color: #FFFFFF;
+  background-color: var(--primary);
+}
+
+.step { display: none; }
+.step.active { display: block; }
+
+.btn-step-group {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.preview-img {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-top: 8px;
+  display: none;
+  border: 1px solid var(--border-color);
+}
+
+/* LISTA DE INCIDENTES */
 .incidents-grid-list {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -396,11 +492,6 @@ input:focus, textarea:focus {
   margin-bottom: 16px;
 }
 
-.modal-header h3 {
-  color: var(--primary);
-  font-size: 18px;
-}
-
 .modal-close {
   background: none;
   border: none;
@@ -448,12 +539,10 @@ input:focus, textarea:focus {
   z-index: 90;
 }
 
-.app-footer strong {
-  color: #38BDF8;
-}
+.app-footer strong { color: #38BDF8; }
 
 @media (max-width: 850px) {
-  .incidents-grid-list, .kpi-grid, .state-grid {
+  .incidents-grid-list, .kpi-grid, .state-grid, .charts-grid {
     grid-template-columns: 1fr;
   }
   .top-nav {
