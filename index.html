@@ -309,7 +309,6 @@
       width: 100%;
     }
 
-    /* TABELA DE USUÁRIOS NO PAINEL ADMIN */
     .user-table {
       width: 100%;
       border-collapse: collapse;
@@ -325,17 +324,6 @@
 
     .user-table th {
       background-color: #F8FAFC;
-      font-weight: 700;
-    }
-
-    .btn-del-user {
-      background-color: var(--danger);
-      color: white;
-      border: none;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      cursor: pointer;
       font-weight: 700;
     }
 
@@ -387,12 +375,12 @@
           <input type="password" id="senha" placeholder="Digite sua senha" required>
         </div>
 
-        <button type="submit" class="btn-login">Entrar no Sistema</button>
+        <button type="submit" id="btnLogin" class="btn-login">Entrar no Sistema</button>
         <p id="loginError" class="error-message">Usuário ou senha incorretos!</p>
       </form>
     </div>
 
-    <!-- TELA DO PAINEL ADMINISTRATIVO (CADASTRO DE TÉCNICOS) -->
+    <!-- TELA DO PAINEL ADMINISTRATIVO (CADASTRO DE TÉCNICOS NA PLANILHA) -->
     <div id="adminScreen" class="admin-box">
       <div class="user-header">
         <span>Painel: <strong>Administrador</strong></span>
@@ -400,9 +388,9 @@
       </div>
 
       <h2>Gestão de Usuários</h2>
-      <p class="subtitle">Cadastre novos técnicos e gerencie acessos</p>
+      <p class="subtitle">Cadastre novos técnicos na planilha do Google</p>
 
-      <form id="addUserForm" onsubmit="cadastrarUsuario(event)">
+      <form id="addUserForm" onsubmit="cadastrarUsuarioNaPlanilha(event)">
         <div class="form-group">
           <label for="novo_usuario">Nome de Usuário (Técnico):</label>
           <input type="text" id="novo_usuario" placeholder="Ex: joao.silva" required>
@@ -413,19 +401,19 @@
           <input type="password" id="nova_senha" placeholder="Digite uma senha" required>
         </div>
 
-        <button type="submit" class="btn-add-user">➕ Cadastrar Novo Técnico</button>
+        <button type="submit" id="btnAddUser" class="btn-add-user">➕ Cadastrar Técnico no Google Sheets</button>
       </form>
 
-      <h3 style="margin-top: 25px; font-size: 15px;">Técnicos Cadastrados</h3>
+      <h3 style="margin-top: 25px; font-size: 15px;">Técnicos Cadastrados na Planilha</h3>
       <table class="user-table">
         <thead>
           <tr>
             <th>Usuário</th>
-            <th>Ação</th>
+            <th>Perfil</th>
           </tr>
         </thead>
         <tbody id="listaUsuariosBody">
-          <!-- Lista carregada via JavaScript -->
+          <!-- Carregado via consulta na Planilha -->
         </tbody>
       </table>
     </div>
@@ -551,21 +539,7 @@
   <script>
     const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzL7VYWpBFq_xGjoZiBmNMHZvc8mc3O6hW00-8UShwV4uKwtkShCFN8JLYnrKgsx5bW/exec";
 
-    // CARREGAMENTO INICIAL DOS USUÁRIOS DO LOCALSTORAGE
-    function obterUsuariosCadastrados() {
-      const usuariosPadrao = [
-        { usuario: "admin", senha: "123", perfil: "admin" },
-        { usuario: "tecnico", senha: "123", perfil: "tecnico" }
-      ];
-      const salvos = localStorage.getItem('usuarios_app');
-      return salvos ? JSON.parse(salvos) : usuariosPadrao;
-    }
-
-    function salvarUsuariosNoStorage(lista) {
-      localStorage.setItem('usuarios_app', JSON.stringify(lista));
-    }
-
-    let usuariosAtivos = obterUsuariosCadastrados();
+    let usuariosAtivos = [];
     let usuarioLogado = "";
 
     window.addEventListener('online', atualizarStatusConexao);
@@ -593,63 +567,107 @@
       }
     }
 
+    // BUSCA USUÁRIOS DIRETO DA PLANILHA DO GOOGLE NO INÍCIO
+    function carregarUsuariosDaPlanilha(callback) {
+      fetch(URL_GOOGLE_SCRIPT)
+        .then(response => response.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            usuariosAtivos = data;
+          } else {
+            // Backup local de segurança caso a planilha esteja vazia na primeira vez
+            usuariosAtivos = [
+              { usuario: "admin", senha: "123", perfil: "admin" },
+              { usuario: "tecnico", senha: "123", perfil: "tecnico" }
+            ];
+          }
+          if (callback) callback();
+        })
+        .catch(() => {
+          usuariosAtivos = [
+            { usuario: "admin", senha: "123", perfil: "admin" },
+            { usuario: "tecnico", senha: "123", perfil: "tecnico" }
+          ];
+          if (callback) callback();
+        });
+    }
+
+    // VALIDAR LOGIN CONSULTANDO A PLANILHA DO GOOGLE
     function validarLogin(event) {
       event.preventDefault();
+
+      const btnLogin = document.getElementById('btnLogin');
+      btnLogin.textContent = "⏳ Validando...";
+      btnLogin.disabled = true;
+
       const userInput = document.getElementById('usuario').value.trim();
       const passInput = document.getElementById('senha').value.trim();
       const errorMsg = document.getElementById('loginError');
 
-      // Busca o usuário na lista dinâmica
-      const usuarioEncontrado = usuariosAtivos.find(u => u.usuario === userInput && u.senha === passInput);
+      carregarUsuariosDaPlanilha(function() {
+        btnLogin.textContent = "Entrar no Sistema";
+        btnLogin.disabled = false;
 
-      if (usuarioEncontrado) {
-        usuarioLogado = usuarioEncontrado.usuario;
-        document.getElementById('loginScreen').style.display = 'none';
-        errorMsg.style.display = 'none';
+        const usuarioEncontrado = usuariosAtivos.find(u => String(u.usuario) === userInput && String(u.senha) === passInput);
 
-        if (usuarioEncontrado.perfil === "admin") {
-          // Exibe tela do Administrador
-          document.getElementById('adminScreen').style.display = 'block';
-          document.getElementById('appScreen').style.display = 'none';
-          renderizarListaUsuarios();
+        if (usuarioEncontrado) {
+          usuarioLogado = usuarioEncontrado.usuario;
+          document.getElementById('loginScreen').style.display = 'none';
+          errorMsg.style.display = 'none';
+
+          if (usuarioEncontrado.perfil === "admin") {
+            document.getElementById('adminScreen').style.display = 'block';
+            document.getElementById('appScreen').style.display = 'none';
+            renderizarListaUsuarios();
+          } else {
+            document.getElementById('appScreen').style.display = 'block';
+            document.getElementById('adminScreen').style.display = 'none';
+            document.getElementById('loggedUserDisplay').textContent = usuarioLogado;
+            document.getElementById('nome_equipe').value = usuarioLogado;
+          }
+          atualizarStatusConexao();
         } else {
-          // Exibe tela do Técnico
-          document.getElementById('appScreen').style.display = 'block';
-          document.getElementById('adminScreen').style.display = 'none';
-          document.getElementById('loggedUserDisplay').textContent = usuarioLogado;
-          document.getElementById('nome_equipe').value = usuarioLogado;
+          errorMsg.style.display = 'block';
         }
-        atualizarStatusConexao();
-      } else {
-        errorMsg.style.display = 'block';
-      }
+      });
     }
 
-    // FUNÇÕES DO PAINEL DE GESTÃO DE USUÁRIOS (ADMIN)
-    function cadastrarUsuario(event) {
+    // CADASTRAR NOVO TÉCNICO DIRETAMENTE NA PLANILHA DO GOOGLE
+    function cadastrarUsuarioNaPlanilha(event) {
       event.preventDefault();
+      
+      const btnAddUser = document.getElementById('btnAddUser');
+      btnAddUser.textContent = "⏳ Cadastrando na Planilha...";
+      btnAddUser.disabled = true;
+
       const novoUser = document.getElementById('novo_usuario').value.trim();
       const novaSenha = document.getElementById('nova_senha').value.trim();
 
-      if (usuariosAtivos.some(u => u.usuario === novoUser)) {
-        alert('⚠️ Este nome de usuário já está cadastrado!');
-        return;
-      }
+      const formData = new FormData();
+      formData.append("acao", "cadastrarUsuario");
+      formData.append("novo_usuario", novoUser);
+      formData.append("nova_senha", novaSenha);
 
-      usuariosAtivos.push({ usuario: novoUser, senha: novaSenha, perfil: "tecnico" });
-      salvarUsuariosNoStorage(usuariosAtivos);
-
-      document.getElementById('addUserForm').reset();
-      alert(`✅ Técnico "${novoUser}" cadastrado com sucesso!`);
-      renderizarListaUsuarios();
-    }
-
-    function removerUsuario(nomeUsuario) {
-      if (confirm(`Deseja realmente remover o acesso de "${nomeUsuario}"?`)) {
-        usuariosAtivos = usuariosAtivos.filter(u => u.usuario !== nomeUsuario);
-        salvarUsuariosNoStorage(usuariosAtivos);
-        renderizarListaUsuarios();
-      }
+      fetch(URL_GOOGLE_SCRIPT, {
+        method: 'POST',
+        body: formData
+      })
+      .then(() => {
+        alert(`✅ Técnico "${novoUser}" cadastrado com sucesso na planilha!`);
+        document.getElementById('addUserForm').reset();
+        btnAddUser.textContent = "➕ Cadastrar Técnico no Google Sheets";
+        btnAddUser.disabled = false;
+        
+        // Recarrega a lista atualizada
+        carregarUsuariosDaPlanilha(function() {
+          renderizarListaUsuarios();
+        });
+      })
+      .catch(() => {
+        alert('⚠️ Erro ao cadastrar usuário na planilha. Verifique sua conexão.');
+        btnAddUser.textContent = "➕ Cadastrar Técnico no Google Sheets";
+        btnAddUser.disabled = false;
+      });
     }
 
     function renderizarListaUsuarios() {
@@ -657,14 +675,12 @@
       tbody.innerHTML = '';
 
       usuariosAtivos.forEach(u => {
-        if (u.perfil !== 'admin') {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td><strong>${u.usuario}</strong></td>
-            <td><button class="btn-del-user" onclick="removerUsuario('${u.usuario}')">🗑️ Excluir</button></td>
-          `;
-          tbody.appendChild(tr);
-        }
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${u.usuario}</strong></td>
+          <td>${u.perfil}</td>
+        `;
+        tbody.appendChild(tr);
       });
     }
 
@@ -858,6 +874,8 @@
       });
     }
 
+    // Carrega a lista inicial de usuários
+    carregarUsuariosDaPlanilha();
     atualizarStatusConexao();
   </script>
 
