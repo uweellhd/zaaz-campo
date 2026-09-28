@@ -16,43 +16,45 @@
 </head>
 <body class="dashboard-body theme-light" id="appBody">
 
-  <!-- BARRA SUPERIOR FIXA WIDESCREEN (HEADER) -->
+  <!-- BARRA SUPERIOR FIXA WIDESCREEN (HEADER AJUSTADO) -->
   <header class="top-nav">
     <div class="nav-brand">
       <h2 class="zaaz-title">ZAAZ TELECOM</h2>
       <span class="system-subtitle">NextFlow Enterprise System</span>
     </div>
 
-    <!-- RELÓGIO CORPORATIVO EM TEMPO REAL -->
-    <div class="clock-box">
+    <!-- RELÓGIO CORPORATIVO PERFEITAMENTE CENTRALIZADO -->
+    <div class="clock-box-center">
       <span id="realtimeClock">00:00:00</span>
       <span id="realtimeDate" class="clock-date">--/--/----</span>
     </div>
 
-    <!-- MENU DE NAVEGAÇÃO RÁPIDA (ADMIN / DIREÇÃO) -->
-    <nav id="adminNavMenu" class="nav-menu" style="display: none;">
-      <button class="nav-btn active" onclick="alternarAba('viewGerente')">📊 Diretoria / Gerência</button>
-      <button class="nav-btn" onclick="alternarAba('viewNoc')">🚨 Registrar (NOC)</button>
-      <button class="nav-btn" onclick="alternarAba('viewSac')">📞 Consulta SAC</button>
-      <button class="nav-btn" onclick="alternarAba('viewTech')">👷 Campo Técnico</button>
-    </nav>
+    <div class="nav-right-group">
+      <!-- MENU DE NAVEGAÇÃO RÁPIDA (ADMIN / DIREÇÃO) -->
+      <nav id="adminNavMenu" class="nav-menu" style="display: none;">
+        <button class="nav-btn active" onclick="alternarAba('viewGerente')">📊 Diretoria</button>
+        <button class="nav-btn" onclick="alternarAba('viewNoc')">🚨 NOC</button>
+        <button class="nav-btn" onclick="alternarAba('viewSac')">📞 SAC</button>
+        <button class="nav-btn" onclick="alternarAba('viewTech')">👷 Técnico</button>
+      </nav>
 
-    <div class="nav-user">
       <!-- BOTÃO DE ALTERNÂNCIA DE TEMAS -->
       <select id="themeSelector" class="theme-select" onchange="mudarTemaSistema(this.value)">
         <option value="theme-light">☀️ Tema Claro</option>
         <option value="theme-dark">🌙 Tema Escuro</option>
-        <option value="theme-neon">⚡ Tema Neon Telecom</option>
+        <option value="theme-neon">⚡ Tema Neon</option>
       </select>
 
-      <span id="userBadge">Carregando perfil...</span>
+      <div class="user-badge-box">
+        <span id="userBadge">Carregando perfil...</span>
+      </div>
       <button class="btn-logout-sm" onclick="sair()">Sair</button>
     </div>
   </header>
 
   <main class="dashboard-container widescreen-container">
 
-    <!-- 1. DASHBOARD DA GERÊNCIA / DIREÇÃO (MÉTRICAS, GPON VS BACKBONE E GRÁFICOS) -->
+    <!-- 1. DASHBOARD DA GERÊNCIA / DIREÇÃO -->
     <section id="viewGerente" class="view-panel">
       <div class="panel-header-action">
         <h3 class="panel-title">📊 Painel Executivo e Indicadores da Rede</h3>
@@ -137,7 +139,7 @@
       <div id="sacResultsList" class="incidents-grid-list"></div>
     </section>
 
-    <!-- 4. PAINEL DO TÉCNICO DE CAMPO (FOCADO E LIMPO POR ETAPAS) -->
+    <!-- 4. PAINEL DO TÉCNICO DE CAMPO (FOCADO E COM PREVISÃO NA ETAPA 2) -->
     <section id="viewTech" class="view-panel">
       <h3 class="panel-title">👷 Atendimento Técnico de Rua</h3>
       
@@ -179,9 +181,9 @@
             <button type="button" class="btn-primary" onclick="salvarEtapa1()">Avançar e Enviar Etapa 1</button>
           </div>
 
-          <!-- ETAPA 2 -->
+          <!-- ETAPA 2 (COM CAMPO DE PREVISÃO DE RESTAURAÇÃO) -->
           <div class="step" id="step-2">
-            <h4>Etapa 2: Chegada e Localização do Rompimento</h4>
+            <h4>Etapa 2: Chegada, Rompimento e Previsão de Restauração</h4>
             <div class="form-group">
               <label>Foto do Local de Chegada:</label>
               <input type="file" id="tf2" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp2', 'fotoChegada')">
@@ -192,6 +194,13 @@
               <input type="file" id="tf3" accept="image/*" capture="environment" onchange="processarEPreviewFoto(this, 'tp3', 'fotoRompimento')">
               <img id="tp3" class="preview-img">
             </div>
+
+            <!-- CAMPO SOLICITADO: PREVISÃO DE RESTAURAÇÃO DE SINAL -->
+            <div class="form-group" style="background:#E0F2FE; padding:14px; border-radius:12px; border:1px solid #7DD3FC;">
+              <label style="color:#0369A1; font-weight:700;">⏱️ Previsão Aproximada de Restauração do Sinal:</label>
+              <input type="text" id="techPrevisaoInput" placeholder="Ex: 17:30 28-09-2026 ou 2 horas" style="border-color:#38BDF8; font-weight:600;" required>
+            </div>
+
             <div class="btn-step-group">
               <button type="button" class="btn-sec" onclick="voltarEtapaVisual(-1)">Voltar</button>
               <button type="button" class="btn-primary" onclick="salvarEtapa2()">Avançar e Enviar Etapa 2</button>
@@ -259,7 +268,7 @@
 
   </main>
 
-  <!-- MODAL DE TIMELINE E DETALHES PARA SAC / GERENTE / ADMIN -->
+  <!-- MODAL DE TIMELINE E DETALHES COM HISTÓRICO COMPLETO PARA SAC / GERENTE / ADMIN -->
   <div id="modalDetalhesIncidente" class="modal-overlay">
     <div class="modal-content modal-widescreen">
       <div class="modal-header">
@@ -269,7 +278,7 @@
       <div class="modal-body">
         <div id="modalInfoBox" class="info-details-box"></div>
 
-        <h4 class="section-subtitle" style="margin-top:20px;">⏱️ Timeline e Histórico de Progresso do Técnico</h4>
+        <h4 class="section-subtitle" style="margin-top:20px;">⏱️ Timeline e Histórico Completo de Progresso</h4>
         <div id="modalTimelineList" class="timeline-container">
           <p class="text-muted">Nenhum evento registrado ainda.</p>
         </div>
