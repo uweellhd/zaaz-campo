@@ -353,6 +353,60 @@
       text-decoration: none;
     }
 
+    /* ESTILOS DOS CARDS DE MÉTRICAS AUTOMÁTICAS */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .metric-card {
+      background: #F8FAFC;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .metric-card-number {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-top: 4px;
+    }
+
+    .metric-card-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .metric-box {
+      background: #F8FAFC;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .metric-box h4 {
+      margin: 0 0 10px 0;
+      font-size: 13px;
+      color: var(--primary);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 6px;
+    }
+
+    .metric-item-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      padding: 4px 0;
+      border-bottom: 1px dashed #E2E8F0;
+    }
+
     .nextflow-footer {
       position: fixed;
       bottom: 0;
@@ -419,20 +473,22 @@
       </form>
     </div>
 
-    <!-- PAINEL ADMINISTRATIVO -->
+    <!-- PAINEL ADMINISTRATIVO / GERENCIAL -->
     <div id="adminScreen" class="admin-box">
       <div class="user-header">
-        <span>Painel: <strong>Administrador</strong></span>
+        <span>Painel: <strong>Administrador / Gerência</strong></span>
         <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
       </div>
 
       <h2>Gestão do Sistema</h2>
 
-      <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+      <div style="display: flex; gap: 6px; margin-bottom: 20px;">
         <button type="button" class="btn-action-sm" style="flex: 1; background-color: var(--primary); color: white;" id="tabUsersBtn" onclick="alternarAbaAdmin('users')">👥 Usuários</button>
         <button type="button" class="btn-action-sm" style="flex: 1;" id="tabHistBtn" onclick="alternarAbaAdmin('hist')">📋 Histórico</button>
+        <button type="button" class="btn-action-sm" style="flex: 1;" id="tabMetricsBtn" onclick="alternarAbaAdmin('metrics')">📊 Métricas</button>
       </div>
 
+      <!-- ABA 1: USUÁRIOS -->
       <div id="adminTabUsers">
         <form id="addUserForm" onsubmit="cadastrarUsuarioNaPlanilha(event)">
           <div class="form-group">
@@ -447,12 +503,44 @@
         </form>
       </div>
 
+      <!-- ABA 2: HISTÓRICO -->
       <div id="adminTabHist" style="display: none;">
         <button type="button" class="btn-action-sm" style="width: 100%; margin-bottom: 12px;" onclick="carregarHistoricoChamados()">🔄 Atualizar Histórico</button>
         <div id="historicoContainer">
           <p style="text-align: center; font-size: 13px; color: var(--text-muted);">Clique para carregar os chamados...</p>
         </div>
       </div>
+
+      <!-- ABA 3: MÉTRICAS AUTOMÁTICAS (NOVA) -->
+      <div id="adminTabMetrics" style="display: none;">
+        <button type="button" class="btn-action-sm" style="width: 100%; margin-bottom: 12px;" onclick="carregarMetricasGerais()">🔄 Atualizar Métricas em Tempo Real</button>
+        
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-card-label">Total IDs Recebidos</div>
+            <div class="metric-card-number" id="mTotalChamados">--</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-card-label">Últimos 7 Dias</div>
+            <div class="metric-card-number" id="mChamadosSemana">--</div>
+          </div>
+        </div>
+
+        <div class="metric-box">
+          <h4>📊 Motivos de Rompimento / Soluções</h4>
+          <div id="mCausasContainer">
+            <p style="text-align: center; font-size: 12px; color: var(--text-muted);">Carregando estatísticas...</p>
+          </div>
+        </div>
+
+        <div class="metric-box">
+          <h4>👷‍♂️ Produtividade por Técnico</h4>
+          <div id="mTecnicosContainer">
+            <p style="text-align: center; font-size: 12px; color: var(--text-muted);">Carregando produtividade...</p>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- FORMULÁRIO TÉCNICO -->
@@ -542,7 +630,6 @@
             <span id="status_c2" class="geo-status"></span>
           </div>
 
-          <!-- NOVO CAMPO DE OBSERVAÇÃO/DESCRITIVO DO REPARO -->
           <div class="form-group">
             <label for="observacao_reparo">Motivo do Rompimento e Ação Realizada:</label>
             <textarea id="observacao_reparo" placeholder="Descreva a causa do rompimento (ex: galho de árvore, caminhão) e o procedimento feito (ex: fusão de 12 fibras, substituição de cabo)..." required></textarea>
@@ -691,25 +778,87 @@
     function alternarAbaAdmin(aba) {
       const btnUsers = document.getElementById('tabUsersBtn');
       const btnHist = document.getElementById('tabHistBtn');
+      const btnMetrics = document.getElementById('tabMetricsBtn');
+
       const divUsers = document.getElementById('adminTabUsers');
       const divHist = document.getElementById('adminTabHist');
+      const divMetrics = document.getElementById('adminTabMetrics');
+
+      // Reseta todos os botões para cor neutra
+      [btnUsers, btnHist, btnMetrics].forEach(btn => {
+        btn.style.backgroundColor = '#F1F5F9';
+        btn.style.color = 'var(--text-main)';
+      });
+
+      // Esconde todas as abas
+      divUsers.style.display = 'none';
+      divHist.style.display = 'none';
+      divMetrics.style.display = 'none';
 
       if (aba === 'users') {
         btnUsers.style.backgroundColor = 'var(--primary)';
         btnUsers.style.color = 'white';
-        btnHist.style.backgroundColor = '#F1F5F9';
-        btnHist.style.color = 'var(--text-main)';
         divUsers.style.display = 'block';
-        divHist.style.display = 'none';
-      } else {
+      } else if (aba === 'hist') {
         btnHist.style.backgroundColor = 'var(--primary)';
         btnHist.style.color = 'white';
-        btnUsers.style.backgroundColor = '#F1F5F9';
-        btnUsers.style.color = 'var(--text-main)';
-        divUsers.style.display = 'none';
         divHist.style.display = 'block';
         carregarHistoricoChamados();
+      } else if (aba === 'metrics') {
+        btnMetrics.style.backgroundColor = 'var(--primary)';
+        btnMetrics.style.color = 'white';
+        divMetrics.style.display = 'block';
+        carregarMetricasGerais();
       }
+    }
+
+    function carregarMetricasGerais() {
+      const mTotal = document.getElementById('mTotalChamados');
+      const mSemana = document.getElementById('mChamadosSemana');
+      const containerCausas = document.getElementById('mCausasContainer');
+      const containerTecnicos = document.getElementById('mTecnicosContainer');
+
+      mTotal.textContent = "⏳";
+      mSemana.textContent = "⏳";
+
+      fetch(URL_GOOGLE_SCRIPT + "?tipo=metricas&t=" + new Date().getTime())
+        .then(res => res.json())
+        .then(data => {
+          mTotal.textContent = data.totalChamados || 0;
+          mSemana.textContent = data.chamadosSemana || 0;
+
+          // Renderiza Lista de Causas
+          containerCausas.innerHTML = "";
+          const causasKeys = Object.keys(data.causas || {});
+          if (causasKeys.length === 0) {
+            containerCausas.innerHTML = '<p style="text-align:center; font-size:12px; color:var(--text-muted);">Nenhum dado registrado.</p>';
+          } else {
+            causasKeys.forEach(key => {
+              const row = document.createElement('div');
+              row.className = 'metric-item-row';
+              row.innerHTML = `<span>${key}</span> <strong>${data.causas[key]} atand.</strong>`;
+              containerCausas.appendChild(row);
+            });
+          }
+
+          // Renderiza Lista de Técnicos
+          containerTecnicos.innerHTML = "";
+          const tecKeys = Object.keys(data.tecnicos || {});
+          if (tecKeys.length === 0) {
+            containerTecnicos.innerHTML = '<p style="text-align:center; font-size:12px; color:var(--text-muted);">Nenhum dado registrado.</p>';
+          } else {
+            tecKeys.forEach(key => {
+              const row = document.createElement('div');
+              row.className = 'metric-item-row';
+              row.innerHTML = `<span>👷‍♂️ ${key}</span> <strong>${data.tecnicos[key]} chamados</strong>`;
+              containerTecnicos.appendChild(row);
+            });
+          }
+        })
+        .catch(() => {
+          mTotal.textContent = "Erro";
+          mSemana.textContent = "Erro";
+        });
     }
 
     function carregarHistoricoChamados() {
