@@ -163,7 +163,7 @@
       font-weight: 700;
     }
 
-    .app-box {
+    .app-box, .admin-box {
       display: none;
     }
 
@@ -275,7 +275,7 @@
       gap: 12px;
     }
 
-    button.nav-btn, button.btn-login {
+    button.nav-btn, button.btn-login, button.btn-add-user {
       padding: 14px 20px;
       border: none;
       border-radius: 10px;
@@ -284,7 +284,7 @@
       cursor: pointer;
     }
 
-    .btn-login {
+    .btn-login, .btn-add-user {
       background-color: var(--primary);
       color: white;
       width: 100%;
@@ -307,6 +307,36 @@
       background-color: var(--success);
       color: white;
       width: 100%;
+    }
+
+    /* TABELA DE USUÁRIOS NO PAINEL ADMIN */
+    .user-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      font-size: 13px;
+    }
+
+    .user-table th, .user-table td {
+      border: 1px solid var(--border-color);
+      padding: 10px;
+      text-align: left;
+    }
+
+    .user-table th {
+      background-color: #F8FAFC;
+      font-weight: 700;
+    }
+
+    .btn-del-user {
+      background-color: var(--danger);
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      font-weight: 700;
     }
 
     .nextflow-footer {
@@ -341,10 +371,10 @@
       <button id="btnSync" class="btn-sync" onclick="sincronizarPendentes()" style="display:none;">⚡ Enviar Pendentes</button>
     </div>
 
-    <!-- LOGIN -->
+    <!-- TELA DE LOGIN -->
     <div id="loginScreen" class="login-box">
       <h2>Acesso ao Sistema</h2>
-      <p class="subtitle">Insira suas credenciais de técnico</p>
+      <p class="subtitle">Insira suas credenciais de acesso</p>
 
       <form id="loginForm" onsubmit="validarLogin(event)">
         <div class="form-group">
@@ -362,7 +392,45 @@
       </form>
     </div>
 
-    <!-- FORMULÁRIO -->
+    <!-- TELA DO PAINEL ADMINISTRATIVO (CADASTRO DE TÉCNICOS) -->
+    <div id="adminScreen" class="admin-box">
+      <div class="user-header">
+        <span>Painel: <strong>Administrador</strong></span>
+        <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
+      </div>
+
+      <h2>Gestão de Usuários</h2>
+      <p class="subtitle">Cadastre novos técnicos e gerencie acessos</p>
+
+      <form id="addUserForm" onsubmit="cadastrarUsuario(event)">
+        <div class="form-group">
+          <label for="novo_usuario">Nome de Usuário (Técnico):</label>
+          <input type="text" id="novo_usuario" placeholder="Ex: joao.silva" required>
+        </div>
+
+        <div class="form-group">
+          <label for="nova_senha">Senha de Acesso:</label>
+          <input type="password" id="nova_senha" placeholder="Digite uma senha" required>
+        </div>
+
+        <button type="submit" class="btn-add-user">➕ Cadastrar Novo Técnico</button>
+      </form>
+
+      <h3 style="margin-top: 25px; font-size: 15px;">Técnicos Cadastrados</h3>
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th>Usuário</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody id="listaUsuariosBody">
+          <!-- Lista carregada via JavaScript -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- TELA DO FORMULÁRIO TÉCNICO -->
     <div id="appScreen" class="app-box">
 
       <div class="user-header">
@@ -396,7 +464,6 @@
             <input type="text" id="nome_equipe" readonly required>
           </div>
 
-          <!-- FOTO DA ETAPA 1: PERMITE GALERIA OU CÂMERA (Sem o atributo capture) -->
           <div class="form-group">
             <label for="foto_deslocamento">Foto do Deslocamento / Partida (Câmera ou Galeria):</label>
             <input type="file" id="foto_deslocamento" accept="image/*" onchange="previewImage(this, 'prev1')">
@@ -484,8 +551,21 @@
   <script>
     const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzL7VYWpBFq_xGjoZiBmNMHZvc8mc3O6hW00-8UShwV4uKwtkShCFN8JLYnrKgsx5bW/exec";
 
-    const USUARIO_CORRETO = "tecnico";
-    const SENHA_CORRETA = "1234";
+    // CARREGAMENTO INICIAL DOS USUÁRIOS DO LOCALSTORAGE
+    function obterUsuariosCadastrados() {
+      const usuariosPadrao = [
+        { usuario: "admin", senha: "123", perfil: "admin" },
+        { usuario: "tecnico", senha: "123", perfil: "tecnico" }
+      ];
+      const salvos = localStorage.getItem('usuarios_app');
+      return salvos ? JSON.parse(salvos) : usuariosPadrao;
+    }
+
+    function salvarUsuariosNoStorage(lista) {
+      localStorage.setItem('usuarios_app', JSON.stringify(lista));
+    }
+
+    let usuariosAtivos = obterUsuariosCadastrados();
     let usuarioLogado = "";
 
     window.addEventListener('online', atualizarStatusConexao);
@@ -515,21 +595,77 @@
 
     function validarLogin(event) {
       event.preventDefault();
-      const userInput = document.getElementById('usuario').value;
-      const passInput = document.getElementById('senha').value;
+      const userInput = document.getElementById('usuario').value.trim();
+      const passInput = document.getElementById('senha').value.trim();
       const errorMsg = document.getElementById('loginError');
 
-      if (userInput === USUARIO_CORRETO && passInput === SENHA_CORRETA) {
-        usuarioLogado = userInput;
+      // Busca o usuário na lista dinâmica
+      const usuarioEncontrado = usuariosAtivos.find(u => u.usuario === userInput && u.senha === passInput);
+
+      if (usuarioEncontrado) {
+        usuarioLogado = usuarioEncontrado.usuario;
         document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appScreen').style.display = 'block';
-        document.getElementById('loggedUserDisplay').textContent = usuarioLogado;
-        document.getElementById('nome_equipe').value = usuarioLogado;
         errorMsg.style.display = 'none';
+
+        if (usuarioEncontrado.perfil === "admin") {
+          // Exibe tela do Administrador
+          document.getElementById('adminScreen').style.display = 'block';
+          document.getElementById('appScreen').style.display = 'none';
+          renderizarListaUsuarios();
+        } else {
+          // Exibe tela do Técnico
+          document.getElementById('appScreen').style.display = 'block';
+          document.getElementById('adminScreen').style.display = 'none';
+          document.getElementById('loggedUserDisplay').textContent = usuarioLogado;
+          document.getElementById('nome_equipe').value = usuarioLogado;
+        }
         atualizarStatusConexao();
       } else {
         errorMsg.style.display = 'block';
       }
+    }
+
+    // FUNÇÕES DO PAINEL DE GESTÃO DE USUÁRIOS (ADMIN)
+    function cadastrarUsuario(event) {
+      event.preventDefault();
+      const novoUser = document.getElementById('novo_usuario').value.trim();
+      const novaSenha = document.getElementById('nova_senha').value.trim();
+
+      if (usuariosAtivos.some(u => u.usuario === novoUser)) {
+        alert('⚠️ Este nome de usuário já está cadastrado!');
+        return;
+      }
+
+      usuariosAtivos.push({ usuario: novoUser, senha: novaSenha, perfil: "tecnico" });
+      salvarUsuariosNoStorage(usuariosAtivos);
+
+      document.getElementById('addUserForm').reset();
+      alert(`✅ Técnico "${novoUser}" cadastrado com sucesso!`);
+      renderizarListaUsuarios();
+    }
+
+    function removerUsuario(nomeUsuario) {
+      if (confirm(`Deseja realmente remover o acesso de "${nomeUsuario}"?`)) {
+        usuariosAtivos = usuariosAtivos.filter(u => u.usuario !== nomeUsuario);
+        salvarUsuariosNoStorage(usuariosAtivos);
+        renderizarListaUsuarios();
+      }
+    }
+
+    function renderizarListaUsuarios() {
+      const tbody = document.getElementById('listaUsuariosBody');
+      tbody.innerHTML = '';
+
+      usuariosAtivos.forEach(u => {
+        if (u.perfil !== 'admin') {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${u.usuario}</strong></td>
+            <td><button class="btn-del-user" onclick="removerUsuario('${u.usuario}')">🗑️ Excluir</button></td>
+          `;
+          tbody.appendChild(tr);
+        }
+      });
     }
 
     function fazerLogout() {
@@ -537,6 +673,7 @@
       document.getElementById('senha').value = '';
       document.getElementById('loginScreen').style.display = 'block';
       document.getElementById('appScreen').style.display = 'none';
+      document.getElementById('adminScreen').style.display = 'none';
       resetFormulario();
     }
 
