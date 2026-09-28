@@ -1,11 +1,10 @@
 /* ==========================================================================
-   NEXTFLOW ENTERPRISE - LOGICA DE AUTENTICAÇÃO (js/login.js)
+   NEXTFLOW ENTERPRISE - LOGICA DE LOGIN & FIBRA ÓTICA (js/login.js)
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Credenciais do Firebase ZAAZ Telecom
 const firebaseConfig = {
   apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
   authDomain: "nextflow-telecom.firebaseapp.com",
@@ -19,19 +18,66 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Função para Gerar a Saudação Dinâmica conforme a hora do dia
-function obterSaudacao() {
-  const hora = new Date().getHours();
-  if (hora >= 5 && hora < 12) {
-    return "☀️ Bom dia";
-  } else if (hora >= 12 && hora < 18) {
-    return "🌤️ Boa tarde";
-  } else {
-    return "🌙 Boa noite";
+// ANIMAÇÃO DE FIBRA ÓTICA EM CANVAS
+function iniciarEfeitoFibra() {
+  const canvas = document.getElementById('fiberCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  let width = canvas.width = window.innerWidth;
+  let height = canvas.height = window.innerHeight;
+
+  window.addEventListener('resize', () => {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+  });
+
+  const linhas = [];
+  for (let i = 0; i < 40; i++) {
+    linhas.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      length: Math.random() * 80 + 40,
+      speed: Math.random() * 2 + 1,
+      alpha: Math.random() * 0.8 + 0.2
+    });
   }
+
+  function desenhar() {
+    ctx.clearRect(0, 0, width, height);
+
+    linhas.forEach(l => {
+      ctx.beginPath();
+      ctx.moveTo(l.x, l.y);
+      ctx.lineTo(l.x, l.y + l.length);
+      ctx.strokeStyle = `rgba(0, 102, 255, ${l.alpha})`;
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#0066FF';
+      ctx.stroke();
+
+      l.y -= l.speed;
+      if (l.y + l.length < 0) {
+        l.y = height;
+        l.x = Math.random() * width;
+      }
+    });
+
+    requestAnimationFrame(desenhar);
+  }
+
+  desenhar();
 }
 
-// Manipulador do Evento de Envio do Formulário de Login
+iniciarEfeitoFibra();
+
+function obterSaudacao() {
+  const hora = new Date().getHours();
+  if (hora >= 5 && hora < 12) return "☀️ Bom dia";
+  if (hora >= 12 && hora < 18) return "🌤️ Boa tarde";
+  return "🌙 Boa noite";
+}
+
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -48,7 +94,6 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     let loginSucesso = false;
     let usuarioDados = null;
 
-    // Logins padrão de acesso rápido por perfil
     const padroes = {
       "admin": { usuario: "Administrador", perfil: "admin", senha: "123" },
       "tecnico": { usuario: "Técnico de Campo", perfil: "tecnico", senha: "123" },
@@ -61,10 +106,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
       loginSucesso = true;
       usuarioDados = padroes[userInput];
     } else {
-      // Consulta na coleção 'usuarios' do Firebase Firestore
       const querySnapshot = await getDocs(collection(db, "usuarios"));
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
         if (data.usuario === userInput && data.senha === passInput) {
           loginSucesso = true;
           usuarioDados = data;
@@ -73,16 +117,13 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     }
 
     if (loginSucesso) {
-      // Exibe mensagem de boas-vindas e redireciona para a Dashboard
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('welcomeSection').style.display = 'block';
 
-      const textoSaudacao = obterSaudacao();
-      document.getElementById('saudacaoTexto').textContent = `${textoSaudacao}, ${usuarioDados.usuario}!`;
+      document.getElementById('saudacaoTexto').textContent = `${obterSaudacao()}, ${usuarioDados.usuario}!`;
       document.getElementById('usuarioNomeDisplay').textContent = "Redirecionando para o painel operacional...";
       document.getElementById('perfilBadge').textContent = `Perfil: ${usuarioDados.perfil.toUpperCase()}`;
 
-      // Armazena credenciais ativas e redireciona após 1.2 segundos
       localStorage.setItem('user_nome', usuarioDados.usuario);
       localStorage.setItem('user_perfil', usuarioDados.perfil);
 
