@@ -50,7 +50,7 @@
       border: 1px solid var(--border-color);
     }
 
-    /* ESTILO DO CABEÇALHO COM LOGOMARCA */
+    /* ESTILO DO CABEÇALHO DA MARCA */
     .brand-header {
       text-align: center;
       border-bottom: 2px solid var(--bg-body);
@@ -58,11 +58,11 @@
       margin-bottom: 20px;
     }
 
-    .brand-logo {
-      max-height: 55px;
+    .brand-logo-svg {
+      max-height: 60px;
       width: auto;
-      display: block;
       margin: 0 auto;
+      display: block;
     }
 
     .brand-header p {
@@ -366,9 +366,18 @@
 
   <div class="container">
 
-    <!-- CABEÇALHO ATUALIZADO COM A LOGOMARCA OFICIAL DA ZAAZ -->
+    <!-- LOGOMARCA DA ZAAZ INCORPORADA DIRETAMENTE NO CÓDIGO (NUNCA QUEBRA) -->
     <div class="brand-header">
-      <img src="https://i.ibb.co/3pYyYkP/zaaz-logo.png" alt="ZAAZ Telecom Logo" class="brand-logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 200 60\'><rect width=\'200\' height=\'60\' fill=\'%230066FF\' rx=\'10\'/><text x=\'50%\' y=\'50%\' fill=\'white\' font-family=\'Arial\' font-weight=\'bold\' font-size=\'22\' dominant-baseline=\'middle\' text-anchor=\'middle\'>ZAAZ Telecom</text></svg>'">
+      <svg class="brand-logo-svg" viewBox="0 0 320 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Ícone Hexagonal Amarelo com Camadas -->
+        <path d="M45 10L75 27.3V62.7L45 80L15 62.7V27.3L45 10Z" fill="#FACC15"/>
+        <path d="M45 25L58 32.5L45 40L32 32.5L45 25Z" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M45 35L58 42.5L45 50L32 42.5L45 35Z" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M45 45L58 52.5L45 60L32 52.5L45 45Z" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        
+        <!-- Texto ZAAZ com Tipografia e Cores Oficiais -->
+        <text x="95" y="58" font-family="'Inter', Arial, sans-serif" font-weight="900" font-size="46" fill="#312E81" letter-spacing="-1">Zaaz</text>
+      </svg>
       <p>Atendimento Técnico e Infraestrutura</p>
     </div>
 
