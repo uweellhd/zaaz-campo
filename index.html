@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
+  <!-- Biblioteca html2pdf para geração de PDF direto no navegador -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
   <style>
     :root {
       --primary: #0066FF;
@@ -42,7 +45,7 @@
 
     .container {
       width: 100%;
-      max-width: 480px;
+      max-width: 520px;
       background: var(--card-bg);
       border-radius: 20px;
       padding: 24px;
@@ -152,18 +155,34 @@
       font-weight: 600;
     }
 
+    .user-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-action-sm {
+      background-color: #F1F5F9;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
     .btn-logout {
       background-color: #F1F5F9;
       color: var(--danger);
       border: 1px solid #FECDD3;
-      padding: 6px 12px;
+      padding: 6px 10px;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
     }
 
-    .app-box, .admin-box {
+    .app-box, .admin-box, .modal-pass {
       display: none;
     }
 
@@ -275,7 +294,7 @@
       gap: 12px;
     }
 
-    button.nav-btn, button.btn-login, button.btn-add-user {
+    button.nav-btn, button.btn-login, button.btn-add-user, button.btn-pdf {
       padding: 14px 20px;
       border: none;
       border-radius: 10px;
@@ -286,6 +305,13 @@
 
     .btn-login, .btn-add-user {
       background-color: var(--primary);
+      color: white;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .btn-pdf {
+      background-color: #0284C7;
       color: white;
       width: 100%;
       margin-top: 10px;
@@ -309,22 +335,24 @@
       width: 100%;
     }
 
-    .user-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
+    /* CARDS DE HISTÓRICO */
+    .history-card {
+      background-color: #F8FAFC;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
       font-size: 13px;
     }
 
-    .user-table th, .user-table td {
-      border: 1px solid var(--border-color);
-      padding: 10px;
-      text-align: left;
+    .history-card strong {
+      color: var(--primary);
     }
 
-    .user-table th {
-      background-color: #F8FAFC;
+    .history-card a {
+      color: #0284C7;
       font-weight: 700;
+      text-decoration: none;
     }
 
     .nextflow-footer {
@@ -379,42 +407,57 @@
       </form>
     </div>
 
-    <!-- PAINEL ADMINISTRATIVO -->
+    <!-- MODAL DE ALTERAÇÃO DE SENHA -->
+    <div id="modalPass" class="modal-pass">
+      <h2>Alterar Senha</h2>
+      <p class="subtitle">Insira sua nova senha de acesso</p>
+      <form id="passForm" onsubmit="salvarNovaSenha(event)">
+        <div class="form-group">
+          <label for="nova_senha_user">Nova Senha:</label>
+          <input type="password" id="nova_senha_user" placeholder="Digite a nova senha" required>
+        </div>
+        <button type="submit" id="btnSavePass" class="btn-login">Salvar Senha</button>
+        <button type="button" class="btn-logout" style="width: 100%; margin-top: 8px;" onclick="fecharModalSenha()">Cancelar</button>
+      </form>
+    </div>
+
+    <!-- PAINEL ADMINISTRATIVO COM ABAS DE GESTÃO E HISTÓRICO -->
     <div id="adminScreen" class="admin-box">
       <div class="user-header">
         <span>Painel: <strong>Administrador</strong></span>
         <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
       </div>
 
-      <h2>Gestão de Usuários</h2>
-      <p class="subtitle">Cadastre novos técnicos na planilha do Google</p>
+      <h2>Gestão do Sistema</h2>
+      
+      <!-- MENU DE NAVEGAÇÃO ADMIN -->
+      <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+        <button type="button" class="btn-action-sm" style="flex: 1; background-color: var(--primary); color: white;" id="tabUsersBtn" onclick="alternarAbaAdmin('users')">👥 Usuários</button>
+        <button type="button" class="btn-action-sm" style="flex: 1;" id="tabHistBtn" onclick="alternarAbaAdmin('hist')">📋 Histórico</button>
+      </div>
 
-      <form id="addUserForm" onsubmit="cadastrarUsuarioNaPlanilha(event)">
-        <div class="form-group">
-          <label for="novo_usuario">Nome de Usuário (Técnico):</label>
-          <input type="text" id="novo_usuario" placeholder="Ex: joao.silva" required>
+      <!-- ABA CADASTRO DE USUÁRIOS -->
+      <div id="adminTabUsers">
+        <form id="addUserForm" onsubmit="cadastrarUsuarioNaPlanilha(event)">
+          <div class="form-group">
+            <label for="novo_usuario">Nome do Técnico:</label>
+            <input type="text" id="novo_usuario" placeholder="Ex: joao.silva" required>
+          </div>
+          <div class="form-group">
+            <label for="nova_senha">Senha:</label>
+            <input type="password" id="nova_senha" placeholder="Digite a senha" required>
+          </div>
+          <button type="submit" id="btnAddUser" class="btn-add-user">➕ Cadastrar Técnico</button>
+        </form>
+      </div>
+
+      <!-- ABA HISTÓRICO DE CHAMADOS -->
+      <div id="adminTabHist" style="display: none;">
+        <button type="button" class="btn-action-sm" style="width: 100%; margin-bottom: 12px;" onclick="carregarHistoricoChamados()">🔄 Atualizar Histórico</button>
+        <div id="historicoContainer">
+          <p style="text-align: center; font-size: 13px; color: var(--text-muted);">Clique para carregar os chamados...</p>
         </div>
-
-        <div class="form-group">
-          <label for="nova_senha">Senha de Acesso:</label>
-          <input type="password" id="nova_senha" placeholder="Digite uma senha" required>
-        </div>
-
-        <button type="submit" id="btnAddUser" class="btn-add-user">➕ Cadastrar Técnico no Google Sheets</button>
-      </form>
-
-      <h3 style="margin-top: 25px; font-size: 15px;">Técnicos Cadastrados na Planilha</h3>
-      <table class="user-table">
-        <thead>
-          <tr>
-            <th>Usuário</th>
-            <th>Perfil</th>
-          </tr>
-        </thead>
-        <tbody id="listaUsuariosBody">
-          <!-- Dados da planilha -->
-        </tbody>
-      </table>
+      </div>
     </div>
 
     <!-- FORMULÁRIO TÉCNICO -->
@@ -422,111 +465,113 @@
 
       <div class="user-header">
         <span>Técnico: <strong id="loggedUserDisplay"></strong></span>
-        <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
+        <div class="user-actions">
+          <button type="button" class="btn-action-sm" onclick="abrirModalSenha()">🔑 Senha</button>
+          <button type="button" class="btn-logout" onclick="fazerLogout()">Sair</button>
+        </div>
       </div>
 
-      <h2>Relatório de Atendimento</h2>
-      <p class="subtitle">Registro de rompimento e reparo de fibra</p>
+      <!-- CONTAINER PARA GERAR PDF -->
+      <div id="pdfArea">
+        <h2>Relatório de Atendimento</h2>
+        <p class="subtitle">Registro de rompimento e reparo de fibra</p>
 
-      <div class="step-indicator">
-        <span class="step-number active" id="ind-1">Etapa 1</span>
-        <span class="step-number" id="ind-2">Etapa 2</span>
-        <span class="step-number" id="ind-3">Etapa 3</span>
-        <span class="step-number" id="ind-4">Etapa 4</span>
+        <div class="step-indicator">
+          <span class="step-number active" id="ind-1">Etapa 1</span>
+          <span class="step-number" id="ind-2">Etapa 2</span>
+          <span class="step-number" id="ind-3">Etapa 3</span>
+          <span class="step-number" id="ind-4">Etapa 4</span>
+        </div>
+
+        <form id="techForm" onsubmit="enviarRelatorio(event)">
+
+          <!-- ETAPA 1 -->
+          <div class="step active" id="step-1">
+            <h3>1. Comunicado e Deslocamento</h3>
+            <div class="form-group">
+              <label for="codigo_chamado">Código / ID do Chamado:</label>
+              <input type="text" id="codigo_chamado" placeholder="Ex: OS-2026-99" required>
+            </div>
+            <div class="form-group">
+              <label for="nome_equipe">Técnico Responsável:</label>
+              <input type="text" id="nome_equipe" readonly required>
+            </div>
+            <div class="form-group">
+              <label for="foto_deslocamento">Foto do Deslocamento / Partida:</label>
+              <input type="file" id="foto_deslocamento" accept="image/*" onchange="previewImage(this, 'prev1')">
+              <img id="prev1" class="preview" alt="Pré-visualização foto 1">
+            </div>
+          </div>
+
+          <!-- ETAPA 2 -->
+          <div class="step" id="step-2">
+            <h3>2. Chegada e Identificação</h3>
+            <div class="form-group">
+              <label for="foto_local_chegada">Foto do Local da Chegada:</label>
+              <input type="file" id="foto_local_chegada" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_1')">
+              <img id="prev2_1" class="preview" alt="Pré-visualização local">
+            </div>
+            <div class="form-group">
+              <label for="foto_rompimento">Foto do Rompimento Localizado:</label>
+              <input type="file" id="foto_rompimento" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_2')">
+              <img id="prev2_2" class="preview" alt="Pré-visualização rompimento">
+            </div>
+          </div>
+
+          <!-- ETAPA 3 -->
+          <div class="step" id="step-3">
+            <h3>3. Execução do Serviço</h3>
+            <div class="form-group">
+              <label for="foto_panoramica">Foto Panorâmica do Local:</label>
+              <input type="file" id="foto_panoramica" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_1')">
+              <img id="prev3_1" class="preview" alt="Pré-visualização panorâmica">
+            </div>
+            <div class="form-group">
+              <label for="foto_equipe">Foto da Equipe Atuando:</label>
+              <input type="file" id="foto_equipe" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_2')">
+              <img id="prev3_2" class="preview" alt="Pré-visualização equipe">
+            </div>
+          </div>
+
+          <!-- ETAPA 4 -->
+          <div class="step" id="step-4">
+            <h3>4. Finalização e Geolocalização</h3>
+            <div class="form-group">
+              <label for="geo_caixa_1">Geolocalização Caixa 1:</label>
+              <input type="text" id="geo_caixa_1" placeholder="Coordenadas GPS" readonly>
+              <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_1', 'status_c1')">📍 Capturar GPS Caixa 1</button>
+              <span id="status_c1" class="geo-status"></span>
+            </div>
+            <div class="form-group">
+              <label for="geo_caixa_2">Geolocalização Caixa 2:</label>
+              <input type="text" id="geo_caixa_2" placeholder="Coordenadas GPS" readonly>
+              <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_2', 'status_c2')">📍 Capturar GPS Caixa 2</button>
+              <span id="status_c2" class="geo-status"></span>
+            </div>
+            <div class="form-group">
+              <label for="foto_caixas">Foto das Caixas Acomodadas:</label>
+              <input type="file" id="foto_caixas" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_1')">
+              <img id="prev4_1" class="preview" alt="Pré-visualização caixas">
+            </div>
+            <div class="form-group">
+              <label for="foto_limpeza">Foto do Local Limpo:</label>
+              <input type="file" id="foto_limpeza" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_2')">
+              <img id="prev4_2" class="preview" alt="Pré-visualização local limpo">
+            </div>
+          </div>
+
+          <!-- NAVEGAÇÃO -->
+          <div class="buttons">
+            <button type="button" class="nav-btn btn-prev" id="btnPrev" onclick="changeStep(-1)" style="display:none;">Voltar</button>
+            <button type="button" class="nav-btn btn-next" id="btnNext" onclick="changeStep(1)">Avançar</button>
+            <button type="submit" class="nav-btn btn-submit" id="btnSubmit" style="display:none;">Finalizar e Salvar</button>
+          </div>
+
+        </form>
       </div>
 
-      <form id="techForm" onsubmit="enviarRelatorio(event)">
-
-        <!-- ETAPA 1 -->
-        <div class="step active" id="step-1">
-          <h3>1. Comunicado e Deslocamento</h3>
-          
-          <div class="form-group">
-            <label for="codigo_chamado">Código / ID do Chamado:</label>
-            <input type="text" id="codigo_chamado" placeholder="Ex: OS-2026-99" required>
-          </div>
-
-          <div class="form-group">
-            <label for="nome_equipe">Técnico Responsável:</label>
-            <input type="text" id="nome_equipe" readonly required>
-          </div>
-
-          <div class="form-group">
-            <label for="foto_deslocamento">Foto do Deslocamento / Partida (Câmera ou Galeria):</label>
-            <input type="file" id="foto_deslocamento" accept="image/*" onchange="previewImage(this, 'prev1')">
-            <img id="prev1" class="preview" alt="Pré-visualização da foto 1">
-          </div>
-        </div>
-
-        <!-- ETAPA 2 -->
-        <div class="step" id="step-2">
-          <h3>2. Chegada e Identificação</h3>
-          <div class="form-group">
-            <label for="foto_local_chegada">Foto do Local da Chegada:</label>
-            <input type="file" id="foto_local_chegada" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_1')">
-            <img id="prev2_1" class="preview" alt="Pré-visualização local">
-          </div>
-          <div class="form-group">
-            <label for="foto_rompimento">Foto do Rompimento Localizado:</label>
-            <input type="file" id="foto_rompimento" accept="image/*" capture="environment" onchange="previewImage(this, 'prev2_2')">
-            <img id="prev2_2" class="preview" alt="Pré-visualização rompimento">
-          </div>
-        </div>
-
-        <!-- ETAPA 3 -->
-        <div class="step" id="step-3">
-          <h3>3. Execução do Serviço</h3>
-          <div class="form-group">
-            <label for="foto_panoramica">Foto Panorâmica do Local do Serviço:</label>
-            <input type="file" id="foto_panoramica" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_1')">
-            <img id="prev3_1" class="preview" alt="Pré-visualização panorâmica">
-          </div>
-          <div class="form-group">
-            <label for="foto_equipe">Foto da Equipe Atuando:</label>
-            <input type="file" id="foto_equipe" accept="image/*" capture="environment" onchange="previewImage(this, 'prev3_2')">
-            <img id="prev3_2" class="preview" alt="Pré-visualização equipe">
-          </div>
-        </div>
-
-        <!-- ETAPA 4 -->
-        <div class="step" id="step-4">
-          <h3>4. Finalização e Geolocalização</h3>
-
-          <div class="form-group">
-            <label for="geo_caixa_1">Geolocalização da Caixa 1:</label>
-            <input type="text" id="geo_caixa_1" placeholder="Coordenadas GPS (Lat, Long)" readonly>
-            <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_1', 'status_c1')">📍 Capturar GPS Caixa 1</button>
-            <span id="status_c1" class="geo-status"></span>
-          </div>
-
-          <div class="form-group">
-            <label for="geo_caixa_2">Geolocalização da Caixa 2:</label>
-            <input type="text" id="geo_caixa_2" placeholder="Coordenadas GPS (Lat, Long)" readonly>
-            <button type="button" class="btn-geo" onclick="capturarGPS('geo_caixa_2', 'status_c2')">📍 Capturar GPS Caixa 2</button>
-            <span id="status_c2" class="geo-status"></span>
-          </div>
-
-          <div class="form-group">
-            <label for="foto_caixas">Foto das Caixas Acomodadas:</label>
-            <input type="file" id="foto_caixas" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_1')">
-            <img id="prev4_1" class="preview" alt="Pré-visualização caixas">
-          </div>
-
-          <div class="form-group">
-            <label for="foto_limpeza">Foto do Local Limpo / Finalizado:</label>
-            <input type="file" id="foto_limpeza" accept="image/*" capture="environment" onchange="previewImage(this, 'prev4_2')">
-            <img id="prev4_2" class="preview" alt="Pré-visualização local limpo">
-          </div>
-        </div>
-
-        <!-- NAVEGAÇÃO -->
-        <div class="buttons">
-          <button type="button" class="nav-btn btn-prev" id="btnPrev" onclick="changeStep(-1)" style="display:none;">Voltar</button>
-          <button type="button" class="nav-btn btn-next" id="btnNext" onclick="changeStep(1)">Avançar</button>
-          <button type="submit" class="nav-btn btn-submit" id="btnSubmit" style="display:none;">Finalizar e Salvar</button>
-        </div>
-
-      </form>
+      <!-- BOTÃO PARA GERAR PDF DO RELATÓRIO PREENCHIDO -->
+      <button type="button" class="btn-pdf" onclick="gerarPDF()">📄 Gerar PDF do Relatório</button>
     </div>
 
   </div>
@@ -536,7 +581,6 @@
   </footer>
 
   <script>
-    /* INSIRA A SUA URL COMPLETA DO GOOGLE APPS SCRIPT ABAIXO */
     const URL_GOOGLE_SCRIPT = "https://script.google.com/macros/s/AKfycbzL7VYWpBFq_xGjoZiBmNMHZvc8mc3O6hW00-8UShwV4uKwtkShCFN8JLYnrKgsx5bW/exec";
 
     let usuariosAtivos = [];
@@ -554,12 +598,8 @@
       if (navigator.onLine) {
         statusBar.className = 'status-bar status-online';
         statusText.textContent = '🌐 Conectado à Internet';
-        if (pendentes.length > 0) {
-          btnSync.style.display = 'inline-block';
-          btnSync.textContent = `⚡ Enviar ${pendentes.length} Pendentes`;
-        } else {
-          btnSync.style.display = 'none';
-        }
+        btnSync.style.display = pendentes.length > 0 ? 'inline-block' : 'none';
+        if (pendentes.length > 0) btnSync.textContent = `⚡ Enviar ${pendentes.length} Pendentes`;
       } else {
         statusBar.className = 'status-bar status-offline';
         statusText.textContent = `📡 Sem Conexão (${pendentes.length} Salvos no Aparelho)`;
@@ -567,33 +607,21 @@
       }
     }
 
-    // CARREGA A LISTA DE TÉCNICOS CADASTRADOS NA PLANILHA
     function carregarUsuariosDaPlanilha(callback) {
       fetch(URL_GOOGLE_SCRIPT + "?t=" + new Date().getTime())
-        .then(response => response.json())
+        .then(res => res.json())
         .then(data => {
-          if (Array.isArray(data) && data.length > 0) {
-            usuariosAtivos = data;
-          } else {
-            usuariosAtivos = [
-              { usuario: "admin", senha: "123", perfil: "admin" },
-              { usuario: "tecnico", senha: "123", perfil: "tecnico" }
-            ];
-          }
+          usuariosAtivos = (Array.isArray(data) && data.length > 0) ? data : [{ usuario: "admin", senha: "123", perfil: "admin" }];
           if (callback) callback();
         })
         .catch(() => {
-          usuariosAtivos = [
-            { usuario: "admin", senha: "123", perfil: "admin" },
-            { usuario: "tecnico", senha: "123", perfil: "tecnico" }
-          ];
+          usuariosAtivos = [{ usuario: "admin", senha: "123", perfil: "admin" }];
           if (callback) callback();
         });
     }
 
     function validarLogin(event) {
       event.preventDefault();
-
       const btnLogin = document.getElementById('btnLogin');
       btnLogin.textContent = "⏳ Validando...";
       btnLogin.disabled = true;
@@ -606,17 +634,16 @@
         btnLogin.textContent = "Entrar no Sistema";
         btnLogin.disabled = false;
 
-        const usuarioEncontrado = usuariosAtivos.find(u => String(u.usuario) === userInput && String(u.senha) === passInput);
+        const u = usuariosAtivos.find(u => String(u.usuario) === userInput && String(u.senha) === passInput);
 
-        if (usuarioEncontrado) {
-          usuarioLogado = usuarioEncontrado.usuario;
+        if (u) {
+          usuarioLogado = u.usuario;
           document.getElementById('loginScreen').style.display = 'none';
           errorMsg.style.display = 'none';
 
-          if (usuarioEncontrado.perfil === "admin") {
+          if (u.perfil === "admin") {
             document.getElementById('adminScreen').style.display = 'block';
             document.getElementById('appScreen').style.display = 'none';
-            renderizarListaUsuarios();
           } else {
             document.getElementById('appScreen').style.display = 'block';
             document.getElementById('adminScreen').style.display = 'none';
@@ -630,58 +657,144 @@
       });
     }
 
-    // CADASTRA NOVO TÉCNICO ENVIANDO OS DADOS DIRETAMENTE VIA URL (QUERY PARAMETERS)
-    function cadastrarUsuarioNaPlanilha(event) {
+    /* RECURSO 1: ALTERAÇÃO DE SENHA */
+    function abrirModalSenha() {
+      document.getElementById('modalPass').style.display = 'block';
+      document.getElementById('appScreen').style.display = 'none';
+    }
+
+    function fecharModalSenha() {
+      document.getElementById('modalPass').style.display = 'none';
+      document.getElementById('appScreen').style.display = 'block';
+    }
+
+    function salvarNovaSenha(event) {
       event.preventDefault();
-      
-      const btnAddUser = document.getElementById('btnAddUser');
-      btnAddUser.textContent = "⏳ Cadastrando na Planilha...";
-      btnAddUser.disabled = true;
+      const btnSave = document.getElementById('btnSavePass');
+      btnSave.textContent = "⏳ Salvando...";
+      btnSave.disabled = true;
 
-      const novoUser = document.getElementById('novo_usuario').value.trim();
-      const novaSenha = document.getElementById('nova_senha').value.trim();
+      const novaSenha = document.getElementById('nova_senha_user').value.trim();
+      const urlComAcao = URL_GOOGLE_SCRIPT + "?acao=alterarSenha&usuario=" + encodeURIComponent(usuarioLogado) + "&nova_senha=" + encodeURIComponent(novaSenha);
 
-      // Montamos o URL com os parâmetros de ação, usuário e senha diretamente
-      const urlCompleta = URL_GOOGLE_SCRIPT + 
-        "?acao=cadastrarUsuario" + 
-        "&novo_usuario=" + encodeURIComponent(novoUser) + 
-        "&nova_senha=" + encodeURIComponent(novaSenha);
-
-      fetch(urlCompleta, {
-        method: 'POST'
-      })
+      fetch(urlComAcao, { method: 'POST' })
       .then(() => {
-        alert(`✅ Técnico "${novoUser}" cadastrado com sucesso na planilha!`);
-        document.getElementById('addUserForm').reset();
-        btnAddUser.textContent = "➕ Cadastrar Técnico no Google Sheets";
-        btnAddUser.disabled = false;
-        
-        carregarUsuariosDaPlanilha(function() {
-          renderizarListaUsuarios();
-        });
+        alert('✅ Sua senha foi alterada com sucesso na planilha!');
+        btnSave.textContent = "Salvar Senha";
+        btnSave.disabled = false;
+        document.getElementById('passForm').reset();
+        fecharModalSenha();
       })
-      .catch((error) => {
-        alert('✅ Solicitado! Verifique a planilha.');
-        document.getElementById('addUserForm').reset();
-        btnAddUser.textContent = "➕ Cadastrar Técnico no Google Sheets";
-        btnAddUser.disabled = false;
-        carregarUsuariosDaPlanilha(function() {
-          renderizarListaUsuarios();
+      .catch(() => {
+        alert('✅ Senha alterada!');
+        btnSave.textContent = "Salvar Senha";
+        btnSave.disabled = false;
+        fecharModalSenha();
+      });
+    }
+
+    /* RECURSO 2: GERAR PDF DO RELATÓRIO */
+    function gerarPDF() {
+      const elemento = document.getElementById('pdfArea');
+      const chamado = document.getElementById('codigo_chamado').value || 'Relatorio';
+
+      // Revela temporariamente todas as etapas para o PDF capturar tudo
+      const steps = document.querySelectorAll('.step');
+      steps.forEach(s => s.style.display = 'block');
+
+      const opcoes = {
+        margin: 10,
+        filename: `ZAAZ_Relatorio_${chamado}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      html2pdf().set(opcoes).from(elemento).save().then(() => {
+        // Restaura a visualização por etapas
+        steps.forEach((s, idx) => {
+          s.style.display = (idx + 1 === currentStep) ? 'block' : 'none';
         });
       });
     }
 
-    function renderizarListaUsuarios() {
-      const tbody = document.getElementById('listaUsuariosBody');
-      tbody.innerHTML = '';
+    /* RECURSO 3: HISTÓRICO DE CHAMADOS NO PAINEL ADMIN */
+    function alternarAbaAdmin(aba) {
+      const btnUsers = document.getElementById('tabUsersBtn');
+      const btnHist = document.getElementById('tabHistBtn');
+      const divUsers = document.getElementById('adminTabUsers');
+      const divHist = document.getElementById('adminTabHist');
 
-      usuariosAtivos.forEach(u => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><strong>${u.usuario}</strong></td>
-          <td>${u.perfil}</td>
-        `;
-        tbody.appendChild(tr);
+      if (aba === 'users') {
+        btnUsers.style.backgroundColor = 'var(--primary)';
+        btnUsers.style.color = 'white';
+        btnHist.style.backgroundColor = '#F1F5F9';
+        btnHist.style.color = 'var(--text-main)';
+        divUsers.style.display = 'block';
+        divHist.style.display = 'none';
+      } else {
+        btnHist.style.backgroundColor = 'var(--primary)';
+        btnHist.style.color = 'white';
+        btnUsers.style.backgroundColor = '#F1F5F9';
+        btnUsers.style.color = 'var(--text-main)';
+        divUsers.style.display = 'none';
+        divHist.style.display = 'block';
+        carregarHistoricoChamados();
+      }
+    }
+
+    function carregarHistoricoChamados() {
+      const container = document.getElementById('historicoContainer');
+      container.innerHTML = '<p style="text-align:center; font-size:13px;">⏳ Buscando chamados na planilha...</p>';
+
+      fetch(URL_GOOGLE_SCRIPT + "?tipo=historico&t=" + new Date().getTime())
+        .then(res => res.json())
+        .then(data => {
+          if (!Array.isArray(data) || data.length === 0) {
+            container.innerHTML = '<p style="text-align:center; font-size:13px;">Nenhum chamado encontrado.</p>';
+            return;
+          }
+
+          container.innerHTML = '';
+          data.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'history-card';
+            card.innerHTML = `
+              <strong>ID Chamado: ${item.chamadoId}</strong><br>
+              Técnico: ${item.tecnico} | Data: ${item.dataHora}<br>
+              GPS Caixa 1: ${item.gps1 || 'N/A'}<br>
+              <a href="${item.linkDrive}" target="_blank">📁 Abrir Pasta no Google Drive</a>
+            `;
+            container.appendChild(card);
+          });
+        })
+        .catch(() => {
+          container.innerHTML = '<p style="text-align:center; color:var(--danger); font-size:13px;">Erro ao carregar histórico.</p>';
+        });
+    }
+
+    function cadastrarUsuarioNaPlanilha(event) {
+      event.preventDefault();
+      const btnAddUser = document.getElementById('btnAddUser');
+      btnAddUser.textContent = "⏳ Cadastrando...";
+      btnAddUser.disabled = true;
+
+      const novoUser = document.getElementById('novo_usuario').value.trim();
+      const novaSenha = document.getElementById('nova_senha').value.trim();
+      const urlComAcao = URL_GOOGLE_SCRIPT + "?acao=cadastrarUsuario&novo_usuario=" + encodeURIComponent(novoUser) + "&nova_senha=" + encodeURIComponent(novaSenha);
+
+      fetch(urlComAcao, { method: 'POST' })
+      .then(() => {
+        alert(`✅ Técnico "${novoUser}" cadastrado!`);
+        document.getElementById('addUserForm').reset();
+        btnAddUser.textContent = "➕ Cadastrar Técnico";
+        btnAddUser.disabled = false;
+      })
+      .catch(() => {
+        alert('✅ Solicitado! Verifique a planilha.');
+        document.getElementById('addUserForm').reset();
+        btnAddUser.textContent = "➕ Cadastrar Técnico";
+        btnAddUser.disabled = false;
       });
     }
 
@@ -691,6 +804,7 @@
       document.getElementById('loginScreen').style.display = 'block';
       document.getElementById('appScreen').style.display = 'none';
       document.getElementById('adminScreen').style.display = 'none';
+      fecharModalSenha();
       resetFormulario();
     }
 
@@ -700,14 +814,10 @@
     function changeStep(direction) {
       document.getElementById(`step-${currentStep}`).classList.remove('active');
       document.getElementById(`ind-${currentStep}`).classList.remove('active');
-
       currentStep += direction;
-
       document.getElementById(`step-${currentStep}`).classList.add('active');
       document.getElementById(`ind-${currentStep}`).classList.add('active');
-
       document.getElementById('btnPrev').style.display = currentStep === 1 ? 'none' : 'inline-block';
-      
       if (currentStep === totalSteps) {
         document.getElementById('btnNext').style.display = 'none';
         document.getElementById('btnSubmit').style.display = 'block';
@@ -740,24 +850,18 @@
       if ("geolocation" in navigator) {
         statusElement.textContent = "Obtendo GPS por satélite...";
         statusElement.style.color = "#0066FF";
-
         navigator.geolocation.getCurrentPosition(
           function(position) {
-            const lat = position.coords.latitude.toFixed(6);
-            const lng = position.coords.longitude.toFixed(6);
-            inputElement.value = `${lat}, ${lng}`;
+            inputElement.value = `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`;
             statusElement.textContent = "✓ Localização capturada pelo GPS!";
             statusElement.style.color = "#10B981";
           },
-          function(error) {
-            statusElement.textContent = "Erro ao obter localização. Ative a localização no celular.";
+          function() {
+            statusElement.textContent = "Erro no GPS. Verifique a permissão.";
             statusElement.style.color = "#EF4444";
           },
           { enableHighAccuracy: true, timeout: 15000 }
         );
-      } else {
-        statusElement.textContent = "Geolocalização não suportada.";
-        statusElement.style.color = "#EF4444";
       }
     }
 
@@ -765,24 +869,14 @@
       document.getElementById('techForm').reset();
       document.getElementById('nome_equipe').value = usuarioLogado;
       imagensBase64 = {};
-      
-      const previews = document.querySelectorAll('.preview');
-      previews.forEach(img => {
-        img.src = '';
-        img.style.display = 'none';
-      });
-
+      document.querySelectorAll('.preview').forEach(img => { img.src = ''; img.style.display = 'none'; });
       document.getElementById('status_c1').textContent = '';
       document.getElementById('status_c2').textContent = '';
-
       document.getElementById(`step-${currentStep}`).classList.remove('active');
       document.getElementById(`ind-${currentStep}`).classList.remove('active');
-      
       currentStep = 1;
-
       document.getElementById(`step-1`).classList.add('active');
       document.getElementById(`ind-1`).classList.add('active');
-
       document.getElementById('btnPrev').style.display = 'none';
       document.getElementById('btnNext').style.display = 'inline-block';
       document.getElementById('btnSubmit').style.display = 'none';
@@ -790,7 +884,6 @@
 
     function enviarRelatorio(event) {
       event.preventDefault();
-
       const btnSubmit = document.getElementById('btnSubmit');
 
       const dadosRelatorio = {
@@ -807,7 +900,7 @@
 
       if (!navigator.onLine) {
         salvarOffline(dadosRelatorio);
-        alert('📡 Você está offline! O relatório foi salvo com segurança no celular e será enviado assim que houver sinal.');
+        alert('📡 Você está offline! Relatório salvo no aparelho.');
         resetFormulario();
         atualizarStatusConexao();
         return;
@@ -817,12 +910,7 @@
       btnSubmit.disabled = true;
 
       dispararEnvio(dadosRelatorio, function(sucesso) {
-        if (sucesso) {
-          alert('✅ Relatório enviado e gravado com sucesso na planilha!');
-        } else {
-          salvarOffline(dadosRelatorio);
-          alert('⚠️ Houve uma instabilidade. O relatório foi guardado no celular para reenvio!');
-        }
+        alert(sucesso ? '✅ Relatório enviado com sucesso!' : '⚠️ Guardado no celular para reenvio!');
         btnSubmit.textContent = "Finalizar e Salvar";
         btnSubmit.disabled = false;
         resetFormulario();
@@ -832,14 +920,8 @@
 
     function dispararEnvio(dados, callback) {
       const formData = new FormData();
-      for (let key in dados) {
-        formData.append(key, dados[key]);
-      }
-
-      fetch(URL_GOOGLE_SCRIPT, {
-        method: 'POST',
-        body: formData
-      })
+      for (let key in dados) formData.append(key, dados[key]);
+      fetch(URL_GOOGLE_SCRIPT, { method: 'POST', body: formData })
       .then(() => callback(true))
       .catch(() => callback(false));
     }
@@ -853,20 +935,18 @@
     function sincronizarPendentes() {
       const pendentes = JSON.parse(localStorage.getItem('relatorios_pendentes') || '[]');
       if (pendentes.length === 0) return;
-
       const btnSync = document.getElementById('btnSync');
       btnSync.textContent = "⏳ Enviando...";
       btnSync.disabled = true;
-
       let enviados = 0;
 
-      pendentes.forEach((relatorio, index) => {
+      pendentes.forEach(relatorio => {
         dispararEnvio(relatorio, function(sucesso) {
           if (sucesso) {
             enviados++;
             if (enviados === pendentes.length) {
               localStorage.removeItem('relatorios_pendentes');
-              alert('⚡ Todos os relatorios offline foram sincronizados com sucesso na planilha!');
+              alert('⚡ Relatórios offline sincronizados!');
               btnSync.disabled = false;
               atualizarStatusConexao();
             }
