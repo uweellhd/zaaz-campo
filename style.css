@@ -359,3 +359,27 @@ input:focus, textarea:focus, select:focus {
   .modal-grid-sidebar { grid-template-columns: 1fr; }
   .charts-grid-three { grid-template-columns: 1fr; }
 }
+
+/* Celulares: prioriza leitura e toque sem rolagem horizontal. */
+@media (max-width: 700px) {
+  .top-nav { padding: 12px 16px; gap: 12px; }
+  .nav-brand { width: 100%; }
+  .nav-menu { width: 100%; margin-left: 0; overflow-x: auto; padding-bottom: 4px; }
+  .nav-btn { flex: 0 0 auto; min-height: 44px; }
+  .nav-right-group { width: 100%; flex-wrap: wrap; gap: 8px; }
+  .clock-box-inline { display: none; }
+  .user-badge-box { max-width: 100%; white-space: normal; }
+  .widescreen-container { width: calc(100% - 24px); margin: 12px auto; }
+  .view-panel { padding: 16px; border-radius: 14px; }
+  .panel-header-action, .tech-flow-header { flex-direction: column; align-items: stretch; gap: 12px; }
+  .kpi-grid, .incidents-grid-list, .charts-grid-three { grid-template-columns: 1fr; gap: 12px; }
+  .kpi-card { padding: 16px; }
+  .timeline-header { flex-direction: column; gap: 4px; }
+  .step-number { font-size: 10px; }
+  .btn-step-group { flex-direction: column; }
+  .app-footer { position: static; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
