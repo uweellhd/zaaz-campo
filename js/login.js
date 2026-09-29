@@ -3,7 +3,8 @@
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
@@ -17,6 +18,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 function iniciarEfeitoFibra() {
   const canvas = document.getElementById('fiberCanvas');
@@ -72,71 +74,48 @@ function obterSaudacao() {
   return "🌙 Boa noite";
 }
 
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return;
+  try {
+    const perfil = await getDoc(doc(db, 'usuarios', user.uid));
+    if (perfil.exists() && perfil.data().ativo === true) {
+      window.location.replace('dashboard.html');
+    } else {
+      await signOut(auth);
+    }
+  } catch (erro) {
+    await signOut(auth);
+  }
+});
+
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-
-  const btnLogin = document.getElementById('btnLogin');
-  const errorMsg = document.getElementById('errorMsg');
-  const userInput = document.getElementById('usuario').value.trim();
-  const passInput = document.getElementById('senha').value.trim();
-
-  btnLogin.textContent = "⏳ Validando...";
-  btnLogin.disabled = true;
-  errorMsg.style.display = 'none';
+  const btn = document.getElementById('btnLogin');
+  const aviso = document.getElementById('errorMsg');
+  const email = document.getElementById('usuario').value.trim();
+  const senha = document.getElementById('senha').value;
+  btn.disabled = true;
+  btn.textContent = 'Validando...';
+  aviso.style.display = 'none';
 
   try {
-    let loginSucesso = false;
-    let usuarioDados = null;
-
-    const padroes = {
-      "admin": { usuario: "Administrador", perfil: "admin", estado: "SP", senha: "123" },
-      "tecnico": { usuario: "Lucas Augusto", perfil: "tecnico", estado: "SP", senha: "123" },
-      "noc": { usuario: "Operador NOC", perfil: "noc", estado: "SP", senha: "123" },
-      "sac": { usuario: "Atendente SAC", perfil: "sac", estado: "SP", senha: "123" },
-      "suporte": { usuario: "Analista Suporte", perfil: "suporte", estado: "SP", senha: "123" },
-      "gerente": { usuario: "Gerente / Diretor", perfil: "gerente", estado: "SP", senha: "123" }
-    };
-
-    if (padroes[userInput] && padroes[userInput].senha === passInput) {
-      loginSucesso = true;
-      usuarioDados = padroes[userInput];
-    } else {
-      const querySnapshot = await getDocs(collection(db, "usuarios"));
-      querySnapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        if (data.usuario === userInput && data.senha === passInput) {
-          loginSucesso = true;
-          usuarioDados = data;
-        }
-      });
+    const credencial = await signInWithEmailAndPassword(auth, email, senha);
+    const perfil = await getDoc(doc(db, 'usuarios', credencial.user.uid));
+    if (!perfil.exists() || perfil.data().ativo !== true) {
+      await signOut(auth);
+      throw new Error('Conta sem perfil ativo. Procure o administrador.');
     }
-
-    if (loginSucesso) {
-      document.getElementById('loginSection').style.display = 'none';
-      document.getElementById('welcomeSection').style.display = 'block';
-
-      document.getElementById('saudacaoTexto').textContent = `${obterSaudacao()}, ${usuarioDados.usuario}!`;
-      document.getElementById('usuarioNomeDisplay').textContent = "Redirecionando...";
-      document.getElementById('perfilBadge').textContent = `Perfil: ${usuarioDados.perfil.toUpperCase()}`;
-
-      localStorage.setItem('user_nome', usuarioDados.usuario);
-      localStorage.setItem('user_perfil', usuarioDados.perfil);
-      localStorage.setItem('user_estado', usuarioDados.estado || 'SP');
-
-      setTimeout(() => {
-        window.location.href = 'dashboard.html';
-      }, 1200);
-
-    } else {
-      errorMsg.style.display = 'block';
-      btnLogin.textContent = "Entrar no Sistema";
-      btnLogin.disabled = false;
-    }
-
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('welcomeSection').style.display = 'block';
+    document.getElementById('saudacaoTexto').textContent = `${obterSaudacao()}, ${perfil.data().nome}!`;
+    document.getElementById('perfilBadge').textContent = `Perfil: ${perfil.data().perfil.toUpperCase()}`;
+    window.location.replace('dashboard.html');
   } catch (erro) {
-    errorMsg.textContent = "Erro: " + erro.message;
-    errorMsg.style.display = 'block';
-    btnLogin.textContent = "Entrar no Sistema";
-    btnLogin.disabled = false;
+    await signOut(auth);
+    aviso.textContent = erro.message === 'Conta sem perfil ativo. Procure o administrador.'
+      ? erro.message : 'Não foi possível entrar. Confira e-mail e senha.';
+    aviso.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Entrar no Sistema';
   }
 });
