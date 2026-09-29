@@ -20,52 +20,15 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-function iniciarEfeitoFibra() {
-  const canvas = document.getElementById('fiberCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  let width = canvas.width = window.innerWidth;
-  let height = canvas.height = window.innerHeight;
-
-  window.addEventListener('resize', () => {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
-  });
-
-  const linhas = [];
-  for (let i = 0; i < 40; i++) {
-    linhas.push({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      length: Math.random() * 80 + 40,
-      speed: Math.random() * 2 + 1,
-      alpha: Math.random() * 0.8 + 0.2
-    });
-  }
-
-  function desenhar() {
-    ctx.clearRect(0, 0, width, height);
-    linhas.forEach(l => {
-      ctx.beginPath();
-      ctx.moveTo(l.x, l.y);
-      ctx.lineTo(l.x, l.y + l.length);
-      ctx.strokeStyle = `rgba(0, 102, 255, ${l.alpha})`;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      l.y -= l.speed;
-      if (l.y + l.length < 0) {
-        l.y = height;
-        l.x = Math.random() * width;
-      }
-    });
-    requestAnimationFrame(desenhar);
-  }
-  desenhar();
-}
-
-iniciarEfeitoFibra();
+const toggleSenha = document.getElementById('toggleSenha');
+toggleSenha.addEventListener('click', () => {
+  const campo = document.getElementById('senha');
+  const visivel = campo.type === 'password';
+  campo.type = visivel ? 'text' : 'password';
+  toggleSenha.textContent = visivel ? 'Ocultar' : 'Mostrar';
+  toggleSenha.setAttribute('aria-label', visivel ? 'Ocultar senha' : 'Mostrar senha');
+  toggleSenha.setAttribute('aria-pressed', String(visivel));
+});
 
 function obterSaudacao() {
   const hora = new Date().getHours();
@@ -116,6 +79,6 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
       ? erro.message : 'Não foi possível entrar. Confira e-mail e senha.';
     aviso.style.display = 'block';
     btn.disabled = false;
-    btn.textContent = 'Entrar no Sistema';
+    btn.textContent = 'Entrar no sistema';
   }
 });

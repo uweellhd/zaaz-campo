@@ -3,57 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZAAZ Telecom - Acesso Corporativo</title>
-
-  <!-- Fonte Google Inter e Estilos Globais -->
+  <meta name="theme-color" content="#101b3f">
+  <title>Acesso interno • NEXTFLOW</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="login-body">
+  <main class="login-layout">
+    <section class="login-intro" aria-label="Sobre o sistema">
+      <canvas id="fiberCanvas" class="fiber-art" aria-hidden="true"></canvas>
+      <div class="login-intro-content">
+      <div class="product-mark">N<span>F</span></div>
+      <p class="login-eyebrow">PLATAFORMA DE OPERAÇÕES</p>
+      <h1>NEXTFLOW</h1>
+      <p class="login-lead">Acompanhe incidentes, equipes e devolutivas em um só lugar.</p>
+      <div class="internal-tag"><span class="tag-dot"></span> Ambiente interno ZAAZ Telecom</div>
+      </div>
+    </section>
 
-  <!-- CANVAS DA ANIMAÇÃO DE FIBRA ÓTICA -->
-  <canvas id="fiberCanvas"></canvas>
-
-  <div class="login-card">
-    <div class="brand-header">
-      <h1 style="color: var(--zaaz-blue); font-weight: 800; letter-spacing: -0.5px;">ZAAZ TELECOM</h1>
-      <p>NextFlow Enterprise System</p>
-    </div>
-
-    <!-- FORMULÁRIO DE LOGIN -->
-    <div id="loginSection">
-      <form id="loginForm">
-        <div class="form-group">
-          <label for="usuario">E-mail corporativo:</label>
-          <input type="email" id="usuario" placeholder="seu.email@empresa.com" required autocomplete="username">
-        </div>
-
-        <div class="form-group">
-          <label for="senha">Senha de Acesso:</label>
-          <input type="password" id="senha" placeholder="Digite sua senha..." required autocomplete="current-password">
-        </div>
-
-        <button type="submit" id="btnLogin" class="btn-primary">Entrar no Sistema</button>
-        <div id="errorMsg" class="error-box">Usuário ou senha incorretos!</div>
-      </form>
-    </div>
-
-    <!-- ÁREA DE RECEPÇÃO / BOAS-VINDAS (PÓS-LOGIN) -->
-    <div id="welcomeSection" class="welcome-card">
-      <h2 id="saudacaoTexto">Carregando...</h2>
-      <p id="usuarioNomeDisplay">Autenticando perfil corporativo...</p>
-      <span id="perfilBadge" class="badge-perfil">Perfil</span>
-    </div>
-  </div>
-
-  <!-- RODAPÉ CORPORATIVO -->
-  <footer class="app-footer">
-    Um produto <strong>NextFlow</strong>
-  </footer>
-
-  <!-- Script JavaScript Modular do Firebase e Animação -->
+    <section class="login-card" aria-labelledby="loginTitle">
+      <div id="loginSection">
+        <p class="card-eyebrow">ACESSO CORPORATIVO</p>
+        <h2 id="loginTitle">Entre na sua área</h2>
+        <p class="login-helper">Use a conta cadastrada pelo administrador.</p>
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="usuario">E-mail corporativo</label>
+            <input type="email" id="usuario" placeholder="nome@empresa.com" required autocomplete="username" inputmode="email">
+          </div>
+          <div class="form-group">
+            <label for="senha">Senha</label>
+            <div class="password-field">
+              <input type="password" id="senha" placeholder="Digite sua senha" required autocomplete="current-password">
+              <button type="button" id="toggleSenha" class="password-toggle" aria-label="Mostrar senha" aria-pressed="false">Mostrar</button>
+            </div>
+          </div>
+          <button type="submit" id="btnLogin" class="btn-primary">Entrar no sistema</button>
+          <p id="errorMsg" class="error-box" role="alert" aria-live="polite">Não foi possível entrar.</p>
+        </form>
+      </div>
+      <div id="welcomeSection" class="welcome-card" aria-live="polite">
+        <h2 id="saudacaoTexto">Bem-vindo</h2>
+        <p id="usuarioNomeDisplay">Abrindo sua área...</p>
+        <span id="perfilBadge" class="badge-perfil">Perfil</span>
+      </div>
+    </section>
+  </main>
+  <footer class="login-footer">NEXTFLOW <span>·</span> Ambiente de desenvolvimento interno ZAAZ Telecom</footer>
   <script type="module" src="js/login.js"></script>
+  <script src="js/fiber.js" defer></script>
 </body>
 </html>

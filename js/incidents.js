@@ -105,11 +105,13 @@ iniciarRelocioTempoReal();
 
 window.mudarTemaSistema = (tema) => {
   const body = document.getElementById('appBody');
+  if (!['theme-light', 'theme-dark', 'theme-zaaz'].includes(tema)) tema = 'theme-light';
   body.className = `dashboard-body ${tema}`;
   localStorage.setItem('user_theme', tema);
 };
 
-const temaSalvo = localStorage.getItem('user_theme') || 'theme-light';
+const temaSalvo = localStorage.getItem('user_theme') === 'theme-neon'
+  ? 'theme-zaaz' : (localStorage.getItem('user_theme') || 'theme-light');
 mudarTemaSistema(temaSalvo);
 const selectTema = document.getElementById('themeSelector');
 if (selectTema) selectTema.value = temaSalvo;
@@ -287,9 +289,12 @@ function renderizarPainelGerenteFiltrado() {
 
   const filtrados = todosIncidentesCache.filter(item => {
     const est = item.estado || detectarEstado(item.cidades || "");
-    if (est === "SP") spCount++;
-    if (est === "MG") mgCount++;
-    if (est === "PR") prCount++;
+    const encerrado = /FINALIZAD|CONCLU[IÍ]D|RESOLVID/i.test(item.statusAtual || '');
+    if (!encerrado) {
+      if (est === "SP") spCount++;
+      if (est === "MG") mgCount++;
+      if (est === "PR") prCount++;
+    }
 
     const resp = item.responsavel || "SUPERVISOR GERAL";
     if (!supervisoresMap[resp]) supervisoresMap[resp] = { total: 0, compliance: 0 };
@@ -333,6 +338,10 @@ function renderizarPainelGerenteFiltrado() {
   document.getElementById('kpiMgCount').textContent = mgCount;
   document.getElementById('kpiPrCount').textContent = prCount;
 
+  if (!filtrados.length) {
+    container.innerHTML = '<p class="empty-state">Nenhum chamado encontrado nesta região.</p>';
+  }
+
   renderizarGraficosGerenciais(totalIncidentes - totalBackbone, totalBackbone, spCount, mgCount, prCount, supervisoresMap);
 }
 
@@ -371,7 +380,7 @@ function renderizarGraficosGerenciais(gpon, backbone, sp, mg, pr, supervisoresMa
         labels: supNomes,
         datasets: [
           { label: 'Total Incidentes', data: supTotals, backgroundColor: '#94A3B8' },
-          { label: 'Com 4 Etapas Ok', data: supCompls, backgroundColor: '#10B981' }
+          { label: 'Com 4 etapas registradas', data: supCompls, backgroundColor: '#10B981' }
         ]
       },
       options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
