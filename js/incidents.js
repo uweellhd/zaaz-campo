@@ -300,10 +300,13 @@ function renderizarPainelGerenteFiltrado() {
     return est === estadoFiltroAtivo;
   });
 
-  filtrados.forEach(item => {
-    totalIncidentes++;
-    if (item.tipoRede === "BACKBONE") totalBackbone++;
-    else totalGpon += Number(item.clientesCount || 0);
+    filtrados.forEach(item => {
+    const encerrado = /FINALIZAD|CONCLU[IÍ]D|RESOLVID/i.test(item.statusAtual || '');
+    if (!encerrado) {
+      totalIncidentes++;
+      if (item.tipoRede === "BACKBONE") totalBackbone++;
+      else totalGpon += Number(item.clientesCount || 0);
+    }
 
     const est = item.estado || "SP";
     const card = document.createElement('div');
