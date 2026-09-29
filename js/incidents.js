@@ -3,7 +3,7 @@
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, updateDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, updateDoc, runTransaction, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -24,6 +24,25 @@ let perfilSalvo = '';
 let usuarioSalvo = '';
 let estadoSalvo = '';
 let usuarioUid = '';
+const ouvintes = new Map();
+const abasPermitidas = {
+  admin: ['viewGerente', 'viewNoc', 'viewSac', 'viewTech'],
+  gerente: ['viewGerente', 'viewSac'],
+  diretor: ['viewGerente', 'viewSac'],
+  noc: ['viewNoc', 'viewSac'],
+  sac: ['viewSac'],
+  suporte: ['viewSac'],
+  tecnico: ['viewTech']
+};
+
+function ouvirUmaVez(chave, consulta, aoReceber) {
+  if (ouvintes.has(chave)) return;
+  const cancelar = onSnapshot(consulta, aoReceber, erro => {
+    console.error(`Falha ao consultar ${chave}:`, erro);
+    alert('Não foi possível consultar os registros. Confira seu perfil e as regras do Firestore.');
+  });
+  ouvintes.set(chave, cancelar);
+}
 
 const badgeElem = document.getElementById('userBadge');
 
@@ -33,14 +52,12 @@ function configurarTelasPorPerfil() {
   const btnNoc = document.getElementById('btnTabNoc');
   const btnSac = document.getElementById('btnTabSac');
   const btnTech = document.getElementById('btnTabTech');
-  const btnUsers = document.getElementById('btnTabUsers');
-
   // Oculta todas as abas inicialmente
-  [btnGerente, btnNoc, btnSac, btnTech, btnUsers].forEach(btn => { if (btn) btn.style.display = 'none'; });
+  [btnGerente, btnNoc, btnSac, btnTech].forEach(btn => { if (btn) btn.style.display = 'none'; });
   document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
 
   if (perfilSalvo === 'admin') {
-    // Admin vê todas as abas + Aba de Gestão de Usuários
+    // Administrador da operação vê as quatro áreas.
     [btnGerente, btnNoc, btnSac, btnTech].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
     alternarAba('viewGerente');
   } else if (perfilSalvo === 'gerente' || perfilSalvo === 'diretor') {
@@ -62,6 +79,7 @@ function configurarTelasPorPerfil() {
 }
 
 window.alternarAba = (idAba) => {
+  if (!(abasPermitidas[perfilSalvo] || []).includes(idAba)) return;
   document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
 
@@ -83,9 +101,6 @@ window.alternarAba = (idAba) => {
     const b = document.getElementById('btnTabTech');
     if (b) b.classList.add('active');
     carregarListaTecnico();
-  } else if (idAba === 'viewUsers') {
-    const b = document.getElementById('btnTabUsers');
-    if (b) b.classList.add('active');
   }
 };
 
@@ -116,21 +131,20 @@ mudarTemaSistema(temaSalvo);
 const selectTema = document.getElementById('themeSelector');
 if (selectTema) selectTema.value = temaSalvo;
 
-function comprimirEMarcarDagua(file, textoMarca, maxWidth = 1200, quality = 0.7) {
-  return new Promise((resolve) => {
+function comprimirEMarcarDagua(file, textoMarca) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.readAsDataURL(file);
+    reader.onerror = () => reject(new Error('Não foi possível ler a foto.'));
     reader.onload = (event) => {
       const img = new Image();
-      img.src = event.target.result;
+      img.onerror = () => reject(new Error('Arquivo de imagem inválido.'));
       img.onload = () => {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
+        if (width > 900) {
+          height = Math.round((height * 900) / width);
+          width = 900;
         }
 
         canvas.width = width;
@@ -146,9 +160,18 @@ function comprimirEMarcarDagua(file, textoMarca, maxWidth = 1200, quality = 0.7)
         ctx.font = "bold 16px Inter, sans-serif";
         ctx.fillText(textoMarca, 15, height - 15);
 
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        let qualidade = 0.7;
+        let foto = canvas.toDataURL('image/jpeg', qualidade);
+        while (foto.length > 650000 && qualidade > 0.35) {
+          qualidade -= 0.1;
+          foto = canvas.toDataURL('image/jpeg', qualidade);
+        }
+        if (foto.length > 650000) reject(new Error('Foto muito grande. Tente outra imagem.'));
+        else resolve(foto);
       };
+      img.src = event.target.result;
     };
+    reader.readAsDataURL(file);
   });
 }
 
@@ -248,7 +271,7 @@ let chartEstadosInstance = null;
 let chartSupervisoresInstance = null;
 
 function carregarDashboardGerente() {
-  onSnapshot(collection(db, "incidentes"), (snapshot) => {
+  ouvirUmaVez('gerente', collection(db, "incidentes"), (snapshot) => {
     todosIncidentesCache = [];
 
     snapshot.forEach((docSnap) => {
@@ -394,8 +417,14 @@ let mapaFotosBase64 = {};
 
 function carregarListaTecnico() {
   const idAtivoSalvo = localStorage.getItem(`tech_active_doc_${usuarioSalvo}`);
-
-  onSnapshot(collection(db, "incidentes"), (snapshot) => {
+  if (perfilSalvo === 'tecnico' && !['SP', 'MG', 'PR'].includes(estadoSalvo)) {
+    alert('Seu perfil precisa de um estado válido (SP, MG ou PR). Solicite ao administrador.');
+    return;
+  }
+  const consulta = perfilSalvo === 'admin'
+    ? collection(db, 'incidentes')
+    : query(collection(db, 'incidentes'), where('estado', '==', estadoSalvo));
+  ouvirUmaVez('tecnico', consulta, (snapshot) => {
     const container = document.getElementById('techIncidentsList');
     if (!container) return;
     container.innerHTML = "";
@@ -408,7 +437,7 @@ function carregarListaTecnico() {
 
       // Trava rigorosa por estado do técnico
       const estItem = item.estado || detectarEstado(item.cidades || "");
-      if (estItem !== estadoSalvo && estadoSalvo !== 'TODOS' && perfilSalvo !== 'admin') return;
+      if (perfilSalvo !== 'admin' && estItem !== estadoSalvo) return;
 
       if (item.statusAtual && item.statusAtual.includes("FINALIZADO")) return;
       if (item.tecnicoUid && item.tecnicoUid !== usuarioUid) return;
@@ -476,13 +505,18 @@ window.liberarAtendimentoTecnico = async () => {
 window.processarFotoComMarcaDagua = async (input, idPreview, chaveFoto) => {
   const file = input.files[0];
   if (file) {
-    const textoMarca = `ZAAZ TELECOM | ${new Date().toLocaleString('pt-BR')} | ${usuarioSalvo}`;
-    const base64Comprimida = await comprimirEMarcarDagua(file, textoMarca, 1200, 0.7);
-    
-    const img = document.getElementById(idPreview);
-    img.src = base64Comprimida;
-    img.style.display = 'block';
-    mapaFotosBase64[chaveFoto] = base64Comprimida;
+    try {
+      const textoMarca = `ZAAZ TELECOM | ${new Date().toLocaleString('pt-BR')} | ${usuarioSalvo}`;
+      const foto = await comprimirEMarcarDagua(file, textoMarca);
+      const img = document.getElementById(idPreview);
+      img.src = foto;
+      img.style.display = 'block';
+      mapaFotosBase64[chaveFoto] = foto;
+    } catch (erro) {
+      input.value = '';
+      delete mapaFotosBase64[chaveFoto];
+      alert(erro.message);
+    }
   }
 };
 
@@ -507,24 +541,39 @@ async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevi
   if (!chamadoAtivoTecnico) return;
   const docRef = doc(db, "incidentes", chamadoAtivoTecnico.docId);
 
-  const timelineAtual = chamadoAtivoTecnico.timelineEtapas || [];
-  timelineAtual.push({
+  // Cada foto vai para um documento próprio. O incidente guarda apenas referências.
+  const fotoIds = [];
+  for (const dadosBase64 of fotosArr) {
+    const fotoRef = await addDoc(collection(db, 'fotos'), {
+      incidenteId: chamadoAtivoTecnico.docId,
+      estado: chamadoAtivoTecnico.estado,
+      criadoPorUid: usuarioUid,
+      criadoEm: serverTimestamp(),
+      dadosBase64
+    });
+    fotoIds.push(fotoRef.id);
+  }
+
+  const evento = {
     etapa: tituloEtapa,
     dataHora: new Date().toLocaleString("pt-BR"),
     tecnico: usuarioSalvo,
-    fotos: fotosArr,
+    fotoIds,
     observacao: descObs
-  });
-
-  const payload = {
-    statusAtual: tituloEtapa,
-    timelineEtapas: timelineAtual
   };
-
-  if (novaPrevisao) payload.previsao = novaPrevisao;
-
-  await updateDoc(docRef, payload);
-  chamadoAtivoTecnico.timelineEtapas = timelineAtual;
+  const timelineAtualizada = await runTransaction(db, async transacao => {
+    const atual = await transacao.get(docRef);
+    if (!atual.exists()) throw new Error('Este incidente não existe mais.');
+    if (perfilSalvo === 'tecnico' && atual.data().tecnicoUid !== usuarioUid) {
+      throw new Error('Este incidente não está atribuído à sua conta.');
+    }
+    const timelineAtual = [...(atual.data().timelineEtapas || []), evento];
+    const payload = { statusAtual: tituloEtapa, timelineEtapas: timelineAtual };
+    if (novaPrevisao) payload.previsao = novaPrevisao;
+    transacao.update(docRef, payload);
+    return timelineAtual;
+  });
+  chamadoAtivoTecnico.timelineEtapas = timelineAtualizada;
 }
 
 window.salvarEtapa1 = async () => {
@@ -590,7 +639,7 @@ window.salvarEtapa4Final = async () => {
 let listaIncidentesSac = [];
 
 function carregarIncidentesSac() {
-  onSnapshot(collection(db, "incidentes"), (snapshot) => {
+  ouvirUmaVez('sac', collection(db, "incidentes"), (snapshot) => {
     listaIncidentesSac = [];
     snapshot.forEach(docSnap => {
       if (verificarEExcluirExpirados(docSnap)) return;
@@ -641,6 +690,23 @@ window.filtrarSac = () => {
   renderizarListaSac(filtrados);
 };
 
+function dataLegadaDentroDoPrazo(dataHora) {
+  const partes = String(dataHora || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2})/);
+  if (!partes) return false;
+  const data = new Date(Number(partes[3]), Number(partes[2]) - 1, Number(partes[1]), Number(partes[4]), Number(partes[5]));
+  const idade = Date.now() - data.getTime();
+  return idade >= 0 && idade < 15 * 24 * 60 * 60 * 1000;
+}
+
+function adicionarMiniatura(galeria, dados) {
+  if (typeof dados !== 'string' || !dados.startsWith('data:image/jpeg;base64,')) return;
+  const imagem = document.createElement('img');
+  imagem.src = dados;
+  imagem.alt = 'Foto do atendimento';
+  imagem.addEventListener('click', () => ampliarFoto(dados));
+  galeria.appendChild(imagem);
+}
+
 window.abrirModalDetalhes = (item) => {
   document.getElementById('modalIdTitle').textContent = `🚨 Incidente ID: ${item.idIncidente}`;
   
@@ -679,18 +745,30 @@ window.abrirModalDetalhes = (item) => {
         </div>
         <p style="font-size:13px;">${escaparHtml(t.observacao)}</p>
       `;
-      if (Array.isArray(t.fotos) && t.fotos.length) {
+      if ((Array.isArray(t.fotos) && t.fotos.length) || (Array.isArray(t.fotoIds) && t.fotoIds.length)) {
         const galeria = document.createElement('div');
         galeria.className = 'timeline-photos';
-        t.fotos.forEach(url => {
-          if (typeof url !== 'string' || !url.startsWith('data:image/')) return;
-          const imagem = document.createElement('img');
-          imagem.src = url;
-          imagem.alt = 'Foto do atendimento';
-          imagem.addEventListener('click', () => ampliarFoto(url));
-          galeria.appendChild(imagem);
+        if (dataLegadaDentroDoPrazo(t.dataHora)) {
+          (t.fotos || []).forEach(url => adicionarMiniatura(galeria, url));
+        }
+        (t.fotoIds || []).forEach(async fotoId => {
+          try {
+            const foto = await getDoc(doc(db, 'fotos', fotoId));
+            if (foto.exists()) adicionarMiniatura(galeria, foto.data().dadosBase64);
+          } catch (erro) {
+            // A regra bloqueia leitura depois de 15 dias, mesmo antes da limpeza diária.
+          }
         });
         itemDiv.appendChild(galeria);
+        const nota = document.createElement('p');
+        nota.className = 'photo-retention-note';
+        nota.textContent = 'Fotos disponíveis por até 15 dias após o envio.';
+        itemDiv.appendChild(nota);
+      } else if (t.fotosRemovidas) {
+        const nota = document.createElement('p');
+        nota.className = 'photo-retention-note';
+        nota.textContent = `${t.fotosRemovidas} foto(s) removida(s) após 15 dias. O registro permanece.`;
+        itemDiv.appendChild(nota);
       }
       timelineContainer.appendChild(itemDiv);
     });
@@ -758,6 +836,7 @@ onAuthStateChanged(auth, async (usuario) => {
     const perfilDoc = await getDoc(doc(db, 'usuarios', usuario.uid));
     if (!perfilDoc.exists() || perfilDoc.data().ativo !== true) throw new Error('Perfil inativo');
     const perfil = perfilDoc.data();
+    if (!abasPermitidas[perfil.perfil]) throw new Error('Perfil não reconhecido');
     usuarioUid = usuario.uid;
     usuarioSalvo = perfil.nome || usuario.email;
     perfilSalvo = perfil.perfil;
