@@ -27,37 +27,36 @@ if (badgeElem) {
   badgeElem.textContent = `${usuarioSalvo} (${perfilSalvo.toUpperCase()} - ${estadoSalvo})`;
 }
 
-// LÓGICA DE VISIBILIDADE DAS ABAS POR PERFIL (RBAC)
+// LÓGICA DE VISIBILIDADE DAS ABAS BASEADA EM PERMISSÕES DINÂMICAS (RBAC)
 function configurarTelasPorPerfil() {
   const btnGerente = document.getElementById('btnTabGerente');
   const btnNoc = document.getElementById('btnTabNoc');
   const btnSac = document.getElementById('btnTabSac');
   const btnTech = document.getElementById('btnTabTech');
+  const btnUsers = document.getElementById('btnTabUsers');
 
-  // Esconde todas as abas e botões inicialmente
-  [btnGerente, btnNoc, btnSac, btnTech].forEach(btn => { if (btn) btn.style.display = 'none'; });
+  // Oculta todas as abas inicialmente
+  [btnGerente, btnNoc, btnSac, btnTech, btnUsers].forEach(btn => { if (btn) btn.style.display = 'none'; });
   document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
 
   if (perfilSalvo === 'admin') {
-    // Admin vê tudo
-    [btnGerente, btnNoc, btnSac, btnTech].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
+    // Admin vê todas as abas + Aba de Gestão de Usuários
+    [btnGerente, btnNoc, btnSac, btnTech, btnUsers].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
+    carregarListaUsuariosAdmin();
     alternarAba('viewGerente');
   } else if (perfilSalvo === 'gerente' || perfilSalvo === 'diretor') {
-    // Gerência vê Diretoria, NOC e SAC (Leitura)
     [btnGerente, btnNoc, btnSac].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
     alternarAba('viewGerente');
   } else if (perfilSalvo === 'noc') {
-    // NOC vê Registro e Consulta SAC
     [btnNoc, btnSac].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
     alternarAba('viewNoc');
   } else if (perfilSalvo === 'tecnico') {
-    // Técnico vê apenas o painel de rua
     if (btnTech) btnTech.style.display = 'inline-block';
     const displayNome1 = document.getElementById('techNomeDisplayStage1');
     if (displayNome1) displayNome1.textContent = usuarioSalvo;
     alternarAba('viewTech');
   } else {
-    // SAC / Suporte veem apenas a central de consulta
+    // SAC e Suporte
     if (btnSac) btnSac.style.display = 'inline-block';
     alternarAba('viewSac');
   }
@@ -70,7 +69,6 @@ window.alternarAba = (idAba) => {
   const abaAlvo = document.getElementById(idAba);
   if (abaAlvo) abaAlvo.style.display = 'block';
 
-  // Marca o botão ativo correspondente
   if (idAba === 'viewGerente') {
     const b = document.getElementById('btnTabGerente');
     if (b) b.classList.add('active');
@@ -86,6 +84,9 @@ window.alternarAba = (idAba) => {
     const b = document.getElementById('btnTabTech');
     if (b) b.classList.add('active');
     carregarListaTecnico();
+  } else if (idAba === 'viewUsers') {
+    const b = document.getElementById('btnTabUsers');
+    if (b) b.classList.add('active');
   }
 };
 
@@ -187,7 +188,78 @@ function verificarEExcluirExpirados(docSnap) {
   return false;
 }
 
-// 1. REGISTRO NOC
+// 1. CADASTRAR E LISTAR USUÁRIOS (ADMIN)
+const formUser = document.getElementById('formNovoUsuario');
+if (formUser) {
+  formUser.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btnCadastrarUser');
+    btn.textContent = "⏳ Cadastrando...";
+    btn.disabled = true;
+
+    try {
+      await addDoc(collection(db, "usuarios"), {
+        nome: document.getElementById('nuNome').value.trim(),
+        usuario: document.getElementById('nuUsuario').value.trim(),
+        senha: document.getElementById('nuSenha').value.trim(),
+        perfil: document.getElementById('nuPerfil').value,
+        estado: document.getElementById('nuEstado').value,
+        permissoes: {
+          gerente: document.getElementById('permGerente').checked,
+          noc: document.getElementById('permNoc').checked,
+          sac: document.getElementById('permSac').checked,
+          tech: document.getElementById('permTech').checked
+        },
+        dataCadastro: new Date().toLocaleString("pt-BR")
+      });
+
+      alert("🎉 Usuário cadastrado com sucesso!");
+      formUser.reset();
+      btn.textContent = "⚡ Salvar e Ativar Usuário";
+      btn.disabled = false;
+    } catch (err) {
+      alert("Erro ao cadastrar: " + err.message);
+      btn.textContent = "⚡ Salvar e Ativar Usuário";
+      btn.disabled = false;
+    }
+  });
+}
+
+function carregarListaUsuariosAdmin() {
+  onSnapshot(collection(db, "usuarios"), (snapshot) => {
+    const container = document.getElementById('usuariosGridList');
+    if (!container) return;
+    container.innerHTML = "";
+
+    snapshot.forEach(docSnap => {
+      const u = docSnap.data();
+      const uId = docSnap.id;
+
+      const card = document.createElement('div');
+      card.className = 'incidente-card';
+      card.style.cursor = 'default';
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong style="color:var(--zaaz-blue); font-size:15px;">${u.nome} (@${u.usuario})</strong>
+          <span style="background:#E0E7FF; color:#3730A3; padding:3px 8px; border-radius:6px; font-weight:700; font-size:11px;">${u.perfil.toUpperCase()}</span>
+        </div>
+        <p style="margin: 6px 0; font-size:13px;"><strong>Região (Trava):</strong> ${u.estado}</p>
+        <p style="font-size:12px; color:var(--text-muted);">Data Cadastro: ${u.dataCadastro || 'N/I'}</p>
+        <button class="btn-logout-sm" style="margin-top:10px; width:100%;" onclick="excluirUsuarioAdmin('${uId}')">🗑️ Remover Acesso</button>
+      `;
+      container.appendChild(card);
+    });
+  });
+}
+
+window.excluirUsuarioAdmin = async (userId) => {
+  if (confirm("Tem certeza que deseja remover o acesso deste colaborador?")) {
+    await deleteDoc(doc(db, "usuarios", userId));
+    alert("Usuário removido do sistema.");
+  }
+};
+
+// 2. REGISTRO NOC
 const formNoc = document.getElementById('formNocIncidente');
 if (formNoc) {
   formNoc.addEventListener('submit', async (e) => {
@@ -239,7 +311,7 @@ if (formNoc) {
   });
 }
 
-// 2. DASHBOARD GERENCIAL
+// 3. DASHBOARD GERENCIAL
 let todosIncidentesCache = [];
 let estadoFiltroAtivo = "TODOS";
 let chartTipoInstance = null;
@@ -377,7 +449,7 @@ function renderizarGraficosGerenciais(gpon, backbone, sp, mg, pr, supervisoresMa
   }
 }
 
-// 3. MÓDULO TÉCNICO DE CAMPO
+// 4. MÓDULO TÉCNICO DE CAMPO
 let chamadoAtivoTecnico = null;
 let mapaFotosBase64 = {};
 
@@ -395,14 +467,11 @@ function carregarListaTecnico() {
       const item = docSnap.data();
       item.docId = docSnap.id;
 
-      // Trava por estado do técnico
+      // Trava rigorosa por estado do técnico
       const estItem = item.estado || detectarEstado(item.cidades || "");
-      if (estItem !== estadoSalvo && perfilSalvo !== 'admin') return;
+      if (estItem !== estadoSalvo && estadoSalvo !== 'TODOS' && perfilSalvo !== 'admin') return;
 
-      // Não exibe chamados finalizados
       if (item.statusAtual && item.statusAtual.includes("FINALIZADO")) return;
-
-      // Trava para não exibir chamados de outro técnico
       if (item.tecnicoAtribuido && item.tecnicoAtribuido !== usuarioSalvo) return;
 
       if (idAtivoSalvo === item.docId) {
@@ -568,7 +637,7 @@ window.salvarEtapa4Final = async () => {
   location.reload();
 };
 
-// 4. CONSULTA SAC / SUPORTE / NOC
+// 5. CONSULTA SAC / SUPORTE / NOC
 let listaIncidentesSac = [];
 
 function carregarIncidentesSac() {
@@ -716,5 +785,4 @@ window.sair = () => {
   window.location.href = 'index.html';
 };
 
-// Executa o controle de permissões ao carregar a página
 configurarTelasPorPerfil();
