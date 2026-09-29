@@ -23,12 +23,13 @@
       <span class="nextflow-highlight">NextFlow System</span>
     </div>
 
-    <!-- MENU DE NAVEGAÇÃO DINÂMICO (EXIBIDO CONFORME PERFIL DO USUÁRIO) -->
+    <!-- MENU DE NAVEGAÇÃO DINÂMICO -->
     <nav id="adminNavMenu" class="nav-menu">
       <button id="btnTabGerente" class="nav-btn" onclick="alternarAba('viewGerente')">📊 Diretoria</button>
       <button id="btnTabNoc" class="nav-btn" onclick="alternarAba('viewNoc')">🚨 NOC</button>
       <button id="btnTabSac" class="nav-btn" onclick="alternarAba('viewSac')">📞 SAC / Suporte</button>
       <button id="btnTabTech" class="nav-btn" onclick="alternarAba('viewTech')">👷 Técnico</button>
+      <button id="btnTabUsers" class="nav-btn" onclick="alternarAba('viewUsers')" style="display:none; background:#7C3AED; color:white;">👥 Usuários</button>
     </nav>
 
     <!-- GRUPO DA DIREITA: RELÓGIO, TEMA, USUÁRIO E BOTÃO SAIR -->
@@ -255,6 +256,75 @@
           </div>
         </form>
       </div>
+    </section>
+
+    <!-- 5. NOVA ABA EXCLUSIVA ADMIN: GESTÃO DE USUÁRIOS E PERMISSÕES -->
+    <section id="viewUsers" class="view-panel" style="display:none;">
+      <h3 class="panel-title">👥 Gestão Centralizada de Usuários e Permissões</h3>
+      <p class="panel-desc">Cadastre novos colaboradores e defina detalhadamente as telas e ações autorizadas para cada perfil.</p>
+
+      <form id="formNovoUsuario" style="background:var(--input-bg); padding:20px; border-radius:16px; border:1px solid var(--border-color); margin-bottom:30px;">
+        <h4 style="color:var(--zaaz-blue); margin-bottom:14px;">➕ Cadastrar Novo Colaborador</h4>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px;">
+          <div class="form-group">
+            <label>Nome Completo:</label>
+            <input type="text" id="nuNome" placeholder="Ex: João da Silva" required>
+          </div>
+          <div class="form-group">
+            <label>Usuário de Acesso:</label>
+            <input type="text" id="nuUsuario" placeholder="Ex: joao.silva" required>
+          </div>
+          <div class="form-group">
+            <label>Senha de Acesso:</label>
+            <input type="password" id="nuSenha" placeholder="Digite a senha..." required>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:10px;">
+          <div class="form-group">
+            <label>Setor / Perfil:</label>
+            <select id="nuPerfil" required>
+              <option value="tecnico">👷 Técnico de Campo</option>
+              <option value="sac">📞 SAC (Atendimento)</option>
+              <option value="suporte">🛠️ Suporte Técnico</option>
+              <option value="noc">🚨 Operador NOC</option>
+              <option value="gerente">📊 Gerente / Diretoria</option>
+              <option value="admin">⚡ Administrador do Sistema</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Estado / Região de Atuação (Trava):</label>
+            <select id="nuEstado" required>
+              <option value="SP">São Paulo (SP)</option>
+              <option value="MG">Minas Gerais (MG)</option>
+              <option value="PR">Paraná (PR)</option>
+              <option value="TODOS">Todos os Estados (Acesso Total)</option>
+            </select>
+          </div>
+        </div>
+
+        <h5 style="margin:16px 0 10px 0; color:var(--zaaz-blue);">🔒 Permissões de Acesso (Marque as telas visíveis):</h5>
+        <div style="display:flex; gap:20px; flex-wrap:wrap; background:var(--card-bg); padding:12px; border-radius:10px; border:1px solid var(--border-color);">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="permGerente" checked> 📊 Painel Diretoria
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="permNoc" checked> 🚨 Publicar NOC
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="permSac" checked> 📞 Consultar SAC/Suporte
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="permTech" checked> 👷 Atendimento Técnico
+          </label>
+        </div>
+
+        <button type="submit" id="btnCadastrarUser" class="btn-primary" style="margin-top:20px;">⚡ Salvar e Ativar Usuário</button>
+      </form>
+
+      <h4 class="section-subtitle">📋 Colaboradores Cadastrados no Sistema</h4>
+      <div id="usuariosGridList" class="incidents-grid-list"></div>
     </section>
 
   </main>
