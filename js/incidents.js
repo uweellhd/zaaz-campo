@@ -3,7 +3,8 @@
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, updateDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
@@ -17,15 +18,14 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-const perfilSalvo = localStorage.getItem('user_perfil') || 'sac';
-const usuarioSalvo = localStorage.getItem('user_nome') || 'Colaborador';
-const estadoSalvo = localStorage.getItem('user_estado') || 'SP';
+let perfilSalvo = '';
+let usuarioSalvo = '';
+let estadoSalvo = '';
+let usuarioUid = '';
 
 const badgeElem = document.getElementById('userBadge');
-if (badgeElem) {
-  badgeElem.textContent = `${usuarioSalvo} (${perfilSalvo.toUpperCase()} - ${estadoSalvo})`;
-}
 
 // LÓGICA DE VISIBILIDADE DAS ABAS BASEADA EM PERMISSÕES DINÂMICAS (RBAC)
 function configurarTelasPorPerfil() {
@@ -41,11 +41,10 @@ function configurarTelasPorPerfil() {
 
   if (perfilSalvo === 'admin') {
     // Admin vê todas as abas + Aba de Gestão de Usuários
-    [btnGerente, btnNoc, btnSac, btnTech, btnUsers].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
-    carregarListaUsuariosAdmin();
+    [btnGerente, btnNoc, btnSac, btnTech].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
     alternarAba('viewGerente');
   } else if (perfilSalvo === 'gerente' || perfilSalvo === 'diretor') {
-    [btnGerente, btnNoc, btnSac].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
+    [btnGerente, btnSac].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
     alternarAba('viewGerente');
   } else if (perfilSalvo === 'noc') {
     [btnNoc, btnSac].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
@@ -176,88 +175,15 @@ function detectarTipoRede(texto) {
 }
 
 function verificarEExcluirExpirados(docSnap) {
-  const item = docSnap.data();
-  if (item.dataTimestamp) {
-    const agora = new Date().getTime();
-    const diferencaDias = (agora - item.dataTimestamp) / (1000 * 60 * 60 * 24);
-    if (diferencaDias >= 15) {
-      deleteDoc(doc(db, "incidentes", docSnap.id));
-      return true;
-    }
-  }
+  // O histórico é necessário para prestação de contas; não apagar durante a leitura.
   return false;
 }
 
-// 1. CADASTRAR E LISTAR USUÁRIOS (ADMIN)
-const formUser = document.getElementById('formNovoUsuario');
-if (formUser) {
-  formUser.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById('btnCadastrarUser');
-    btn.textContent = "⏳ Cadastrando...";
-    btn.disabled = true;
-
-    try {
-      await addDoc(collection(db, "usuarios"), {
-        nome: document.getElementById('nuNome').value.trim(),
-        usuario: document.getElementById('nuUsuario').value.trim(),
-        senha: document.getElementById('nuSenha').value.trim(),
-        perfil: document.getElementById('nuPerfil').value,
-        estado: document.getElementById('nuEstado').value,
-        permissoes: {
-          gerente: document.getElementById('permGerente').checked,
-          noc: document.getElementById('permNoc').checked,
-          sac: document.getElementById('permSac').checked,
-          tech: document.getElementById('permTech').checked
-        },
-        dataCadastro: new Date().toLocaleString("pt-BR")
-      });
-
-      alert("🎉 Usuário cadastrado com sucesso!");
-      formUser.reset();
-      btn.textContent = "⚡ Salvar e Ativar Usuário";
-      btn.disabled = false;
-    } catch (err) {
-      alert("Erro ao cadastrar: " + err.message);
-      btn.textContent = "⚡ Salvar e Ativar Usuário";
-      btn.disabled = false;
-    }
-  });
+function escaparHtml(valor) {
+  return String(valor ?? '').replace(/[&<>"']/g, caractere => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[caractere]);
 }
-
-function carregarListaUsuariosAdmin() {
-  onSnapshot(collection(db, "usuarios"), (snapshot) => {
-    const container = document.getElementById('usuariosGridList');
-    if (!container) return;
-    container.innerHTML = "";
-
-    snapshot.forEach(docSnap => {
-      const u = docSnap.data();
-      const uId = docSnap.id;
-
-      const card = document.createElement('div');
-      card.className = 'incidente-card';
-      card.style.cursor = 'default';
-      card.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <strong style="color:var(--zaaz-blue); font-size:15px;">${u.nome} (@${u.usuario})</strong>
-          <span style="background:#E0E7FF; color:#3730A3; padding:3px 8px; border-radius:6px; font-weight:700; font-size:11px;">${u.perfil.toUpperCase()}</span>
-        </div>
-        <p style="margin: 6px 0; font-size:13px;"><strong>Região (Trava):</strong> ${u.estado}</p>
-        <p style="font-size:12px; color:var(--text-muted);">Data Cadastro: ${u.dataCadastro || 'N/I'}</p>
-        <button class="btn-logout-sm" style="margin-top:10px; width:100%;" onclick="excluirUsuarioAdmin('${uId}')">🗑️ Remover Acesso</button>
-      `;
-      container.appendChild(card);
-    });
-  });
-}
-
-window.excluirUsuarioAdmin = async (userId) => {
-  if (confirm("Tem certeza que deseja remover o acesso deste colaborador?")) {
-    await deleteDoc(doc(db, "usuarios", userId));
-    alert("Usuário removido do sistema.");
-  }
-};
 
 // 2. REGISTRO NOC
 const formNoc = document.getElementById('formNocIncidente');
@@ -294,6 +220,7 @@ if (formNoc) {
         descricao: extrairCampo(textoBruto, "DESCRIÇÃO") || textoBruto,
         textoCompleto: textoBruto,
         tecnicoAtribuido: "",
+        tecnicoUid: "",
         timelineEtapas: [],
         dataTimestamp: new Date().getTime(),
         dataCriacao: new Date().toLocaleString("pt-BR")
@@ -384,13 +311,13 @@ function renderizarPainelGerenteFiltrado() {
     card.onclick = () => abrirModalDetalhes(item);
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center;">
-        <strong style="color:var(--zaaz-blue);">ID: ${item.idIncidente} | OS: ${item.os}</strong>
-        <span style="background:#FEF3C7; color:#92400E; padding:3px 8px; border-radius:6px; font-weight:700; font-size:11px;">${item.statusAtual}</span>
+        <strong style="color:var(--zaaz-blue);">ID: ${escaparHtml(item.idIncidente)} | OS: ${escaparHtml(item.os)}</strong>
+        <span style="background:#FEF3C7; color:#92400E; padding:3px 8px; border-radius:6px; font-weight:700; font-size:11px;">${escaparHtml(item.statusAtual)}</span>
       </div>
-      <p style="margin: 8px 0; font-size: 13px;"><strong>Cidades:</strong> ${item.cidades} (${est}) | <strong>Rede:</strong> ${item.tipoRede || 'GPON'}</p>
-      <p style="font-size: 13px; color: var(--text-muted);">${item.descricao}</p>
+      <p style="margin: 8px 0; font-size: 13px;"><strong>Cidades:</strong> ${escaparHtml(item.cidades)} (${escaparHtml(est)}) | <strong>Rede:</strong> ${escaparHtml(item.tipoRede || 'GPON')}</p>
+      <p style="font-size: 13px; color: var(--text-muted);">${escaparHtml(item.descricao)}</p>
       <div style="margin-top: 8px; font-size: 12px; color: var(--danger); font-weight:700;">
-        👥 Clientes GPON: ${item.clientesCount} | Previsão: ${item.previsao}
+        👥 Clientes GPON: ${escaparHtml(item.clientesCount)} | Previsão: ${escaparHtml(item.previsao)}
       </div>
     `;
     container.appendChild(card);
@@ -403,7 +330,7 @@ function renderizarPainelGerenteFiltrado() {
   document.getElementById('kpiMgCount').textContent = mgCount;
   document.getElementById('kpiPrCount').textContent = prCount;
 
-  renderizarGraficosGerenciais(totalGpon, totalBackbone, spCount, mgCount, prCount, supervisoresMap);
+  renderizarGraficosGerenciais(totalIncidentes - totalBackbone, totalBackbone, spCount, mgCount, prCount, supervisoresMap);
 }
 
 function renderizarGraficosGerenciais(gpon, backbone, sp, mg, pr, supervisoresMap) {
@@ -415,7 +342,7 @@ function renderizarGraficosGerenciais(gpon, backbone, sp, mg, pr, supervisoresMa
     if (chartTipoInstance) chartTipoInstance.destroy();
     chartTipoInstance = new Chart(ctxTipo, {
       type: 'doughnut',
-      data: { labels: ['Rede GPON', 'Backbone'], datasets: [{ data: [gpon, backbone], backgroundColor: ['#EF4444', '#FF9900'] }] },
+      data: { labels: ['Incidentes GPON', 'Incidentes Backbone'], datasets: [{ data: [gpon, backbone], backgroundColor: ['#EF4444', '#FF9900'] }] },
       options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
     });
   }
@@ -472,7 +399,8 @@ function carregarListaTecnico() {
       if (estItem !== estadoSalvo && estadoSalvo !== 'TODOS' && perfilSalvo !== 'admin') return;
 
       if (item.statusAtual && item.statusAtual.includes("FINALIZADO")) return;
-      if (item.tecnicoAtribuido && item.tecnicoAtribuido !== usuarioSalvo) return;
+      if (item.tecnicoUid && item.tecnicoUid !== usuarioUid) return;
+      if (!item.tecnicoUid && item.tecnicoAtribuido && item.tecnicoAtribuido !== usuarioSalvo) return;
 
       if (idAtivoSalvo === item.docId) {
         iniciarAtendimentoTecnico(item, false);
@@ -482,9 +410,9 @@ function carregarListaTecnico() {
       card.className = 'incidente-card';
       card.onclick = () => iniciarAtendimentoTecnico(item, true);
       card.innerHTML = `
-        <h4 style="color:var(--zaaz-blue); margin-bottom:6px;">🚨 ID: ${item.idIncidente}</h4>
-        <p style="font-size:13px;"><strong>OS:</strong> ${item.os} | <strong>Cidades:</strong> ${item.cidades}</p>
-        <p style="font-size:12px; color:var(--zaaz-blue); font-weight:700; margin-top:8px;">Status: ${item.statusAtual}</p>
+        <h4 style="color:var(--zaaz-blue); margin-bottom:6px;">🚨 ID: ${escaparHtml(item.idIncidente)}</h4>
+        <p style="font-size:13px;"><strong>OS:</strong> ${escaparHtml(item.os)} | <strong>Cidades:</strong> ${escaparHtml(item.cidades)}</p>
+        <p style="font-size:12px; color:var(--zaaz-blue); font-weight:700; margin-top:8px;">Status: ${escaparHtml(item.statusAtual)}</p>
         <p style="font-size:12px; color:var(--success); font-weight:700;">▶️ Clicar para Assumir / Continuar</p>
       `;
       container.appendChild(card);
@@ -498,7 +426,16 @@ async function iniciarAtendimentoTecnico(item, novoAtendimento = true) {
 
   if (novoAtendimento) {
     const docRef = doc(db, "incidentes", item.docId);
-    await updateDoc(docRef, { tecnicoAtribuido: usuarioSalvo });
+    try {
+      await runTransaction(db, async transacao => {
+        const atual = await transacao.get(docRef);
+        if (!atual.exists() || atual.data().tecnicoUid) throw new Error('Este chamado já foi assumido.');
+        transacao.update(docRef, { tecnicoAtribuido: usuarioSalvo, tecnicoUid: usuarioUid });
+      });
+    } catch (erro) {
+      alert(erro.message);
+      return;
+    }
     localStorage.setItem(`tech_active_doc_${usuarioSalvo}`, item.docId);
   }
 
@@ -516,7 +453,7 @@ async function iniciarAtendimentoTecnico(item, novoAtendimento = true) {
 window.liberarAtendimentoTecnico = async () => {
   if (chamadoAtivoTecnico) {
     const docRef = doc(db, "incidentes", chamadoAtivoTecnico.docId);
-    await updateDoc(docRef, { tecnicoAtribuido: "" });
+    await updateDoc(docRef, { tecnicoAtribuido: "", tecnicoUid: "" });
   }
   localStorage.removeItem(`tech_active_doc_${usuarioSalvo}`);
   chamadoAtivoTecnico = null;
@@ -669,9 +606,9 @@ function renderizarListaSac(lista) {
     card.className = 'incidente-card';
     card.onclick = () => abrirModalDetalhes(item);
     card.innerHTML = `
-      <h4 style="color:var(--zaaz-blue); margin-bottom:6px;">🚨 ID: ${item.idIncidente} - ${item.cidades}</h4>
-      <p style="font-size:13px; margin-bottom:4px;"><strong>OS:</strong> ${item.os} | <strong>OLT:</strong> ${item.olt}</p>
-      <p style="font-size:13px; margin-bottom:4px;"><strong>Status:</strong> <span style="color:var(--zaaz-blue); font-weight:700;">${item.statusAtual}</span></p>
+      <h4 style="color:var(--zaaz-blue); margin-bottom:6px;">🚨 ID: ${escaparHtml(item.idIncidente)} - ${escaparHtml(item.cidades)}</h4>
+      <p style="font-size:13px; margin-bottom:4px;"><strong>OS:</strong> ${escaparHtml(item.os)} | <strong>OLT:</strong> ${escaparHtml(item.olt)}</p>
+      <p style="font-size:13px; margin-bottom:4px;"><strong>Status:</strong> <span style="color:var(--zaaz-blue); font-weight:700;">${escaparHtml(item.statusAtual)}</span></p>
       <p style="font-size:12px; color:var(--zaaz-blue); font-weight:700; margin-top:8px;">🔍 Ver Linha do Tempo e Fotos Ampliadas</p>
     `;
     container.appendChild(card);
@@ -697,15 +634,15 @@ window.abrirModalDetalhes = (item) => {
   
   const infoBox = document.getElementById('modalInfoBox');
   infoBox.innerHTML = `
-    <strong>OS:</strong> ${item.os}<br>
-    <strong>Cidades:</strong> ${item.cidades} (${item.estado || 'SP'})<br>
-    <strong>Rede:</strong> ${item.tipoRede || 'GPON'} | <strong>OLT:</strong> ${item.olt}<br>
-    <strong>Status:</strong> <span style="color:var(--zaaz-blue); font-weight:700;">${item.statusAtual}</span><br>
-    <strong>Clientes:</strong> ${item.clientesCount}<br>
-    <strong>Previsão:</strong> ${item.previsao}<br>
-    <strong>Supervisor:</strong> ${item.responsavel}<br>
+    <strong>OS:</strong> ${escaparHtml(item.os)}<br>
+    <strong>Cidades:</strong> ${escaparHtml(item.cidades)} (${escaparHtml(item.estado || 'SP')})<br>
+    <strong>Rede:</strong> ${escaparHtml(item.tipoRede || 'GPON')} | <strong>OLT:</strong> ${escaparHtml(item.olt)}<br>
+    <strong>Status:</strong> <span style="color:var(--zaaz-blue); font-weight:700;">${escaparHtml(item.statusAtual)}</span><br>
+    <strong>Clientes:</strong> ${escaparHtml(item.clientesCount)}<br>
+    <strong>Previsão:</strong> ${escaparHtml(item.previsao)}<br>
+    <strong>Supervisor:</strong> ${escaparHtml(item.responsavel)}<br>
     <hr style="margin:6px 0; border:none; border-top:1px solid var(--border-color);">
-    <strong>Descrição:</strong> ${item.descricao}
+    <strong>Descrição:</strong> ${escaparHtml(item.descricao)}
   `;
 
   const sidebarSteps = document.getElementById('modalSidebarSteps');
@@ -723,19 +660,26 @@ window.abrirModalDetalhes = (item) => {
       const itemDiv = document.createElement('div');
       itemDiv.className = 'timeline-item';
 
-      let photosHtml = "";
-      if (t.fotos && t.fotos.length > 0) {
-        photosHtml = `<div class="timeline-photos">` + t.fotos.map(url => `<img src="${url}" onclick="ampliarFoto('${url}')">`).join('') + `</div>`;
-      }
-
       itemDiv.innerHTML = `
         <div class="timeline-header">
-          <span>${t.etapa}</span>
-          <span>${t.dataHora} (${t.tecnico})</span>
+          <span>${escaparHtml(t.etapa)}</span>
+          <span>${escaparHtml(t.dataHora)} (${escaparHtml(t.tecnico)})</span>
         </div>
-        <p style="font-size:13px;">${t.observacao}</p>
-        ${photosHtml}
+        <p style="font-size:13px;">${escaparHtml(t.observacao)}</p>
       `;
+      if (Array.isArray(t.fotos) && t.fotos.length) {
+        const galeria = document.createElement('div');
+        galeria.className = 'timeline-photos';
+        t.fotos.forEach(url => {
+          if (typeof url !== 'string' || !url.startsWith('data:image/')) return;
+          const imagem = document.createElement('img');
+          imagem.src = url;
+          imagem.alt = 'Foto do atendimento';
+          imagem.addEventListener('click', () => ampliarFoto(url));
+          galeria.appendChild(imagem);
+        });
+        itemDiv.appendChild(galeria);
+      }
       timelineContainer.appendChild(itemDiv);
     });
   } else {
@@ -766,23 +710,50 @@ window.exportarRelatorioCSV = () => {
     return;
   }
 
-  let csvContent = "data:text/csv;charset=utf-8,ID,OS,Cidades,Estado,Rede,Clientes,Status,DataCriacao\n";
-  todosIncidentesCache.forEach(i => {
-    csvContent += `"${i.idIncidente}","${i.os}","${i.cidades}","${i.estado}","${i.tipoRede}","${i.clientesCount}","${i.statusAtual}","${i.dataCriacao}"\n`;
-  });
-
-  const encodedUri = encodeURI(csvContent);
+  const celula = valor => {
+    let texto = String(valor ?? '');
+    if (/^[\s\r\n]*[=+\-@]/.test(texto)) texto = `'${texto}`;
+    return `"${texto.replace(/"/g, '""')}"`;
+  };
+  const linhas = [['ID', 'OS', 'Cidades', 'Estado', 'Rede', 'Clientes', 'Status', 'DataCriacao']];
+  todosIncidentesCache.forEach(i => linhas.push([
+    i.idIncidente, i.os, i.cidades, i.estado, i.tipoRede,
+    i.clientesCount, i.statusAtual, i.dataCriacao
+  ]));
+  const arquivo = new Blob(['\uFEFF', linhas.map(linha => linha.map(celula).join(';')).join('\r\n')],
+    { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(arquivo);
   const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `Relatorio_ZAAZ_${new Date().toLocaleDateString('pt-BR')}.csv`);
+  link.href = url;
+  link.download = `Relatorio_ZAAZ_${new Date().toISOString().slice(0, 10)}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
-window.sair = () => {
-  localStorage.clear();
-  window.location.href = 'index.html';
+window.sair = async () => {
+  await signOut(auth);
+  window.location.replace('index.html');
 };
 
-configurarTelasPorPerfil();
+onAuthStateChanged(auth, async (usuario) => {
+  if (!usuario) {
+    window.location.replace('index.html');
+    return;
+  }
+  try {
+    const perfilDoc = await getDoc(doc(db, 'usuarios', usuario.uid));
+    if (!perfilDoc.exists() || perfilDoc.data().ativo !== true) throw new Error('Perfil inativo');
+    const perfil = perfilDoc.data();
+    usuarioUid = usuario.uid;
+    usuarioSalvo = perfil.nome || usuario.email;
+    perfilSalvo = perfil.perfil;
+    estadoSalvo = perfil.estado;
+    if (badgeElem) badgeElem.textContent = `${usuarioSalvo} (${perfilSalvo.toUpperCase()} - ${estadoSalvo})`;
+    configurarTelasPorPerfil();
+  } catch (erro) {
+    await signOut(auth);
+    window.location.replace('index.html');
+  }
+});
