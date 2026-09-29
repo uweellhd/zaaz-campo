@@ -1,12 +1,10 @@
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore, FieldPath, Timestamp } from 'firebase-admin/firestore';
-import { PHOTO_RETENTION_MS, pruneLegacyPhotos } from '../../lib/retention-core.mjs';
-
-export const config = { schedule: '17 3 * * *' };
+import { PHOTO_RETENTION_MS, pruneLegacyPhotos } from '../lib/retention-core.mjs';
 
 function database() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON não configurada no Netlify.');
+  if (!raw) throw new Error('Segredo FIREBASE_SERVICE_ACCOUNT_JSON não configurado no GitHub Actions.');
   if (!getApps().length) initializeApp({ credential: cert(JSON.parse(raw)) });
   return getFirestore();
 }
@@ -58,12 +56,16 @@ async function cleanLegacyIncidentPhotos(db, nowMs, deadline) {
   return { removed, scanned };
 }
 
-export default async () => {
+async function main() {
   const db = database();
   const nowMs = Date.now();
   const deadline = nowMs + 20000;
   const deleted = await deleteExpiredPhotoDocuments(db, nowMs - PHOTO_RETENTION_MS, deadline);
   const legacy = await cleanLegacyIncidentPhotos(db, nowMs, deadline);
   console.log(JSON.stringify({ photosDeleted: deleted, legacyPhotosRemoved: legacy.removed, incidentsScanned: legacy.scanned }));
-  return new Response('Limpeza concluída.');
-};
+}
+
+main().catch(error => {
+  console.error('Falha na limpeza de fotos:', error.message);
+  process.exitCode = 1;
+});
