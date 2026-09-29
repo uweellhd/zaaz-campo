@@ -16,31 +16,28 @@
 </head>
 <body class="dashboard-body theme-light" id="appBody">
 
-  <!-- BARRA SUPERIOR FIXA WIDESCREEN (HEADER AJUSTADO) -->
+  <!-- BARRA SUPERIOR FIXA WIDESCREEN -->
   <header class="top-nav">
-    <!-- MARCA NO CANTO ESQUERDO: ZAAZ NO TOPO E NEXTFLOW EM DESTAQUE ABAIXO -->
     <div class="nav-brand">
       <h2 class="zaaz-title">ZAAZ TELECOM</h2>
       <span class="nextflow-highlight">NextFlow System</span>
     </div>
 
-    <!-- MENU DE NAVEGAÇÃO RÁPIDA MOVIDO PARA A ESQUERDA -->
+    <!-- MENU DE NAVEGAÇÃO DINÂMICO (EXIBIDO CONFORME PERFIL DO USUÁRIO) -->
     <nav id="adminNavMenu" class="nav-menu">
-      <button class="nav-btn active" onclick="alternarAba('viewGerente')">📊 Diretoria</button>
-      <button class="nav-btn" onclick="alternarAba('viewNoc')">🚨 NOC</button>
-      <button class="nav-btn" onclick="alternarAba('viewSac')">📞 SAC / Suporte</button>
-      <button class="nav-btn" onclick="alternarAba('viewTech')">👷 Técnico</button>
+      <button id="btnTabGerente" class="nav-btn" onclick="alternarAba('viewGerente')">📊 Diretoria</button>
+      <button id="btnTabNoc" class="nav-btn" onclick="alternarAba('viewNoc')">🚨 NOC</button>
+      <button id="btnTabSac" class="nav-btn" onclick="alternarAba('viewSac')">📞 SAC / Suporte</button>
+      <button id="btnTabTech" class="nav-btn" onclick="alternarAba('viewTech')">👷 Técnico</button>
     </nav>
 
     <!-- GRUPO DA DIREITA: RELÓGIO, TEMA, USUÁRIO E BOTÃO SAIR -->
     <div class="nav-right-group">
-      <!-- RELÓGIO CORPORATIVO EM BLOCO FLEX (SEM SOBREPOSIÇÃO) -->
       <div class="clock-box-inline">
         <span id="realtimeClock">00:00:00</span>
         <span id="realtimeDate" class="clock-date">--/--/----</span>
       </div>
 
-      <!-- SELETOR DE TEMAS COM CORES ZAAZ -->
       <select id="themeSelector" class="theme-select" onchange="mudarTemaSistema(this.value)">
         <option value="theme-light">☀️ Tema Claro ZAAZ</option>
         <option value="theme-dark">🌙 Tema Escuro</option>
@@ -57,8 +54,8 @@
 
   <main class="dashboard-container widescreen-container">
 
-    <!-- 1. DASHBOARD DA GERÊNCIA / DIREÇÃO -->
-    <section id="viewGerente" class="view-panel">
+    <!-- 1. PAINEL DA DIRETORIA / GERÊNCIA -->
+    <section id="viewGerente" class="view-panel" style="display:none;">
       <div class="panel-header-action">
         <h3 class="panel-title">📊 Painel Executivo e Indicadores da Rede</h3>
         <button class="btn-export" onclick="exportarRelatorioCSV()">📥 Exportar Relatório CSV</button>
@@ -111,15 +108,15 @@
         </div>
       </div>
 
-      <h4 class="section-subtitle" style="margin-top:24px;" id="tituloListaConsolidada">📋 Visão Geral Consolidada de Atendimentos (Todos os Estados)</h4>
+      <h4 class="section-subtitle" style="margin-top:24px;" id="tituloListaConsolidada">📋 Visão Geral Consolidada de Atendimentos</h4>
       <div id="gerenteIncidentesList" class="incidents-grid-list"></div>
     </section>
 
-    <!-- 2. PAINEL DO NOC -->
-    <section id="viewNoc" class="view-panel">
-      <h3 class="panel-title">🚨 Registro e Gestão do NOC</h3>
+    <!-- 2. PAINEL REGISTRO NOC -->
+    <section id="viewNoc" class="view-panel" style="display:none;">
+      <h3 class="panel-title">🚨 Registro e Publicação de Comunicados (NOC)</h3>
       <p class="panel-desc">
-        Cole abaixo o comunicado do incidente. O sistema extrairá os campos e a região automaticamente.
+        Cole abaixo o texto oficial da ocorrência para publicação instantânea na rede corporativa.
       </p>
       
       <form id="formNocIncidente">
@@ -132,9 +129,10 @@
       </form>
     </section>
 
-    <!-- 3. PAINEL DO SAC / SUPORTE -->
-    <section id="viewSac" class="view-panel">
-      <h3 class="panel-title">📞 Central de Consulta (SAC / Suporte / NOC)</h3>
+    <!-- 3. PAINEL DE CONSULTA (SAC / SUPORTE / NOC) -->
+    <section id="viewSac" class="view-panel" style="display:none;">
+      <h3 class="panel-title">📞 Central de Consulta e Acompanhamento em Tempo Real</h3>
+      <p class="panel-desc">Consulte a evolução dos chamados, previsões de restauração e fotos do técnico.</p>
       
       <div class="search-box">
         <input type="text" id="inputBuscaSac" placeholder="Pesquisar por ID, Cidade, OS, OLT ou Descrição..." onkeyup="filtrarSac()">
@@ -143,8 +141,8 @@
       <div id="sacResultsList" class="incidents-grid-list"></div>
     </section>
 
-    <!-- 4. PAINEL DO TÉCNICO DE CAMPO -->
-    <section id="viewTech" class="view-panel">
+    <!-- 4. PAINEL EXCLUSIVO DO TÉCNICO DE CAMPO -->
+    <section id="viewTech" class="view-panel" style="display:none;">
       <h3 class="panel-title">👷 Atendimento Técnico de Rua</h3>
       
       <div id="techSelectArea">
@@ -261,7 +259,7 @@
 
   </main>
 
-  <!-- MODAL DE DETALHES COM BARRA LATERAL E TIMELINE -->
+  <!-- MODAL DE DETALHES -->
   <div id="modalDetalhesIncidente" class="modal-overlay">
     <div class="modal-content modal-widescreen-layout">
       <div class="modal-header">
