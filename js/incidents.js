@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NEXTFLOW ENTERPRISE - LOGICA COMPLETA DE INCIDENTES (js/incidents.js)
+   NEXTFLOW ENTERPRISE - LOGICA DE PERMISSÕES & INCIDENTES (js/incidents.js)
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -27,10 +27,67 @@ if (badgeElem) {
   badgeElem.textContent = `${usuarioSalvo} (${perfilSalvo.toUpperCase()} - ${estadoSalvo})`;
 }
 
-if (perfilSalvo === 'admin') {
-  const adminNav = document.getElementById('adminNavMenu');
-  if (adminNav) adminNav.style.display = 'flex';
+// LÓGICA DE VISIBILIDADE DAS ABAS POR PERFIL (RBAC)
+function configurarTelasPorPerfil() {
+  const btnGerente = document.getElementById('btnTabGerente');
+  const btnNoc = document.getElementById('btnTabNoc');
+  const btnSac = document.getElementById('btnTabSac');
+  const btnTech = document.getElementById('btnTabTech');
+
+  // Esconde todas as abas e botões inicialmente
+  [btnGerente, btnNoc, btnSac, btnTech].forEach(btn => { if (btn) btn.style.display = 'none'; });
+  document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
+
+  if (perfilSalvo === 'admin') {
+    // Admin vê tudo
+    [btnGerente, btnNoc, btnSac, btnTech].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
+    alternarAba('viewGerente');
+  } else if (perfilSalvo === 'gerente' || perfilSalvo === 'diretor') {
+    // Gerência vê Diretoria, NOC e SAC (Leitura)
+    [btnGerente, btnNoc, btnSac].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
+    alternarAba('viewGerente');
+  } else if (perfilSalvo === 'noc') {
+    // NOC vê Registro e Consulta SAC
+    [btnNoc, btnSac].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
+    alternarAba('viewNoc');
+  } else if (perfilSalvo === 'tecnico') {
+    // Técnico vê apenas o painel de rua
+    if (btnTech) btnTech.style.display = 'inline-block';
+    const displayNome1 = document.getElementById('techNomeDisplayStage1');
+    if (displayNome1) displayNome1.textContent = usuarioSalvo;
+    alternarAba('viewTech');
+  } else {
+    // SAC / Suporte veem apenas a central de consulta
+    if (btnSac) btnSac.style.display = 'inline-block';
+    alternarAba('viewSac');
+  }
 }
+
+window.alternarAba = (idAba) => {
+  document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+  const abaAlvo = document.getElementById(idAba);
+  if (abaAlvo) abaAlvo.style.display = 'block';
+
+  // Marca o botão ativo correspondente
+  if (idAba === 'viewGerente') {
+    const b = document.getElementById('btnTabGerente');
+    if (b) b.classList.add('active');
+    carregarDashboardGerente();
+  } else if (idAba === 'viewNoc') {
+    const b = document.getElementById('btnTabNoc');
+    if (b) b.classList.add('active');
+  } else if (idAba === 'viewSac') {
+    const b = document.getElementById('btnTabSac');
+    if (b) b.classList.add('active');
+    carregarIncidentesSac();
+  } else if (idAba === 'viewTech') {
+    const b = document.getElementById('btnTabTech');
+    if (b) b.classList.add('active');
+    carregarListaTecnico();
+  }
+};
 
 function iniciarRelocioTempoReal() {
   const elemClock = document.getElementById('realtimeClock');
@@ -57,42 +114,6 @@ mudarTemaSistema(temaSalvo);
 const selectTema = document.getElementById('themeSelector');
 if (selectTema) selectTema.value = temaSalvo;
 
-function configurarTelasPorPerfil() {
-  document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
-
-  if (perfilSalvo === 'gerente' || perfilSalvo === 'diretor' || perfilSalvo === 'admin') {
-    const vG = document.getElementById('viewGerente');
-    if (vG) vG.style.display = 'block';
-    carregarDashboardGerente();
-  } else if (perfilSalvo === 'noc') {
-    const vN = document.getElementById('viewNoc');
-    if (vN) vN.style.display = 'block';
-  } else if (perfilSalvo === 'tecnico') {
-    const vT = document.getElementById('viewTech');
-    if (vT) vT.style.display = 'block';
-    const displayNome1 = document.getElementById('techNomeDisplayStage1');
-    if (displayNome1) displayNome1.textContent = usuarioSalvo;
-    carregarListaTecnico();
-  } else {
-    const vS = document.getElementById('viewSac');
-    if (vS) vS.style.display = 'block';
-    carregarIncidentesSac();
-  }
-}
-
-window.alternarAba = (idAba) => {
-  document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-
-  const abaAlvo = document.getElementById(idAba);
-  if (abaAlvo) abaAlvo.style.display = 'block';
-
-  if (idAba === 'viewGerente') carregarDashboardGerente();
-  if (idAba === 'viewSac') carregarIncidentesSac();
-  if (idAba === 'viewTech') carregarListaTecnico();
-};
-
-// FUNÇÃO PARA PROCESSAR FOTO COM MARCA D'ÁGUA (HORA + GPS + ZAAZ)
 function comprimirEMarcarDagua(file, textoMarca, maxWidth = 1200, quality = 0.7) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -116,11 +137,9 @@ function comprimirEMarcarDagua(file, textoMarca, maxWidth = 1200, quality = 0.7)
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Desenha tarja escura de fundo para a marca d'água
         ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
         ctx.fillRect(0, height - 40, width, 40);
 
-        // Escreve o texto da marca d'água
         ctx.fillStyle = "#FFFFFF";
         ctx.font = "bold 16px Inter, sans-serif";
         ctx.fillText(textoMarca, 15, height - 15);
@@ -168,7 +187,7 @@ function verificarEExcluirExpirados(docSnap) {
   return false;
 }
 
-// 1. REGISTRO AUTOMÁTICO DO NOC
+// 1. REGISTRO NOC
 const formNoc = document.getElementById('formNocIncidente');
 if (formNoc) {
   formNoc.addEventListener('submit', async (e) => {
@@ -220,7 +239,7 @@ if (formNoc) {
   });
 }
 
-// 2. DASHBOARD GERENCIAL COM FILTRO POR ESTADO
+// 2. DASHBOARD GERENCIAL
 let todosIncidentesCache = [];
 let estadoFiltroAtivo = "TODOS";
 let chartTipoInstance = null;
@@ -358,12 +377,11 @@ function renderizarGraficosGerenciais(gpon, backbone, sp, mg, pr, supervisoresMa
   }
 }
 
-// 3. MÓDULO TÉCNICO DE CAMPO (COM PERSISTÊNCIA DE ETAPA E COMPLIANCE)
+// 3. MÓDULO TÉCNICO DE CAMPO
 let chamadoAtivoTecnico = null;
 let mapaFotosBase64 = {};
 
 function carregarListaTecnico() {
-  // Verifica se o técnico já tinha um atendimento ativo em andamento
   const idAtivoSalvo = localStorage.getItem(`tech_active_doc_${usuarioSalvo}`);
 
   onSnapshot(collection(db, "incidentes"), (snapshot) => {
@@ -377,17 +395,16 @@ function carregarListaTecnico() {
       const item = docSnap.data();
       item.docId = docSnap.id;
 
-      // TRAVA 1: O técnico só enxerga chamados do seu próprio estado
+      // Trava por estado do técnico
       const estItem = item.estado || detectarEstado(item.cidades || "");
       if (estItem !== estadoSalvo && perfilSalvo !== 'admin') return;
 
-      // TRAVA 2: Não mostra chamados já finalizados
+      // Não exibe chamados finalizados
       if (item.statusAtual && item.statusAtual.includes("FINALIZADO")) return;
 
-      // TRAVA 3: Se já foi assumido por OUTRO técnico, não exibe na lista
+      // Trava para não exibir chamados de outro técnico
       if (item.tecnicoAtribuido && item.tecnicoAtribuido !== usuarioSalvo) return;
 
-      // Se este era o chamado ativo salvo no dispositivo do técnico, restaura automaticamente
       if (idAtivoSalvo === item.docId) {
         iniciarAtendimentoTecnico(item, false);
       }
@@ -411,7 +428,6 @@ async function iniciarAtendimentoTecnico(item, novoAtendimento = true) {
   mapaFotosBase64 = {};
 
   if (novoAtendimento) {
-    // Grava no Firebase que este técnico assumiu o chamado
     const docRef = doc(db, "incidentes", item.docId);
     await updateDoc(docRef, { tecnicoAtribuido: usuarioSalvo });
     localStorage.setItem(`tech_active_doc_${usuarioSalvo}`, item.docId);
@@ -421,7 +437,6 @@ async function iniciarAtendimentoTecnico(item, novoAtendimento = true) {
   document.getElementById('techFormArea').style.display = 'block';
   document.getElementById('techActiveIdDisplay').textContent = `Atendendo ID: ${item.idIncidente}`;
 
-  // Se já havia etapas concluídas no histórico, salta direto para a próxima etapa
   const etapasConcluidas = item.timelineEtapas ? item.timelineEtapas.length : 0;
   if (etapasConcluidas >= 3) avancarEtapaVisual(4);
   else if (etapasConcluidas >= 2) avancarEtapaVisual(3);
@@ -608,7 +623,6 @@ window.filtrarSac = () => {
   renderizarListaSac(filtrados);
 };
 
-// MODAL COM SIDEBAR LATERAL E ZOOM DE IMAGEM
 window.abrirModalDetalhes = (item) => {
   document.getElementById('modalIdTitle').textContent = `🚨 Incidente ID: ${item.idIncidente}`;
   
@@ -632,13 +646,11 @@ window.abrirModalDetalhes = (item) => {
 
   if (item.timelineEtapas && item.timelineEtapas.length > 0) {
     item.timelineEtapas.forEach((t, idx) => {
-      // Cria item na barra lateral esquerda
       const sideItem = document.createElement('div');
       sideItem.className = 'sidebar-step-item';
       sideItem.textContent = `${idx + 1}. ${t.etapa}`;
       sidebarSteps.appendChild(sideItem);
 
-      // Cria item na timeline central
       const itemDiv = document.createElement('div');
       itemDiv.className = 'timeline-item';
 
@@ -664,7 +676,6 @@ window.abrirModalDetalhes = (item) => {
   document.getElementById('modalDetalhesIncidente').style.display = 'flex';
 };
 
-// ZOOM DE IMAGEM (LIGHTBOX)
 window.ampliarFoto = (url) => {
   const lb = document.getElementById('lightboxOverlay');
   const img = document.getElementById('lightboxImage');
@@ -705,4 +716,5 @@ window.sair = () => {
   window.location.href = 'index.html';
 };
 
+// Executa o controle de permissões ao carregar a página
 configurarTelasPorPerfil();
