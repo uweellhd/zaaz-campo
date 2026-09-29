@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZAAZ Telecom - NextFlow Enterprise Panel</title>
+  <title>Painel interno • NEXTFLOW</title>
   
   <!-- Fonte Google Inter e Estilos Globais -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,8 +19,8 @@
   <!-- BARRA SUPERIOR FIXA WIDESCREEN -->
   <header class="top-nav">
     <div class="nav-brand">
-      <h2 class="zaaz-title">ZAAZ TELECOM</h2>
-      <span class="nextflow-highlight">NextFlow System</span>
+      <h2 class="zaaz-title">NEXTFLOW</h2>
+      <span class="nextflow-highlight">Ambiente interno ZAAZ Telecom</span>
     </div>
 
     <!-- MENU DE NAVEGAÇÃO DINÂMICO -->
@@ -39,9 +39,9 @@
       </div>
 
       <select id="themeSelector" class="theme-select" onchange="mudarTemaSistema(this.value)">
-        <option value="theme-light">☀️ Tema Claro ZAAZ</option>
+        <option value="theme-light">☀️ Claro</option>
         <option value="theme-dark">🌙 Tema Escuro</option>
-        <option value="theme-neon">⚡ Tema Neon</option>
+        <option value="theme-zaaz">🟣 ZAAZ corporativo</option>
       </select>
 
       <div class="user-badge-box">
@@ -56,27 +56,34 @@
 
     <!-- 1. PAINEL DA DIRETORIA / GERÊNCIA -->
     <section id="viewGerente" class="view-panel" style="display:none;">
-      <div class="panel-header-action">
-        <h3 class="panel-title">📊 Painel Executivo e Indicadores da Rede</h3>
-        <button class="btn-export" onclick="exportarRelatorioCSV()">📥 Exportar Relatório CSV</button>
+      <div class="executive-hero">
+        <div>
+          <p class="section-eyebrow"><span class="live-dot"></span> VISÃO DA OPERAÇÃO</p>
+          <h3 class="panel-title">Painel executivo</h3>
+          <p class="panel-desc">Indicadores de rede e acompanhamento dos incidentes em tempo real.</p>
+        </div>
+        <button class="btn-export" onclick="exportarRelatorioCSV()">Exportar relatório CSV <span aria-hidden="true">↗</span></button>
       </div>
       
-      <div class="kpi-grid">
-        <div class="kpi-card" onclick="filtrarPainelPorEstado('TODOS')" style="cursor:pointer;">
-          <span class="kpi-title">Incidentes Ativos (Geral)</span>
+      <div class="kpi-grid executive-kpis">
+        <div class="kpi-card kpi-card-primary" onclick="filtrarPainelPorEstado('TODOS')" style="cursor:pointer;">
+          <span class="kpi-title">Incidentes ativos</span>
           <h2 id="kpiTotalIncidentes" class="kpi-value">0</h2>
+          <span class="kpi-foot">Visão geral da operação</span>
         </div>
         <div class="kpi-card">
-          <span class="kpi-title">Clientes Afetados (GPON)</span>
+          <span class="kpi-title">Clientes afetados · GPON</span>
           <h2 id="kpiTotalGpon" class="kpi-value alert-text">0</h2>
+          <span class="kpi-foot">Impacto dos chamados ativos</span>
         </div>
         <div class="kpi-card">
-          <span class="kpi-title">Paradas de Backbone</span>
+          <span class="kpi-title">Paradas de backbone</span>
           <h2 id="kpiTotalBackbone" class="kpi-value warning-text">0</h2>
+          <span class="kpi-foot">Ocorrências em andamento</span>
         </div>
       </div>
 
-      <h4 class="section-subtitle">📍 Filtrar Painel por Estado (Clique no card para isolar)</h4>
+      <div class="section-heading"><h4 class="section-subtitle">Operação por estado</h4><span>Selecione uma região para filtrar a lista</span></div>
       <div class="kpi-grid state-grid">
         <div class="kpi-card state-card" id="cardSp" onclick="filtrarPainelPorEstado('SP')">
           <span class="kpi-title">São Paulo (SP)</span>
@@ -92,7 +99,7 @@
         </div>
       </div>
 
-      <h4 class="section-subtitle" style="margin-top:20px;">📈 Análise Gráfica e Desempenho de Supervisores</h4>
+      <div class="section-heading"><h4 class="section-subtitle">Análise da rede</h4><span>Distribuição e andamento dos atendimentos</span></div>
       <div class="charts-grid-three">
         <div class="chart-card">
           <h5>Rede GPON vs Backbone</h5>
@@ -103,12 +110,12 @@
           <canvas id="chartEstados"></canvas>
         </div>
         <div class="chart-card">
-          <h5>Compliance de Fotos por Supervisor</h5>
+          <h5>Etapas registradas por supervisor</h5>
           <canvas id="chartSupervisores"></canvas>
         </div>
       </div>
 
-      <h4 class="section-subtitle" style="margin-top:24px;" id="tituloListaConsolidada">📋 Visão Geral Consolidada de Atendimentos</h4>
+      <div class="section-heading"><h4 class="section-subtitle" id="tituloListaConsolidada">Chamados da operação</h4><span>Toque em um chamado para ver o histórico</span></div>
       <div id="gerenteIncidentesList" class="incidents-grid-list"></div>
     </section>
 
