@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ZAAZ Telecom - Acesso Corporativo</title>
-  
+
   <!-- Fonte Google Inter e Estilos Globais -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,13 +26,13 @@
     <div id="loginSection">
       <form id="loginForm">
         <div class="form-group">
-          <label for="usuario">Usuário Corporativo:</label>
-          <input type="text" id="usuario" placeholder="Digite seu usuário..." required autocomplete="off">
+          <label for="usuario">E-mail corporativo:</label>
+          <input type="email" id="usuario" placeholder="seu.email@empresa.com" required autocomplete="username">
         </div>
 
         <div class="form-group">
           <label for="senha">Senha de Acesso:</label>
-          <input type="password" id="senha" placeholder="Digite sua senha..." required>
+          <input type="password" id="senha" placeholder="Digite sua senha..." required autocomplete="current-password">
         </div>
 
         <button type="submit" id="btnLogin" class="btn-primary">Entrar no Sistema</button>
