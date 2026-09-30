@@ -4,11 +4,15 @@ service cloud.firestore {
     function signedIn() {
       return request.auth != null;
     }
+    function corporateEmail() {
+      return signedIn() && request.auth.token.email is string
+        && request.auth.token.email.matches('^[^@]+@zaaztelecom\\.com\\.br$');
+    }
     function profile() {
       return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
     }
     function active() {
-      return signedIn() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+      return corporateEmail() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
         && profile().ativo == true;
     }
     function role() {
@@ -22,30 +26,66 @@ service cloud.firestore {
     }
 
     match /usuarios/{uid} {
-      allow get: if (signedIn() && request.auth.uid == uid) || (active() && role() == 'admin');
+      allow get: if (signedIn() && request.auth.uid == uid)
+        || (active() && (role() == 'admin' || (role() == 'noc' && resource.data.perfil in ['tecnico', 'supervisor'])));
+      allow list: if active() && (role() == 'admin' || (role() == 'noc' && resource.data.perfil in ['tecnico', 'supervisor']));
+      allow create: if active() && role() == 'admin' && uid != request.auth.uid
+        && request.resource.data.keys().hasOnly(['ativo', 'estado', 'nome', 'perfil'])
+        && request.resource.data.ativo == true
+        && request.resource.data.estado in ['SP', 'MG', 'PR', 'TODOS']
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() >= 3
+        && request.resource.data.nome.size() <= 120
+        && request.resource.data.perfil in ['noc', 'sac', 'suporte', 'tecnico', 'gerente', 'diretor', 'supervisor']
+        && (request.resource.data.perfil != 'tecnico' || request.resource.data.estado in ['SP', 'MG', 'PR'])
+        && exists(/databases/$(database)/documents/solicitacoesAcesso/$(uid))
+        && get(/databases/$(database)/documents/solicitacoesAcesso/$(uid)).data.status == 'pendente';
+      allow update: if active() && role() == 'admin' && uid != request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ativo', 'estado', 'nome', 'perfil'])
+        && request.resource.data.ativo is bool
+        && request.resource.data.estado in ['SP', 'MG', 'PR', 'TODOS']
+        && request.resource.data.perfil in ['noc', 'sac', 'suporte', 'tecnico', 'gerente', 'diretor', 'supervisor']
+        && (request.resource.data.perfil != 'tecnico' || request.resource.data.estado in ['SP', 'MG', 'PR']);
+      allow delete: if false;
+    }
+
+    match /solicitacoesAcesso/{uid} {
+      allow get: if (corporateEmail() && request.auth.uid == uid) || (active() && role() == 'admin');
       allow list: if active() && role() == 'admin';
-      // Perfis são administrados somente no Console Firebase.
-      allow create, update, delete: if false;
+      allow create: if corporateEmail() && request.auth.token.email_verified == true
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nome', 'email', 'status', 'criadoEm'])
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.nome is string
+        && request.resource.data.nome.size() >= 3
+        && request.resource.data.nome.size() <= 120
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.criadoEm == request.time;
+      allow update: if active() && role() == 'admin'
+        && resource.data.status == 'pendente'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'revisadoEm', 'revisadoPor'])
+        && request.resource.data.status in ['aprovado', 'rejeitado']
+        && request.resource.data.revisadoPor == request.auth.uid
+        && request.resource.data.revisadoEm == request.time;
+      allow delete: if false;
     }
 
     match /incidentes/{incidentId} {
-      // Técnico consulta apenas a fila do próprio estado. A consulta Web usa where('estado', '==', estado).
-      allow read: if active() && (globalReader() || (role() == 'tecnico' && inRegion(resource.data.estado)));
+      // O técnico só consulta os documentos cujo técnicoUid é o próprio UID.
+      allow read: if active() && (globalReader() ||
+        (role() == 'tecnico' && resource.data.get('tecnicoUid', '') == request.auth.uid) ||
+        (role() == 'supervisor' && resource.data.get('supervisorUid', '') == request.auth.uid));
       allow create: if active() && role() in ['admin', 'noc']
         && request.resource.data.estado in ['SP', 'MG', 'PR'];
       allow delete: if active() && role() == 'admin';
       allow update: if active() && (
         role() == 'admin' || role() == 'noc' ||
         (role() == 'tecnico' && inRegion(resource.data.estado)
+          && resource.data.get('tecnicoUid', '') == request.auth.uid
+          && request.resource.data.tecnicoUid == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'tecnicoAtribuido', 'tecnicoUid', 'statusAtual', 'timelineEtapas', 'previsao'
+            'statusAtual', 'timelineEtapas', 'previsao'
           ])
-          && (
-            (resource.data.get('tecnicoUid', '') == '' && request.resource.data.tecnicoUid == request.auth.uid)
-            ||
-            (resource.data.get('tecnicoUid', '') == request.auth.uid
-              && request.resource.data.tecnicoUid in [request.auth.uid, ''])
-          )
         )
       );
     }
@@ -53,7 +93,10 @@ service cloud.firestore {
     match /fotos/{photoId} {
       allow get: if active()
         && resource.data.criadoEm > request.time - duration.value(15, 'd')
-        && (globalReader() || (role() == 'tecnico' && inRegion(resource.data.estado)));
+        && (globalReader() || (role() == 'tecnico'
+          && get(/databases/$(database)/documents/incidentes/$(resource.data.incidenteId)).data.get('tecnicoUid', '') == request.auth.uid)
+          || (role() == 'supervisor'
+          && get(/databases/$(database)/documents/incidentes/$(resource.data.incidenteId)).data.get('supervisorUid', '') == request.auth.uid));
       allow list: if false;
       allow create: if active() && role() in ['admin', 'tecnico']
         && request.resource.data.keys().hasOnly(['incidenteId', 'estado', 'criadoPorUid', 'criadoEm', 'dadosBase64'])
