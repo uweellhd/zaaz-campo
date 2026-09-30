@@ -27,14 +27,15 @@ let usuarioUid = '';
 const ouvintes = new Map();
 let saindo = false;
 const abasPermitidas = {
-  admin: ['viewGerente', 'viewNoc', 'viewSac', 'viewTech', 'viewSupervisor', 'viewConta', 'viewAcessos'],
+  admin: ['viewGerente', 'viewNoc', 'viewSac', 'viewTech', 'viewSupervisor', 'viewProjetos', 'viewConta', 'viewAcessos'],
   gerente: ['viewGerente', 'viewSac'],
   diretor: ['viewGerente', 'viewSac'],
   noc: ['viewNoc', 'viewSac'],
   sac: ['viewSac'],
   suporte: ['viewSac'],
   tecnico: ['viewTech'],
-  supervisor: ['viewSupervisor']
+  supervisor: ['viewSupervisor'],
+  projetos: ['viewProjetos']
 };
 
 function ouvirUmaVez(chave, consulta, aoReceber) {
@@ -48,8 +49,13 @@ function ouvirUmaVez(chave, consulta, aoReceber) {
 }
 
 const badgeElem = document.getElementById('userBadge');
+document.addEventListener('click', event => {
+  const menu = document.getElementById('accountMenu');
+  if (menu?.open && !menu.contains(event.target)) menu.open = false;
+});
 let tecnicosDisponiveis = [];
 let supervisoresDisponiveis = [];
+const estadosBrasil = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
 async function carregarTecnicosDisponiveis() {
   if (!['admin', 'noc'].includes(perfilSalvo)) return;
@@ -143,13 +149,16 @@ function configurarTelasPorPerfil() {
   const btnConta = document.getElementById('btnTabConta');
   const btnAcessos = document.getElementById('btnTabAcessos');
   const btnSupervisor = document.getElementById('btnTabSupervisor');
+  const btnProjetos = document.getElementById('btnTabProjetos');
   // Oculta todas as abas inicialmente
-  [btnGerente, btnNoc, btnSac, btnTech, btnConta, btnAcessos, btnSupervisor].forEach(btn => { if (btn) btn.style.display = 'none'; });
+  [btnGerente, btnNoc, btnSac, btnTech, btnConta, btnAcessos, btnSupervisor, btnProjetos].forEach(btn => { if (btn) btn.style.display = 'none'; });
+  if (btnConta) btnConta.style.display = 'block';
   document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
 
   if (perfilSalvo === 'admin') {
     // Administrador da operação vê as quatro áreas.
-    [btnGerente, btnNoc, btnSac, btnTech, btnConta, btnAcessos, btnSupervisor].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
+    [btnGerente, btnNoc, btnSac, btnTech, btnSupervisor, btnProjetos].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
+    if (btnAcessos) btnAcessos.style.display = 'block';
     carregarSolicitacoes();
     alternarAba('viewGerente');
   } else if (perfilSalvo === 'gerente' || perfilSalvo === 'diretor') {
@@ -166,6 +175,9 @@ function configurarTelasPorPerfil() {
   } else if (perfilSalvo === 'supervisor') {
     if (btnSupervisor) btnSupervisor.style.display = 'inline-block';
     alternarAba('viewSupervisor');
+  } else if (perfilSalvo === 'projetos') {
+    if (btnProjetos) btnProjetos.style.display = 'inline-block';
+    alternarAba('viewProjetos');
   } else {
     // SAC e Suporte
     if (btnSac) btnSac.style.display = 'inline-block';
@@ -175,6 +187,8 @@ function configurarTelasPorPerfil() {
 
 window.alternarAba = (idAba) => {
   if (!(abasPermitidas[perfilSalvo] || []).includes(idAba)) return;
+  const conta = document.getElementById('accountMenu');
+  if (conta) conta.open = false;
   document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
 
@@ -203,6 +217,9 @@ window.alternarAba = (idAba) => {
   } else if (idAba === 'viewSupervisor') {
     document.getElementById('btnTabSupervisor')?.classList.add('active');
     carregarSupervisor();
+  } else if (idAba === 'viewProjetos') {
+    document.getElementById('btnTabProjetos')?.classList.add('active');
+    carregarProjetos();
   }
 };
 
@@ -214,8 +231,55 @@ function evidenciaFinalRegistrada(incidente) {
   return (incidente.timelineEtapas || []).some(evento =>
     String(evento.etapa || '').startsWith('ETAPA 4')
     && ((evento.fotoIds || []).length >= 2 || (evento.fotos || []).length >= 2 || Number(evento.fotosRemovidas || 0) >= 2)
-    && /GPS C1: .+\| GPS C2: .+/.test(evento.observacao || '')
+    && ((evento.caixas || []).length >= 2 || /GPS C1: .+\| GPS C2: .+/.test(evento.observacao || ''))
   );
+}
+function fotosPendentesEtapas(incidente) {
+  const etapas = new Map();
+  for (const evento of incidente.timelineEtapas || []) {
+    const numero = String(evento.etapa || '').match(/^ETAPA ([123])/);
+    if (numero) etapas.set(numero[1], evento);
+  }
+  return [...etapas.values()].reduce((total, evento) => total + Number(evento.fotosPendentes ?? Math.max(0, (evento.etapa.startsWith('ETAPA 1') ? 1 : 2) - (evento.fotoIds || []).length)), 0);
+}
+
+function carregarProjetos() {
+  ouvirUmaVez('projetos', collection(db, 'projetosEvidencias'), snapshot => {
+    const lista = document.getElementById('projetosResultados');
+    lista.replaceChildren();
+    if (snapshot.empty) { lista.textContent = 'Ainda não há entregas da etapa 4.'; return; }
+    snapshot.forEach(documento => {
+      const registro = documento.data();
+      const card = document.createElement('article');
+      card.className = 'field-card';
+      const titulo = document.createElement('h4'); titulo.textContent = `ID ${registro.idIncidente} · OS ${registro.os || '—'} · ${registro.estado}`;
+      const descricao = document.createElement('p'); descricao.textContent = `Serviço: ${registro.descricaoServico}`;
+      const status = document.createElement('p'); status.textContent = `OZmaps: ${registro.statusOzmaps === 'REGISTRADO' ? 'Registrado' : 'Pendente'}`;
+      card.append(titulo, descricao, status);
+      for (const caixa of registro.caixas || []) {
+        const linha = document.createElement('div'); linha.className = 'project-box';
+        const info = document.createElement('span'); info.textContent = `Caixa ${caixa.numero} · GPS ${caixa.gps}`;
+        linha.append(info);
+        const fotoId = registro.fotoIds?.[caixa.indiceFoto];
+        if (fotoId) getDoc(doc(db, 'fotos', fotoId)).then(fotoDoc => {
+          if (fotoDoc.exists()) adicionarMiniatura(linha, fotoDoc.data().dadosBase64);
+          else linha.append(' · Foto expirada (15 dias)');
+        }).catch(() => linha.append(' · Foto indisponível'));
+        card.append(linha);
+      }
+      if (registro.statusOzmaps !== 'REGISTRADO') {
+        const botao = document.createElement('button'); botao.className = 'btn-sec-sm';
+        botao.textContent = 'Marcar registrado no OZmaps';
+        botao.onclick = async () => {
+          botao.disabled = true;
+          try { await updateDoc(doc(db, 'projetosEvidencias', documento.id), { statusOzmaps: 'REGISTRADO' }); }
+          catch { botao.disabled = false; alert('Não foi possível atualizar. Tente novamente.'); }
+        };
+        card.append(botao);
+      }
+      lista.append(card);
+    });
+  });
 }
 
 function carregarSupervisor() {
@@ -226,7 +290,7 @@ function carregarSupervisor() {
   ouvirUmaVez('supervisor', consulta, snapshot => {
     const container = document.getElementById('supervisorResultados');
     container.replaceChildren();
-    let total = 0, completos = 0, semVinculo = 0;
+    let total = 0, completos = 0, semVinculo = 0, fotosFaltantes = 0;
     snapshot.forEach(documento => {
       const item = documento.data();
       if (perfilSalvo !== 'admin' && item.supervisorUid !== usuarioUid) return;
@@ -234,6 +298,7 @@ function carregarSupervisor() {
       if (vinculado) total++;
       else semVinculo++;
       const ok = evidenciaFinalRegistrada(item);
+      if (vinculado) fotosFaltantes += fotosPendentesEtapas(item);
       if (ok && vinculado) completos++;
       const card = document.createElement('button');
       card.type = 'button';
@@ -244,7 +309,7 @@ function carregarSupervisor() {
       detalhes.textContent = `${item.cidades || ''} · ${item.statusAtual || ''} · Técnico: ${nomeCurto(item.tecnicoAtribuido) || 'Não atribuído'}`;
       const situacao = document.createElement('span');
       situacao.className = ok ? 'evidence-complete' : 'evidence-pending';
-      situacao.textContent = !vinculado && perfilSalvo === 'admin' ? 'Supervisor ainda não vinculado' : ok ? 'Evidência final registrada' : 'Evidência final pendente';
+      situacao.textContent = !vinculado && perfilSalvo === 'admin' ? 'Supervisor ainda não vinculado' : `${ok ? 'Etapa final registrada' : 'Etapa final pendente'} · ${fotosPendentesEtapas(item)} foto(s) aguardando das etapas 1–3`;
       card.append(titulo, detalhes, situacao);
       card.addEventListener('click', () => abrirModalDetalhes({ ...item, docId: documento.id }));
       container.append(card);
@@ -252,6 +317,7 @@ function carregarSupervisor() {
     document.getElementById('supervisorTotal').textContent = String(total);
     document.getElementById('supervisorPendente').textContent = String(total - completos);
     document.getElementById('supervisorCompleto').textContent = String(completos);
+    document.getElementById('supervisorFotosFaltantes').textContent = String(fotosFaltantes);
     const aviso = document.getElementById('supervisorAviso');
     if (aviso) {
       aviso.hidden = perfilSalvo !== 'admin' || semVinculo === 0;
@@ -277,13 +343,13 @@ function carregarSolicitacoes() {
       nome.textContent = pessoa.nome || documento.id;
       const perfil = document.createElement('select');
       perfil.setAttribute('aria-label', `Função de ${pessoa.nome}`);
-      for (const [valor, texto] of Object.entries({ sac: 'SAC', suporte: 'Suporte', noc: 'NOC', tecnico: 'Técnico', supervisor: 'Supervisor', gerente: 'Gerente', diretor: 'Diretor' })) {
+      for (const [valor, texto] of Object.entries({ sac: 'SAC', suporte: 'Suporte', noc: 'NOC', tecnico: 'Técnico', supervisor: 'Supervisor', projetos: 'Projetos', gerente: 'Gerente', diretor: 'Diretor' })) {
         perfil.add(new Option(texto, valor));
       }
       perfil.value = pessoa.perfil;
       const estado = document.createElement('select');
       estado.setAttribute('aria-label', `Estado de ${pessoa.nome}`);
-      for (const valor of ['SP', 'MG', 'PR', 'TODOS']) estado.add(new Option(valor, valor));
+      for (const valor of ['TODOS', ...estadosBrasil]) estado.add(new Option(valor, valor));
       estado.value = pessoa.estado;
       const ativo = document.createElement('input');
       ativo.type = 'checkbox';
@@ -295,7 +361,7 @@ function carregarSolicitacoes() {
       salvar.textContent = 'Salvar acesso';
       salvar.addEventListener('click', async () => {
         if (!perfil.value || !estado.value) { alert('Escolha função e estado válidos.'); return; }
-        if (perfil.value === 'tecnico' && estado.value === 'TODOS') { alert('Escolha SP, MG ou PR para o técnico.'); return; }
+        if (perfil.value === 'tecnico' && estado.value === 'TODOS') { alert('Escolha um estado para o técnico.'); return; }
         salvar.disabled = true;
         try {
           await updateDoc(doc(db, 'usuarios', documento.id), { perfil: perfil.value, estado: estado.value, ativo: ativo.checked });
@@ -330,18 +396,18 @@ function carregarSolicitacoes() {
       email.textContent = pedido.email;
       const perfil = document.createElement('select');
       perfil.setAttribute('aria-label', `Função de ${pedido.nome}`);
-      for (const [valor, texto] of Object.entries({ sac: 'SAC', suporte: 'Suporte', noc: 'NOC', tecnico: 'Técnico', supervisor: 'Supervisor', gerente: 'Gerente', diretor: 'Diretor' })) {
+      for (const [valor, texto] of Object.entries({ sac: 'SAC', suporte: 'Suporte', noc: 'NOC', tecnico: 'Técnico', supervisor: 'Supervisor', projetos: 'Projetos', gerente: 'Gerente', diretor: 'Diretor' })) {
         perfil.add(new Option(texto, valor));
       }
       const estado = document.createElement('select');
       estado.setAttribute('aria-label', `Estado de ${pedido.nome}`);
-      for (const valor of ['SP', 'MG', 'PR', 'TODOS']) estado.add(new Option(valor, valor));
+      for (const valor of ['TODOS', ...estadosBrasil]) estado.add(new Option(valor, valor));
       const aprovar = document.createElement('button');
       aprovar.type = 'button';
       aprovar.className = 'btn-primary';
       aprovar.textContent = 'Aprovar';
       aprovar.addEventListener('click', async () => {
-        if (perfil.value === 'tecnico' && estado.value === 'TODOS') { alert('Escolha SP, MG ou PR para o técnico.'); return; }
+        if (perfil.value === 'tecnico' && estado.value === 'TODOS') { alert('Escolha um estado para o técnico.'); return; }
         aprovar.disabled = true;
         try {
           await runTransaction(db, async transacao => {
@@ -478,9 +544,11 @@ function gerarIdAutomatico() {
 
 function detectarEstado(cidadesStr) {
   const c = cidadesStr.toUpperCase();
-  if (c.includes("MG") || c.includes("MINAS")) return "MG";
-  if (c.includes("PR") || c.includes("PARANÁ") || c.includes("PARANA")) return "PR";
-  return "SP";
+  const sigla = c.match(/(?:^|[^A-Z])(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)(?:$|[^A-Z])/);
+  if (sigla) return sigla[1];
+  if (c.includes('MINAS')) return 'MG';
+  if (c.includes('PARANÁ') || c.includes('PARANA')) return 'PR';
+  return 'SP';
 }
 
 function detectarTipoRede(texto) {
@@ -577,11 +645,10 @@ function carregarDashboardGerente() {
 
 window.filtrarPainelPorEstado = (estado) => {
   estadoFiltroAtivo = estado;
-  
   document.querySelectorAll('.state-card').forEach(c => c.classList.remove('active-filter'));
-  if (estado === 'SP') document.getElementById('cardSp').classList.add('active-filter');
-  if (estado === 'MG') document.getElementById('cardMg').classList.add('active-filter');
-  if (estado === 'PR') document.getElementById('cardPr').classList.add('active-filter');
+  document.querySelectorAll('.state-card').forEach(c => {
+    if (c.dataset.estado === estado) c.classList.add('active-filter');
+  });
 
   const tituloList = document.getElementById('tituloListaConsolidada');
   if (tituloList) {
@@ -595,7 +662,7 @@ window.filtrarPainelPorEstado = (estado) => {
 
 function renderizarPainelGerenteFiltrado() {
   let totalIncidentes = 0, totalGpon = 0, totalBackbone = 0, pendentes = 0;
-  let spCount = 0, mgCount = 0, prCount = 0;
+  const estadosContagem = new Map();
   let supervisoresMap = {};
 
   const container = document.getElementById('gerenteIncidentesList');
@@ -606,9 +673,7 @@ function renderizarPainelGerenteFiltrado() {
     const est = item.estado || detectarEstado(item.cidades || "");
     const encerrado = /FINALIZAD|CONCLU[IÍ]D|RESOLVID/i.test(item.statusAtual || '');
     if (!encerrado) {
-      if (est === "SP") spCount++;
-      if (est === "MG") mgCount++;
-      if (est === "PR") prCount++;
+      estadosContagem.set(est || 'Não informado', (estadosContagem.get(est || 'Não informado') || 0) + 1);
     }
 
     if (estadoFiltroAtivo !== 'TODOS' && est !== estadoFiltroAtivo) return false;
@@ -656,18 +721,33 @@ function renderizarPainelGerenteFiltrado() {
     ? `${totalIncidentes} incidente${totalIncidentes === 1 ? '' : 's'} em andamento · ${totalGpon.toLocaleString('pt-BR')} cliente${totalGpon === 1 ? '' : 's'} GPON informado${totalGpon === 1 ? '' : 's'} · ${pendentes} registro${pendentes === 1 ? '' : 's'} sem evidência final completa.`
     : 'Nenhum incidente ativo no recorte selecionado. Consulte os registros abaixo para acompanhar o histórico.';
   document.getElementById('painelAtualizado').textContent = `Dados atualizados às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-  document.getElementById('kpiSpCount').textContent = spCount;
-  document.getElementById('kpiMgCount').textContent = mgCount;
-  document.getElementById('kpiPrCount').textContent = prCount;
+  const siglas = [...new Set([...estadosContagem.keys(), ...todosIncidentesCache.map(item => item.estado).filter(Boolean)])].sort();
+  const grid = document.getElementById('stateGrid');
+  grid.replaceChildren();
+  for (const estado of siglas) {
+    const cartao = document.createElement('button');
+    cartao.type = 'button';
+    cartao.className = 'kpi-card state-card' + (estadoFiltroAtivo === estado ? ' active-filter' : '');
+    cartao.dataset.estado = estado;
+    const nome = document.createElement('span'); nome.className = 'kpi-title'; nome.textContent = estado;
+    const total = document.createElement('strong'); total.className = 'kpi-value'; total.textContent = estadosContagem.get(estado) || 0;
+    cartao.append(nome, total);
+    cartao.onclick = () => filtrarPainelPorEstado(estado);
+    grid.append(cartao);
+  }
+  const relatorioEstado = document.getElementById('relatorioEstado');
+  const selecionado = relatorioEstado.value;
+  relatorioEstado.replaceChildren(new Option('Todos', 'TODOS'), ...siglas.map(sigla => new Option(sigla, sigla)));
+  relatorioEstado.value = siglas.includes(selecionado) ? selecionado : 'TODOS';
 
   if (!filtrados.length) {
     container.innerHTML = '<p class="empty-state">Nenhum chamado encontrado nesta região.</p>';
   }
 
-  renderizarGraficosGerenciais(totalIncidentes - totalBackbone, totalBackbone, spCount, mgCount, prCount, supervisoresMap);
+  renderizarGraficosGerenciais(totalIncidentes - totalBackbone, totalBackbone, estadosContagem, supervisoresMap);
 }
 
-function renderizarGraficosGerenciais(gpon, backbone, sp, mg, pr, supervisoresMap) {
+function renderizarGraficosGerenciais(gpon, backbone, estadosContagem, supervisoresMap) {
   const ctxTipo = document.getElementById('chartTipoIncidente');
   const ctxEst = document.getElementById('chartEstados');
   const ctxSup = document.getElementById('chartSupervisores');
@@ -685,7 +765,7 @@ function renderizarGraficosGerenciais(gpon, backbone, sp, mg, pr, supervisoresMa
     if (chartEstadosInstance) chartEstadosInstance.destroy();
     chartEstadosInstance = new Chart(ctxEst, {
       type: 'bar',
-      data: { labels: ['SP', 'MG', 'PR'], datasets: [{ label: 'Incidentes ativos', data: [sp, mg, pr], backgroundColor: ['#315DB9', '#7659BF', '#55A6BD'] }] },
+      data: { labels: [...estadosContagem.keys()], datasets: [{ label: 'Incidentes ativos', data: [...estadosContagem.values()], backgroundColor: '#315DB9' }] },
       options: { responsive: true, plugins: { legend: { display: false } } }
     });
   }
@@ -714,11 +794,74 @@ function renderizarGraficosGerenciais(gpon, backbone, sp, mg, pr, supervisoresMa
 // 4. MÓDULO TÉCNICO DE CAMPO
 let chamadoAtivoTecnico = null;
 let mapaFotosBase64 = {};
+let bancoRascunhos;
+function abrirBancoRascunhos() {
+  if (!bancoRascunhos) bancoRascunhos = new Promise((resolve, reject) => {
+    const pedido = indexedDB.open('nextflow-campo-rascunhos', 1);
+    pedido.onupgradeneeded = () => pedido.result.createObjectStore('atendimentos');
+    pedido.onsuccess = () => resolve(pedido.result);
+    pedido.onerror = () => reject(pedido.error);
+  });
+  return bancoRascunhos;
+}
+async function operarRascunho(modo, operacao, valor) {
+  const banco = await abrirBancoRascunhos();
+  return new Promise((resolve, reject) => {
+    const transacao = banco.transaction('atendimentos', modo);
+    const loja = transacao.objectStore('atendimentos');
+    const chave = `${usuarioUid}_${chamadoAtivoTecnico.docId}`;
+    const pedido = operacao === 'get' ? loja.get(chave) : operacao === 'delete' ? loja.delete(chave) : loja.put(valor, chave);
+    pedido.onsuccess = () => resolve(pedido.result);
+    pedido.onerror = () => reject(pedido.error);
+  });
+}
+function atualizarEstadoLocal(mensagem) {
+  const status = document.getElementById('techLocalStatus');
+  if (status) status.textContent = mensagem;
+}
+async function salvarRascunhoTecnico() {
+  if (!chamadoAtivoTecnico) return;
+  const form = document.getElementById('techFormFlow');
+  const valores = {};
+  form.querySelectorAll('input:not([type=file]),textarea,select').forEach(elemento => {
+    valores[elemento.id] = elemento.multiple ? [...elemento.selectedOptions].map(opcao => opcao.value) : elemento.value;
+  });
+  try {
+    await operarRascunho('readwrite', 'put', { valores, fotos: mapaFotosBase64, caixas: document.querySelectorAll('.box-evidence').length, salvoEm: Date.now() });
+    atualizarEstadoLocal(navigator.onLine ? 'Rascunho salvo neste aparelho. Envie a etapa para atualizar o sistema.' : 'Sem internet: rascunho salvo neste aparelho. Envie a etapa ao voltar a conexão.');
+  } catch (erro) { atualizarEstadoLocal('Não foi possível guardar o rascunho. Libere espaço no aparelho antes de continuar.'); }
+}
+window.salvarRascunhoTecnico = salvarRascunhoTecnico;
+let temporizadorRascunho;
+document.getElementById('techFormFlow')?.addEventListener('input', () => {
+  clearTimeout(temporizadorRascunho);
+  temporizadorRascunho = setTimeout(salvarRascunhoTecnico, 350);
+});
+window.addEventListener('online', () => atualizarEstadoLocal('Conexão restaurada. Toque em enviar na etapa atual para sincronizar.'));
+async function restaurarRascunhoTecnico() {
+  try {
+    const rascunho = await operarRascunho('readonly', 'get');
+    if (!rascunho) return;
+    while (document.querySelectorAll('.box-evidence').length < rascunho.caixas) adicionarCaixaTecnico();
+    mapaFotosBase64 = rascunho.fotos || {};
+    for (const [id, valor] of Object.entries(rascunho.valores || {})) {
+      const elemento = document.getElementById(id);
+      if (!elemento) continue;
+      if (elemento.multiple) [...elemento.options].forEach(opcao => { opcao.selected = valor.includes(opcao.value); });
+      else elemento.value = valor;
+    }
+    for (const [chave, foto] of Object.entries(mapaFotosBase64)) {
+      const previsualizacao = document.getElementById(chave.replace('caixaFoto', 'caixaPreview'));
+      if (previsualizacao && foto) { previsualizacao.src = foto; previsualizacao.style.display = 'block'; }
+    }
+    atualizarEstadoLocal('Rascunho recuperado deste aparelho. Confira os dados e envie a etapa.');
+  } catch { atualizarEstadoLocal('Não foi possível recuperar o rascunho local.'); }
+}
 
 function carregarListaTecnico() {
   const idAtivoSalvo = localStorage.getItem(`tech_active_doc_${usuarioUid}`);
-  if (perfilSalvo === 'tecnico' && !['SP', 'MG', 'PR'].includes(estadoSalvo)) {
-    alert('Seu perfil precisa de um estado válido (SP, MG ou PR). Solicite ao administrador.');
+  if (perfilSalvo === 'tecnico' && !/^[A-Z]{2}$/.test(estadoSalvo)) {
+    alert('Seu perfil precisa de uma sigla de estado válida. Solicite ao administrador.');
     return;
   }
   const consulta = perfilSalvo === 'admin'
@@ -743,7 +886,7 @@ function carregarListaTecnico() {
       if (item.tecnicoUid && item.tecnicoUid !== usuarioUid) return;
       if (!item.tecnicoUid && item.tecnicoAtribuido && item.tecnicoAtribuido !== usuarioSalvo) return;
 
-      if (idAtivoSalvo === item.docId) {
+      if (idAtivoSalvo === item.docId && chamadoAtivoTecnico?.docId !== item.docId) {
         iniciarAtendimentoTecnico(item, false);
       }
 
@@ -762,6 +905,7 @@ function carregarListaTecnico() {
 }
 
 async function iniciarAtendimentoTecnico(item, novoAtendimento = true) {
+  const trocouChamado = chamadoAtivoTecnico?.docId !== item.docId;
   if (novoAtendimento) {
     const docRef = doc(db, "incidentes", item.docId);
     try {
@@ -776,13 +920,24 @@ async function iniciarAtendimentoTecnico(item, novoAtendimento = true) {
     localStorage.setItem(`tech_active_doc_${usuarioUid}`, item.docId);
   }
   chamadoAtivoTecnico = item;
-  mapaFotosBase64 = {};
+  if (trocouChamado) {
+    document.getElementById('techFormFlow').reset();
+    document.getElementById('caixasTecnico').replaceChildren();
+    numeroCaixa = 0;
+    mapaFotosBase64 = {};
+  }
+  document.getElementById('techNomeDisplayStage1').textContent = usuarioSalvo;
+  if (!document.getElementById('caixasTecnico').children.length) {
+    adicionarCaixaTecnico(); adicionarCaixaTecnico();
+  }
+  await carregarColegasTecnicos(item.estado).catch(() => atualizarEstadoLocal('Lista de técnicos indisponível sem conexão. Tente novamente online.'));
+  await restaurarRascunhoTecnico();
 
   document.getElementById('techSelectArea').style.display = 'none';
   document.getElementById('techFormArea').style.display = 'block';
   document.getElementById('techActiveIdDisplay').textContent = `Atendendo ID: ${item.idIncidente}`;
 
-  const etapasConcluidas = item.timelineEtapas ? item.timelineEtapas.length : 0;
+  const etapasConcluidas = new Set((item.timelineEtapas || []).map(evento => String(evento.etapa).match(/^ETAPA (\d)/)?.[1])).size;
   if (etapasConcluidas >= 3) avancarEtapaVisual(4);
   else if (etapasConcluidas >= 2) avancarEtapaVisual(3);
   else if (etapasConcluidas >= 1) avancarEtapaVisual(2);
@@ -806,6 +961,7 @@ window.processarFotoComMarcaDagua = async (input, idPreview, chaveFoto) => {
       img.src = foto;
       img.style.display = 'block';
       mapaFotosBase64[chaveFoto] = foto;
+      await salvarRascunhoTecnico();
     } catch (erro) {
       input.value = '';
       delete mapaFotosBase64[chaveFoto];
@@ -815,10 +971,46 @@ window.processarFotoComMarcaDagua = async (input, idPreview, chaveFoto) => {
 };
 
 window.capturarGPSTecnico = (idInput) => {
+  if (!navigator.geolocation) { alert('Seu navegador não oferece localização.'); return; }
   navigator.geolocation.getCurrentPosition(pos => {
     document.getElementById(idInput).value = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
-    alert("📍 GPS Capturado com sucesso!");
-  });
+    salvarRascunhoTecnico();
+  }, () => alert('Autorize o acesso à localização e tente novamente.'), { enableHighAccuracy: true, timeout: 15000 });
+};
+
+let numeroCaixa = 0;
+window.adicionarCaixaTecnico = () => {
+  const numero = ++numeroCaixa;
+  const caixa = document.createElement('div');
+  caixa.className = 'field-card box-evidence';
+  caixa.innerHTML = `<h5>Caixa ${numero}</h5><label for="caixaGps${numero}">Localização GPS</label><input id="caixaGps${numero}" class="box-gps" readonly placeholder="Toque em capturar localização"><button type="button" class="btn-sec-sm" onclick="capturarGPSTecnico('caixaGps${numero}')">📍 Capturar localização</button><label for="caixaFoto${numero}">Foto da caixa acomodada</label><input id="caixaFoto${numero}" type="file" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'caixaPreview${numero}', 'caixaFoto${numero}')"><img id="caixaPreview${numero}" class="preview-img" alt="Prévia da caixa ${numero}">`;
+  document.getElementById('caixasTecnico').append(caixa);
+};
+
+window.voltarEtapaTecnica = () => {
+  if (currentStepTech > 1) avancarEtapaVisual(currentStepTech - 1);
+};
+
+async function carregarColegasTecnicos(estado) {
+  const resultado = await getDocs(query(collection(db, 'usuarios'), where('perfil', '==', 'tecnico')));
+  const pessoas = resultado.docs.map(item => ({ uid: item.id, ...item.data() })).filter(item => item.ativo === true && item.estado === estado && item.uid !== usuarioUid);
+  const ajudantes = document.getElementById('techAjudantes');
+  const transferir = document.getElementById('techTransferir');
+  ajudantes.replaceChildren(...pessoas.map(item => new Option(item.nome, item.uid)));
+  transferir.replaceChildren(new Option('Manter comigo', ''), ...pessoas.map(item => new Option(item.nome, item.uid)));
+  tecnicosDisponiveis = pessoas;
+}
+
+window.transferirAtendimentoTecnico = async () => {
+  const uid = document.getElementById('techTransferir').value;
+  const destino = tecnicosDisponiveis.find(item => item.uid === uid && item.estado === chamadoAtivoTecnico?.estado);
+  if (!destino) { alert('Selecione outro técnico cadastrado e ativo no mesmo estado.'); return; }
+  if (!confirm(`Transferir o ID ${chamadoAtivoTecnico.idIncidente} para ${destino.nome}?`)) return;
+  try {
+    await updateDoc(doc(db, 'incidentes', chamadoAtivoTecnico.docId), { tecnicoUid: destino.uid, tecnicoAtribuido: destino.nome });
+    liberarAtendimentoTecnico();
+    alert('Atendimento transferido. O ID aparecerá na conta do técnico selecionado.');
+  } catch (erro) { alert('Transferência não concluída. Confira a conexão e tente novamente.'); }
 };
 
 let currentStepTech = 1;
@@ -831,7 +1023,7 @@ function avancarEtapaVisual(novaEtapa) {
   document.getElementById(`ind-${currentStepTech}`).classList.add('active');
 }
 
-async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevisao = null) {
+async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevisao = null, campos = {}) {
   if (!chamadoAtivoTecnico) return;
   const docRef = doc(db, "incidentes", chamadoAtivoTecnico.docId);
 
@@ -853,7 +1045,8 @@ async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevi
     dataHora: new Date().toLocaleString("pt-BR"),
     tecnico: usuarioSalvo,
     fotoIds,
-    observacao: descObs
+    observacao: descObs,
+    ...campos
   };
   const timelineAtualizada = await runTransaction(db, async transacao => {
     const atual = await transacao.get(docRef);
@@ -865,21 +1058,41 @@ async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevi
     const payload = { statusAtual: tituloEtapa, timelineEtapas: timelineAtual };
     if (novaPrevisao) payload.previsao = novaPrevisao;
     transacao.update(docRef, payload);
+    if (campos.caixas) {
+      transacao.set(doc(db, 'projetosEvidencias', chamadoAtivoTecnico.docId), {
+        incidenteId: chamadoAtivoTecnico.docId,
+        idIncidente: atual.data().idIncidente || '',
+        os: atual.data().os || '',
+        estado: atual.data().estado || '',
+        criadoPorUid: usuarioUid,
+        criadoEm: serverTimestamp(),
+        caixas: campos.caixas,
+        descricaoServico: campos.descricaoServico,
+        fotoIds,
+        statusOzmaps: 'PENDENTE'
+      });
+    }
     return timelineAtual;
   });
   chamadoAtivoTecnico.timelineEtapas = timelineAtualizada;
 }
 
 window.salvarEtapa1 = async () => {
+  if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
   const fotos = [];
   if (mapaFotosBase64['fotoDeslocamento']) fotos.push(mapaFotosBase64['fotoDeslocamento']);
-
-  await registrarEventoTimeline("ETAPA 1: EM DESLOCAMENTO", fotos, `Técnico ${usuarioSalvo} iniciou deslocamento.`);
-  alert("✅ Etapa 1 salva!");
-  avancarEtapaVisual(2);
+  const ajudantes = [...document.getElementById('techAjudantes').selectedOptions].map(option => ({ uid: option.value, nome: option.textContent }));
+  try {
+    await registrarEventoTimeline('ETAPA 1: EM DESLOCAMENTO', fotos, `Técnico ${usuarioSalvo} iniciou deslocamento.`, null, {
+      ajudantes, tipoArea: document.getElementById('techArea').value, condicaoRisco: document.getElementById('techRisco').value,
+      fotosEsperadas: 1, fotosPendentes: fotos.length ? 0 : 1
+    });
+    avancarEtapaVisual(2);
+  } catch (erro) { alert('A etapa 1 não foi enviada. Confira a conexão e tente novamente.'); }
 };
 
 window.salvarEtapa2 = async () => {
+  if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
   const previsaoVal = document.getElementById('techPrevisaoInput').value.trim();
   if (!previsaoVal) {
     alert("⚠️ Por favor, informe a Previsão Aproximada de Restauração!");
@@ -890,27 +1103,33 @@ window.salvarEtapa2 = async () => {
   if (mapaFotosBase64['fotoChegada']) fotos.push(mapaFotosBase64['fotoChegada']);
   if (mapaFotosBase64['fotoRompimento']) fotos.push(mapaFotosBase64['fotoRompimento']);
 
-  await registrarEventoTimeline("ETAPA 2: NO LOCAL / ROMPIMENTO", fotos, `Técnico no local. Previsão: ${previsaoVal}`, previsaoVal);
-  alert("✅ Etapa 2 salva!");
-  avancarEtapaVisual(3);
+  try {
+    await registrarEventoTimeline('ETAPA 2: NO LOCAL / ROMPIMENTO', fotos, `Técnico no local. Previsão: ${previsaoVal}`, previsaoVal, { fotosEsperadas: 2, fotosPendentes: 2 - fotos.length });
+    avancarEtapaVisual(3);
+  } catch (erro) { alert('A etapa 2 não foi enviada. Confira a conexão e tente novamente.'); }
 };
 
 window.salvarEtapa3 = async () => {
+  if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
   const fotos = [];
   if (mapaFotosBase64['fotoPanoramica']) fotos.push(mapaFotosBase64['fotoPanoramica']);
   if (mapaFotosBase64['fotoEquipe']) fotos.push(mapaFotosBase64['fotoEquipe']);
 
-  await registrarEventoTimeline("ETAPA 3: EXECUTANDO / FUSIONANDO", fotos, "Equipe executando fusões no local.");
-  alert("✅ Etapa 3 salva!");
-  avancarEtapaVisual(4);
+  try {
+    await registrarEventoTimeline('ETAPA 3: EXECUTANDO / FUSIONANDO', fotos, 'Técnico atuando e fusionando.', null, { fotosEsperadas: 2, fotosPendentes: 2 - fotos.length });
+    avancarEtapaVisual(4);
+  } catch (erro) { alert('A etapa 3 não foi enviada. Confira a conexão e tente novamente.'); }
 };
 
 window.salvarEtapa4Final = async () => {
+  if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
   const obsTexto = document.getElementById('tobs').value.trim();
-  const gps1 = document.getElementById('tgps1').value;
-  const gps2 = document.getElementById('tgps2').value;
-
-  if (!obsTexto || !gps1 || !gps2 || !mapaFotosBase64['fotoAcomodacao'] || !mapaFotosBase64['fotoLocalLimpo']) {
+  const caixas = [...document.querySelectorAll('.box-evidence')].map((elemento, indice) => {
+    const gps = elemento.querySelector('.box-gps').value.trim();
+    const chave = elemento.querySelector('input[type=file]').id;
+    return { numero: indice + 1, gps, foto: mapaFotosBase64[chave], chave };
+  });
+  if (!obsTexto || caixas.length < 2 || caixas.some(caixa => !/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(caixa.gps) || !caixa.foto)) {
     alert("⚠️ Por favor, preencha todos os campos e anexos obrigatórios da Etapa 4!");
     return;
   }
@@ -919,14 +1138,20 @@ window.salvarEtapa4Final = async () => {
   btn.textContent = "⏳ Finalizando...";
   btn.disabled = true;
 
-  const fotos = [mapaFotosBase64['fotoAcomodacao'], mapaFotosBase64['fotoLocalLimpo']];
-  const descFinal = `Reparo Concluído: ${obsTexto} | GPS C1: ${gps1} | GPS C2: ${gps2}`;
-
-  await registrarEventoTimeline("ETAPA 4: REPARO CONCLUÍDO / FINALIZADO", fotos, descFinal);
-
-  localStorage.removeItem(`tech_active_doc_${usuarioUid}`);
-  alert("🎉 Atendimento finalizado com sucesso!");
-  location.reload();
+  try {
+    const fotos = caixas.map(caixa => caixa.foto);
+    await registrarEventoTimeline('ETAPA 4: REPARO CONCLUÍDO / FINALIZADO', fotos, obsTexto, null, {
+      caixas: caixas.map((caixa, indice) => ({ numero: caixa.numero, gps: caixa.gps, indiceFoto: indice })), descricaoServico: obsTexto
+    });
+    localStorage.removeItem(`tech_active_doc_${usuarioUid}`);
+    await operarRascunho('readwrite', 'delete').catch(() => {});
+    alert('Atendimento concluído e entregue a Projetos.');
+    location.reload();
+  } catch (erro) {
+    alert('A finalização não foi enviada. Confira a conexão e tente novamente.');
+    btn.disabled = false;
+    btn.textContent = 'Finalizar Atendimento de Campo';
+  }
 };
 
 // 5. CONSULTA SAC / SUPORTE / NOC
@@ -1072,7 +1297,9 @@ window.abrirModalDetalhes = (item) => {
     document.getElementById('editarId').value = item.idIncidente || '';
     document.getElementById('editarOs').value = item.os || '';
     document.getElementById('editarCidades').value = item.cidades || '';
-    document.getElementById('editarEstado').value = item.estado || detectarEstado(item.cidades || '');
+    const seletorEstado = document.getElementById('editarEstado');
+    seletorEstado.replaceChildren(...estadosBrasil.map(uf => new Option(uf, uf)));
+    seletorEstado.value = item.estado || detectarEstado(item.cidades || '');
     document.getElementById('editarRede').value = item.tipoRede || 'GPON';
     document.getElementById('editarClientes').value = Number(item.clientesCount || 0);
     document.getElementById('editarOlt').value = item.olt || '';
@@ -1202,6 +1429,15 @@ window.fecharZoomFoto = () => {
 window.fecharModal = () => {
   document.getElementById('modalDetalhesIncidente').style.display = 'none';
 };
+document.getElementById('modalDetalhesIncidente')?.addEventListener('click', event => {
+  if (event.target === event.currentTarget) fecharModal();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    if (document.getElementById('lightboxOverlay')?.style.display === 'flex') fecharZoomFoto();
+    else fecharModal();
+  }
+});
 
 window.exportarRelatorioCSV = () => {
   const inicio = document.getElementById('relatorioInicio').value;
@@ -1281,7 +1517,7 @@ onAuthStateChanged(auth, async (usuario) => {
     usuarioSalvo = perfil.nome || usuario.email;
     perfilSalvo = perfil.perfil;
     estadoSalvo = perfil.estado;
-    if (badgeElem) badgeElem.textContent = nomeCurto(usuarioSalvo) || usuarioSalvo;
+    if (badgeElem) badgeElem.textContent = usuarioSalvo;
     configurarTelasPorPerfil();
     ouvirUmaVez('meuPerfil', doc(db, 'usuarios', usuarioUid), snapshot => {
       if (!snapshot.exists() || snapshot.data().ativo !== true

@@ -1,6 +1,11 @@
 name: Validar ou publicar regras do Firestore
 
 on:
+  pull_request:
+    paths:
+      - 'firestore.rules'
+      - 'firebase.json'
+      - '.github/workflows/publicar-regras.yml'
   workflow_dispatch:
     inputs:
       publicar:
