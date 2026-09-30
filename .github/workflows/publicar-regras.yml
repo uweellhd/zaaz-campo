@@ -1,9 +1,6 @@
 name: Validar ou publicar regras do Firestore
 
 on:
-  push:
-    branches:
-      - codex/perfis-v2
   workflow_dispatch:
     inputs:
       publicar:
