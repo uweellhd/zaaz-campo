@@ -338,6 +338,42 @@ input:focus, textarea:focus, select:focus {
 .account-form .btn-primary { width: auto; }
 .account-feedback { min-height: 20px; margin: 12px 0; font-size: 13px; font-weight: 600; color: var(--zaaz-blue); }
 .account-hint { color: var(--text-muted); font-size: 12px; line-height: 1.5; margin-top: 18px; }
+.registration-section[hidden] { display: none; }
+.login-switch { display: block; margin: 16px auto 0; background: transparent; border: 0; color: #1454BD; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: underline; }
+.registration-feedback { color: #175E49; font-size: 13px; line-height: 1.5; margin-top: 14px; }
+.pending-count { display: inline-block; min-width: 20px; padding: 2px 6px; border-radius: 20px; background: #DC4D5F; color: #fff; font-size: 11px; }
+.pending-count[hidden] { display: none; }
+.approval-list { display: grid; gap: 12px; }
+.approval-card { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 16px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--input-bg); }
+.approval-card strong { min-width: 180px; }
+.approval-card small { color: var(--text-muted); flex: 1 1 220px; overflow-wrap: anywhere; }
+.approval-card select { width: auto; min-width: 110px; }
+.approval-card .btn-primary { width: auto; }
+.assignment-box { border-top: 1px solid var(--border-color); margin-top: 28px; padding-top: 24px; }
+.assignment-search { display: flex; gap: 10px; max-width: 520px; margin: 12px 0 18px; }
+.assignment-search input { flex: 1; min-width: 0; }
+@media (max-width: 520px) { .assignment-search { flex-direction: column; } }
+.supervisor-kpis { margin: 24px 0; }
+.supervisor-card { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; color: var(--text-main); font: inherit; }
+.supervisor-card small { color: var(--text-muted); }
+.evidence-complete { color: #087F5B; font-weight: 700; font-size: 12px; }
+.evidence-pending { color: #B45309; font-weight: 700; font-size: 12px; }
+.report-filters { display: flex; flex-wrap: wrap; gap: 12px; padding: 16px; margin: -8px 0 18px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 12px; }
+.report-filters label { display: grid; gap: 5px; min-width: 120px; color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.report-filters input, .report-filters select { min-height: 40px; }
+.admin-edit[hidden] { display: none; }
+.admin-edit { display: grid; gap: 10px; padding: 16px 0; }
+.admin-edit label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; }
+.admin-edit textarea { min-height: 80px; }
+#viewSac .search-box { display: flex; gap: 10px; margin: 26px 0 10px; }
+#viewSac .search-box input { flex: 1; min-width: 0; }
+@media (max-width: 520px) {
+  #viewSac .search-box { flex-direction: column; }
+  #viewSac .search-box .btn-sec-sm { min-height: 44px; }
+}
+.search-hint { color: var(--text-muted); font-size: 12px; line-height: 1.5; margin-bottom: 18px; }
+.list-actions { display: flex; justify-content: center; padding: 22px 0 6px; }
+.list-actions .btn-sec-sm { padding: 12px 20px; }
 .incidente-card { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 18px; transition: all 0.2s ease; cursor: pointer; }
 .incidente-card:hover { border-color: var(--zaaz-blue); transform: translateY(-2px); }
 
