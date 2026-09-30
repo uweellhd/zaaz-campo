@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function profile() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+    function active() {
+      return signedIn() && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && profile().ativo == true;
+    }
+    function role() {
+      return profile().perfil;
+    }
+    function globalReader() {
+      return role() in ['admin', 'noc', 'gerente', 'diretor', 'sac', 'suporte'];
+    }
+    function inRegion(estado) {
+      return profile().estado in ['SP', 'MG', 'PR'] && profile().estado == estado;
+    }
+
+    match /usuarios/{uid} {
+      allow get: if (signedIn() && request.auth.uid == uid) || (active() && role() == 'admin');
+      allow list: if active() && role() == 'admin';
+      // Perfis são administrados somente no Console Firebase.
+      allow create, update, delete: if false;
+    }
+
+    match /incidentes/{incidentId} {
+      // Técnico consulta apenas a fila do próprio estado. A consulta Web usa where('estado', '==', estado).
+      allow read: if active() && (globalReader() || (role() == 'tecnico' && inRegion(resource.data.estado)));
+      allow create: if active() && role() in ['admin', 'noc']
+        && request.resource.data.estado in ['SP', 'MG', 'PR'];
+      allow delete: if active() && role() == 'admin';
+      allow update: if active() && (
+        role() == 'admin' || role() == 'noc' ||
+        (role() == 'tecnico' && inRegion(resource.data.estado)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'tecnicoAtribuido', 'tecnicoUid', 'statusAtual', 'timelineEtapas', 'previsao'
+          ])
+          && (
+            (resource.data.get('tecnicoUid', '') == '' && request.resource.data.tecnicoUid == request.auth.uid)
+            ||
+            (resource.data.get('tecnicoUid', '') == request.auth.uid
+              && request.resource.data.tecnicoUid in [request.auth.uid, ''])
+          )
+        )
+      );
+    }
+
+    match /fotos/{photoId} {
+      allow get: if active()
+        && resource.data.criadoEm > request.time - duration.value(15, 'd')
+        && (globalReader() || (role() == 'tecnico' && inRegion(resource.data.estado)));
+      allow list: if false;
+      allow create: if active() && role() in ['admin', 'tecnico']
+        && request.resource.data.keys().hasOnly(['incidenteId', 'estado', 'criadoPorUid', 'criadoEm', 'dadosBase64'])
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.criadoEm == request.time
+        && request.resource.data.dadosBase64 is string
+        && request.resource.data.dadosBase64.size() <= 700000
+        && exists(/databases/$(database)/documents/incidentes/$(request.resource.data.incidenteId))
+        && request.resource.data.estado == get(/databases/$(database)/documents/incidentes/$(request.resource.data.incidenteId)).data.estado
+        && (role() == 'admin' || (inRegion(request.resource.data.estado)
+          && get(/databases/$(database)/documents/incidentes/$(request.resource.data.incidenteId)).data.tecnicoUid == request.auth.uid));
+      // Somente a rotina agendada no servidor apaga fotos. O Admin SDK ignora estas regras.
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
