@@ -981,6 +981,7 @@ window.capturarGPSTecnico = (idInput) => {
 
 let numeroCaixa = 0;
 window.adicionarCaixaTecnico = () => {
+  if (numeroCaixa >= 12) { alert('Limite de 12 caixas por atendimento.'); return; }
   const numero = ++numeroCaixa;
   const caixa = document.createElement('div');
   caixa.className = 'field-card box-evidence';

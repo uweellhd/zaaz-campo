@@ -236,8 +236,8 @@
             <div class="form-group"><label for="techRisco">Condição de risco</label><select id="techRisco"><option value="NAO_INFORMADO">Não identificada</option><option value="COMUNIDADE">Comunidade / área de risco</option><option value="OUTRO">Outro risco</option></select></div>
             <div class="form-group"><label for="techTransferir">Transferir atendimento para outro técnico</label><select id="techTransferir"><option value="">Manter comigo</option></select><button type="button" class="btn-sec-sm" onclick="transferirAtendimentoTecnico()">Confirmar transferência</button></div>
             <div class="form-group">
-              <label>Foto da Partida / Deslocamento (Com Marca d'Água):</label>
-              <input type="file" id="tf1" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp1', 'fotoDeslocamento')">
+              <label>Print da tela de deslocamento (opcional):</label>
+              <input type="file" id="tf1" accept="image/*" onchange="processarFotoComMarcaDagua(this, 'tp1', 'fotoDeslocamento')">
               <img id="tp1" class="preview-img">
             </div>
             <button type="button" class="btn-primary" onclick="salvarEtapa1()">Avançar e Enviar Etapa 1</button>
