@@ -5,6 +5,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, updateDoc, runTransaction, query, where, startAfter, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut, verifyBeforeUpdateEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { avaliarFinalizacao } from '../lib/field-flow.mjs';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
@@ -721,16 +722,16 @@ function renderizarPainelGerenteFiltrado() {
     ? `${totalIncidentes} incidente${totalIncidentes === 1 ? '' : 's'} em andamento · ${totalGpon.toLocaleString('pt-BR')} cliente${totalGpon === 1 ? '' : 's'} GPON informado${totalGpon === 1 ? '' : 's'} · ${pendentes} registro${pendentes === 1 ? '' : 's'} sem evidência final completa.`
     : 'Nenhum incidente ativo no recorte selecionado. Consulte os registros abaixo para acompanhar o histórico.';
   document.getElementById('painelAtualizado').textContent = `Dados atualizados às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-  const siglas = [...new Set([...estadosContagem.keys(), ...todosIncidentesCache.map(item => item.estado).filter(Boolean)])].sort();
+  const siglas = [...new Set(['SP', 'MG', 'PR', ...estadosContagem.keys(), ...todosIncidentesCache.map(item => item.estado).filter(Boolean)])].sort();
   const grid = document.getElementById('stateGrid');
   grid.replaceChildren();
-  for (const estado of siglas) {
+  for (const estado of ['TODOS', ...siglas]) {
     const cartao = document.createElement('button');
     cartao.type = 'button';
     cartao.className = 'kpi-card state-card' + (estadoFiltroAtivo === estado ? ' active-filter' : '');
     cartao.dataset.estado = estado;
-    const nome = document.createElement('span'); nome.className = 'kpi-title'; nome.textContent = estado;
-    const total = document.createElement('strong'); total.className = 'kpi-value'; total.textContent = estadosContagem.get(estado) || 0;
+    const nome = document.createElement('span'); nome.className = 'kpi-title'; nome.textContent = estado === 'TODOS' ? 'Todos os estados' : estado;
+    const total = document.createElement('strong'); total.className = 'kpi-value'; total.textContent = estado === 'TODOS' ? [...estadosContagem.values()].reduce((soma, valor) => soma + valor, 0) : estadosContagem.get(estado) || 0;
     cartao.append(nome, total);
     cartao.onclick = () => filtrarPainelPorEstado(estado);
     grid.append(cartao);
@@ -765,7 +766,7 @@ function renderizarGraficosGerenciais(gpon, backbone, estadosContagem, superviso
     if (chartEstadosInstance) chartEstadosInstance.destroy();
     chartEstadosInstance = new Chart(ctxEst, {
       type: 'bar',
-      data: { labels: [...estadosContagem.keys()], datasets: [{ label: 'Incidentes ativos', data: [...estadosContagem.values()], backgroundColor: '#315DB9' }] },
+      data: { labels: ['SP', 'MG', 'PR', ...[...estadosContagem.keys()].filter(sigla => !['SP','MG','PR'].includes(sigla))], datasets: [{ label: 'Incidentes ativos', data: ['SP', 'MG', 'PR', ...[...estadosContagem.keys()].filter(sigla => !['SP','MG','PR'].includes(sigla))].map(sigla => estadosContagem.get(sigla) || 0), backgroundColor: '#315DB9' }] },
       options: { responsive: true, plugins: { legend: { display: false } } }
     });
   }
@@ -827,7 +828,7 @@ async function salvarRascunhoTecnico() {
     valores[elemento.id] = elemento.multiple ? [...elemento.selectedOptions].map(opcao => opcao.value) : elemento.value;
   });
   try {
-    await operarRascunho('readwrite', 'put', { valores, fotos: mapaFotosBase64, caixas: document.querySelectorAll('.box-evidence').length, salvoEm: Date.now() });
+    await operarRascunho('readwrite', 'put', { valores, fotos: mapaFotosBase64, caixas: [...document.querySelectorAll('.box-evidence')].map(elemento => Number(elemento.dataset.caixaId)), salvoEm: Date.now() });
     atualizarEstadoLocal(navigator.onLine ? 'Rascunho salvo neste aparelho. Envie a etapa para atualizar o sistema.' : 'Sem internet: rascunho salvo neste aparelho. Envie a etapa ao voltar a conexão.');
   } catch (erro) { atualizarEstadoLocal('Não foi possível guardar o rascunho. Libere espaço no aparelho antes de continuar.'); }
 }
@@ -842,7 +843,13 @@ async function restaurarRascunhoTecnico() {
   try {
     const rascunho = await operarRascunho('readonly', 'get');
     if (!rascunho) return;
-    while (document.querySelectorAll('.box-evidence').length < rascunho.caixas) adicionarCaixaTecnico();
+    if (Array.isArray(rascunho.caixas)) {
+      document.getElementById('caixasTecnico').replaceChildren();
+      numeroCaixa = 0;
+      for (const id of rascunho.caixas.slice(0, 12)) adicionarCaixaTecnico(id);
+    } else {
+      while (document.querySelectorAll('.box-evidence').length < rascunho.caixas) adicionarCaixaTecnico();
+    }
     mapaFotosBase64 = rascunho.fotos || {};
     for (const [id, valor] of Object.entries(rascunho.valores || {})) {
       const elemento = document.getElementById(id);
@@ -980,13 +987,32 @@ window.capturarGPSTecnico = (idInput) => {
 };
 
 let numeroCaixa = 0;
-window.adicionarCaixaTecnico = () => {
-  if (numeroCaixa >= 12) { alert('Limite de 12 caixas por atendimento.'); return; }
-  const numero = ++numeroCaixa;
+function atualizarControlesCaixas() {
+  const caixas = [...document.querySelectorAll('.box-evidence')];
+  caixas.forEach((caixa, indice) => {
+    caixa.querySelector('h5').textContent = `Caixa ${indice + 1}`;
+    caixa.querySelector('.remove-box').hidden = caixas.length <= 2;
+  });
+  const adicionar = document.getElementById('btnAdicionarCaixa');
+  if (adicionar) adicionar.hidden = caixas.length >= 12;
+}
+window.adicionarCaixaTecnico = (idExistente) => {
+  if (document.querySelectorAll('.box-evidence').length >= 12) { alert('Limite de 12 caixas por atendimento.'); return; }
+  const numero = Number.isInteger(idExistente) && idExistente > 0 ? idExistente : numeroCaixa + 1;
+  numeroCaixa = Math.max(numeroCaixa, numero);
   const caixa = document.createElement('div');
   caixa.className = 'field-card box-evidence';
-  caixa.innerHTML = `<h5>Caixa ${numero}</h5><label for="caixaGps${numero}">Localização GPS</label><input id="caixaGps${numero}" class="box-gps" readonly placeholder="Toque em capturar localização"><button type="button" class="btn-sec-sm" onclick="capturarGPSTecnico('caixaGps${numero}')">📍 Capturar localização</button><label for="caixaFoto${numero}">Foto da caixa acomodada</label><input id="caixaFoto${numero}" type="file" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'caixaPreview${numero}', 'caixaFoto${numero}')"><img id="caixaPreview${numero}" class="preview-img" alt="Prévia da caixa ${numero}">`;
+  caixa.dataset.caixaId = String(numero);
+  caixa.innerHTML = `<div class="box-heading"><h5>Caixa</h5><button type="button" class="remove-box" aria-label="Remover esta caixa">Remover</button></div><label for="caixaGps${numero}">Localização GPS</label><input id="caixaGps${numero}" class="box-gps" readonly placeholder="Ainda não capturada"><button type="button" class="btn-sec-sm btn-capture" onclick="capturarGPSTecnico('caixaGps${numero}')">📍 Capturar localização</button><label for="caixaFoto${numero}">Foto da caixa acomodada</label><input id="caixaFoto${numero}" type="file" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'caixaPreview${numero}', 'caixaFoto${numero}')"><img id="caixaPreview${numero}" class="preview-img" alt="Prévia da caixa">`;
+  caixa.querySelector('.remove-box').addEventListener('click', () => {
+    if (document.querySelectorAll('.box-evidence').length <= 2) return;
+    delete mapaFotosBase64[`caixaFoto${numero}`];
+    caixa.remove();
+    atualizarControlesCaixas();
+    salvarRascunhoTecnico();
+  });
   document.getElementById('caixasTecnico').append(caixa);
+  atualizarControlesCaixas();
 };
 
 window.voltarEtapaTecnica = () => {
@@ -1023,6 +1049,10 @@ function avancarEtapaVisual(novaEtapa) {
   currentStepTech = novaEtapa;
   document.getElementById(`step-${currentStepTech}`).classList.add('active');
   document.getElementById(`ind-${currentStepTech}`).classList.add('active');
+}
+function confirmarEnvioEtapa(numero) {
+  document.getElementById(`ind-${numero}`)?.classList.add('step-sent');
+  atualizarEstadoLocal(`Etapa ${numero} enviada ao vivo às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Os setores de acompanhamento já podem ver a atualização.`);
 }
 
 async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevisao = null, campos = {}) {
@@ -1090,24 +1120,28 @@ window.salvarEtapa1 = async () => {
       fotosEsperadas: 1, fotosPendentes: fotos.length ? 0 : 1
     });
     avancarEtapaVisual(2);
+    confirmarEnvioEtapa(1);
   } catch (erro) { alert('A etapa 1 não foi enviada. Confira a conexão e tente novamente.'); }
 };
 
 window.salvarEtapa2 = async () => {
   if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
   const previsaoVal = document.getElementById('techPrevisaoInput').value.trim();
+  const causa = document.getElementById('techCausaRompimento').value.trim();
   if (!previsaoVal) {
     alert("⚠️ Por favor, informe a Previsão Aproximada de Restauração!");
     return;
   }
+  if (!causa) { alert('Descreva a causa do rompimento. Se ainda não souber, escreva “Em apuração”.'); document.getElementById('techCausaRompimento').focus(); return; }
 
   const fotos = [];
   if (mapaFotosBase64['fotoChegada']) fotos.push(mapaFotosBase64['fotoChegada']);
   if (mapaFotosBase64['fotoRompimento']) fotos.push(mapaFotosBase64['fotoRompimento']);
 
   try {
-    await registrarEventoTimeline('ETAPA 2: NO LOCAL / ROMPIMENTO', fotos, `Técnico no local. Previsão: ${previsaoVal}`, previsaoVal, { fotosEsperadas: 2, fotosPendentes: 2 - fotos.length });
+    await registrarEventoTimeline('ETAPA 2: NO LOCAL / ROMPIMENTO', fotos, `Causa: ${causa}. Previsão: ${previsaoVal}`, previsaoVal, { causaRompimento: causa, fotosEsperadas: 2, fotosPendentes: 2 - fotos.length });
     avancarEtapaVisual(3);
+    confirmarEnvioEtapa(2);
   } catch (erro) { alert('A etapa 2 não foi enviada. Confira a conexão e tente novamente.'); }
 };
 
@@ -1120,19 +1154,28 @@ window.salvarEtapa3 = async () => {
   try {
     await registrarEventoTimeline('ETAPA 3: EXECUTANDO / FUSIONANDO', fotos, 'Técnico atuando e fusionando.', null, { fotosEsperadas: 2, fotosPendentes: 2 - fotos.length });
     avancarEtapaVisual(4);
+    confirmarEnvioEtapa(3);
   } catch (erro) { alert('A etapa 3 não foi enviada. Confira a conexão e tente novamente.'); }
 };
 
 window.salvarEtapa4Final = async () => {
   if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
+  const mensagem = document.getElementById('techEtapa4Erro');
+  mensagem.hidden = true;
+  document.querySelectorAll('.box-evidence').forEach(caixa => caixa.classList.remove('invalid-box'));
   const obsTexto = document.getElementById('tobs').value.trim();
   const caixas = [...document.querySelectorAll('.box-evidence')].map((elemento, indice) => {
     const gps = elemento.querySelector('.box-gps').value.trim();
     const chave = elemento.querySelector('input[type=file]').id;
     return { numero: indice + 1, gps, foto: mapaFotosBase64[chave], chave };
   });
-  if (!obsTexto || caixas.length < 2 || caixas.some(caixa => !/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(caixa.gps) || !caixa.foto)) {
-    alert("⚠️ Por favor, preencha todos os campos e anexos obrigatórios da Etapa 4!");
+  const avaliacao = avaliarFinalizacao(caixas, obsTexto);
+  if (!avaliacao.valido) {
+    const elemento = avaliacao.indice >= 0 ? document.getElementById(caixas[avaliacao.indice].chave).closest('.box-evidence') : document.getElementById('tobs');
+    if (avaliacao.indice >= 0) elemento.classList.add('invalid-box');
+    mensagem.textContent = avaliacao.mensagem;
+    mensagem.hidden = false;
+    elemento.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 
@@ -1150,7 +1193,10 @@ window.salvarEtapa4Final = async () => {
     alert('Atendimento concluído e entregue a Projetos.');
     location.reload();
   } catch (erro) {
-    alert('A finalização não foi enviada. Confira a conexão e tente novamente.');
+    console.error('Falha na etapa 4:', erro);
+    mensagem.textContent = `Não foi possível enviar a etapa 4 (${erro.code || 'falha de envio'}). O rascunho continua neste aparelho. Confira a conexão e tente novamente; se persistir, informe esse código ao administrador.`;
+    mensagem.hidden = false;
+    mensagem.scrollIntoView({ behavior: 'smooth', block: 'center' });
     btn.disabled = false;
     btn.textContent = 'Finalizar Atendimento de Campo';
   }

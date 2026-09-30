@@ -257,6 +257,10 @@
               <input type="file" id="tf3" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp3', 'fotoRompimento')">
               <img id="tp3" class="preview-img">
             </div>
+            <div class="form-group">
+              <label for="techCausaRompimento">O que causou o rompimento?</label>
+              <textarea id="techCausaRompimento" rows="3" maxlength="1000" placeholder="Ex.: veículo atingiu o cabo; queda de árvore; obra de terceiros. Se ainda não souber, informe 'Em apuração'." required></textarea>
+            </div>
 
             <div class="form-group" style="background:#E0F2FE; padding:14px; border-radius:12px; border:1px solid #7DD3FC;">
               <label style="color:#0369A1; font-weight:700;">⏱️ Previsão Aproximada de Restauração:</label>
@@ -293,32 +297,8 @@
             <h4>Etapa 4: Caixas instaladas e serviço executado</h4>
             <p class="panel-desc">Informe a foto e a localização de cada caixa. Duas caixas são exigidas; adicione outras se necessário.</p>
             <div id="caixasTecnico"></div>
-            <button type="button" class="btn-sec-sm" onclick="adicionarCaixaTecnico(); salvarRascunhoTecnico()">+ Adicionar caixa</button>
-            <div class="legacy-final-fields" hidden>
-            <div class="form-group">
-              <label>GPS Caixa 1:</label>
-              <input type="text" id="tgps1" placeholder="Coordenadas GPS Caixa 1" readonly required>
-              <button type="button" class="btn-sec" style="margin-top:6px;" onclick="capturarGPSTecnico('tgps1')">📍 Capturar GPS Caixa 1</button>
-            </div>
-            <div class="form-group">
-              <label>GPS Caixa 2:</label>
-              <input type="text" id="tgps2" placeholder="Coordenadas GPS Caixa 2" readonly required>
-              <button type="button" class="btn-sec" style="margin-top:6px;" onclick="capturarGPSTecnico('tgps2')">📍 Capturar GPS Caixa 2</button>
-            </div>
-
-            <div class="form-group">
-              <label>Foto das Acomodações das Caixas / Fusões:</label>
-              <input type="file" id="tf6" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp6', 'fotoAcomodacao')" required>
-              <img id="tp6" class="preview-img">
-            </div>
-
-            <div class="form-group">
-              <label>Foto do Local Limpo e Organizado:</label>
-              <input type="file" id="tf7" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp7', 'fotoLocalLimpo')" required>
-              <img id="tp7" class="preview-img">
-            </div>
-
-            </div>
+            <button type="button" id="btnAdicionarCaixa" class="btn-sec-sm btn-add-box" onclick="adicionarCaixaTecnico(); salvarRascunhoTecnico()">+ Adicionar outra caixa</button>
+            <p id="techEtapa4Erro" class="field-error" role="alert" hidden></p>
             <div class="form-group">
               <label for="tobs">Descrição do serviço realizado:</label>
               <textarea id="tobs" placeholder="Descreva detalhadamente a solução aplicada..." required></textarea>
