@@ -30,6 +30,8 @@
       <button id="btnTabSac" class="nav-btn" onclick="alternarAba('viewSac')">📞 SAC / Suporte</button>
       <button id="btnTabTech" class="nav-btn" onclick="alternarAba('viewTech')">👷 Técnico</button>
       <button id="btnTabConta" class="nav-btn" onclick="alternarAba('viewConta')" style="display:none">Minha conta</button>
+      <button id="btnTabAcessos" class="nav-btn" onclick="alternarAba('viewAcessos')" style="display:none">Acessos <span id="badgePendentes" class="pending-count" hidden>0</span></button>
+      <button id="btnTabSupervisor" class="nav-btn" onclick="alternarAba('viewSupervisor')" style="display:none">Supervisão</button>
     </nav>
 
     <!-- GRUPO DA DIREITA: RELÓGIO, TEMA, USUÁRIO E BOTÃO SAIR -->
@@ -55,6 +57,26 @@
 
   <main class="dashboard-container widescreen-container">
 
+    <section id="viewAcessos" class="view-panel" style="display:none;">
+      <h3 class="panel-title">Solicitações de acesso</h3>
+      <p class="panel-desc">Confirme a identidade da pessoa antes de aprovar. Você escolhe a função e a região; ninguém escolhe suas próprias permissões.</p>
+      <div id="listaSolicitacoes" class="approval-list"><p>Carregando solicitações...</p></div>
+      <div class="section-heading"><h4 class="section-subtitle">Equipe cadastrada</h4><span>Função, região e acesso podem ser revistos aqui</span></div>
+      <div id="listaEquipe" class="approval-list"><p>Carregando equipe...</p></div>
+    </section>
+
+    <section id="viewSupervisor" class="view-panel" style="display:none;">
+      <p class="section-eyebrow">ACOMPANHAMENTO DE EVIDÊNCIAS</p>
+      <h3 class="panel-title">IDs sob sua supervisão</h3>
+      <p class="panel-desc">Acompanhe as etapas do atendimento e as evidências exigidas na finalização.</p>
+      <div class="kpi-grid supervisor-kpis">
+        <div class="kpi-card"><span class="kpi-title">IDs vinculados</span><h2 id="supervisorTotal">0</h2></div>
+        <div class="kpi-card"><span class="kpi-title">Evidência final pendente</span><h2 id="supervisorPendente">0</h2></div>
+        <div class="kpi-card"><span class="kpi-title">Evidência final registrada</span><h2 id="supervisorCompleto">0</h2></div>
+      </div>
+      <div id="supervisorResultados" class="incidents-grid-list"></div>
+    </section>
+
     <section id="viewConta" class="view-panel" style="display:none;">
       <h3 class="panel-title">Meu acesso</h3>
       <p class="panel-desc">Atualize seu e-mail corporativo sem perder seu histórico ou suas permissões.</p>
@@ -78,6 +100,12 @@
           <p class="panel-desc">Indicadores de rede e acompanhamento dos incidentes em tempo real.</p>
         </div>
         <button class="btn-export" onclick="exportarRelatorioCSV()">Exportar relatório CSV <span aria-hidden="true">↗</span></button>
+      </div>
+      <div class="report-filters" aria-label="Filtros do relatório">
+        <label>De <input type="date" id="relatorioInicio"></label>
+        <label>Até <input type="date" id="relatorioFim"></label>
+        <label>Estado <select id="relatorioEstado"><option value="TODOS">Todos</option><option>SP</option><option>MG</option><option>PR</option></select></label>
+        <label>Supervisor <input type="search" id="relatorioSupervisor" placeholder="Nome ou sobrenome"></label>
       </div>
       
       <div class="kpi-grid executive-kpis">
@@ -125,7 +153,7 @@
           <canvas id="chartEstados"></canvas>
         </div>
         <div class="chart-card">
-          <h5>Etapas registradas por supervisor</h5>
+          <h5>Evidências finais por supervisor</h5>
           <canvas id="chartSupervisores"></canvas>
         </div>
       </div>
@@ -149,18 +177,30 @@
 
         <button type="submit" id="btnSalvarNoc" class="btn-primary">⚡ Processar e Publicar Comunicado</button>
       </form>
+      <div class="assignment-box">
+        <h4>Atribuir atendimento</h4>
+        <p class="panel-desc">Encontre um ID para escolher o técnico responsável. A atribuição controla o que aparece na conta dele.</p>
+        <form id="formBuscarAtribuicao" class="assignment-search">
+          <input id="buscaAtribuicao" placeholder="Digite o ID exato" aria-label="ID do chamado" required>
+          <button type="submit" class="btn-sec-sm">Encontrar ID</button>
+        </form>
+        <div id="resultadosAtribuicao" class="approval-list"></div>
+        <p class="search-hint">Você também pode vincular o supervisor ao ID encontrado; isso alimenta o painel de supervisão.</p>
+      </div>
     </section>
 
     <!-- 3. PAINEL DE CONSULTA (SAC / SUPORTE / NOC) -->
     <section id="viewSac" class="view-panel" style="display:none;">
-      <h3 class="panel-title">📞 Central de Consulta e Acompanhamento em Tempo Real</h3>
+      <h3 class="panel-title">📞 Central de Consulta e Acompanhamento</h3>
       <p class="panel-desc">Consulte a evolução dos chamados, previsões de restauração e fotos do técnico.</p>
       
       <div class="search-box">
-        <input type="text" id="inputBuscaSac" placeholder="Pesquisar por ID, Cidade, OS, OLT ou Descrição..." onkeyup="filtrarSac()">
+        <input type="search" id="inputBuscaSac" placeholder="Digite o ID ou a OS exata e pressione Enter" aria-label="Buscar por ID ou OS exata">
+        <button type="button" class="btn-sec-sm" onclick="filtrarSac()">Buscar</button>
       </div>
-
+      <p class="search-hint">A lista mostra 24 chamados por vez. A busca por ID ou OS consulta todos os registros, inclusive os que ainda não aparecem nesta página. Apague a busca e clique em Buscar para voltar à lista.</p>
       <div id="sacResultsList" class="incidents-grid-list"></div>
+      <div class="list-actions"><button type="button" id="btnMaisSac" class="btn-sec-sm" onclick="carregarMaisSac()">Carregar mais chamados</button></div>
     </section>
 
     <!-- 4. PAINEL EXCLUSIVO DO TÉCNICO DE CAMPO -->
@@ -174,7 +214,7 @@
 
       <div id="techFormArea" style="display:none;">
         <div class="tech-flow-header">
-          <button class="btn-sec-sm" onclick="liberarAtendimentoTecnico()">← Liberar Chamado para Outro Técnico</button>
+          <button class="btn-sec-sm" onclick="liberarAtendimentoTecnico()">← Voltar à lista</button>
           <span id="techActiveIdDisplay" class="active-incident-badge">Atendimento Ativo</span>
         </div>
 
@@ -291,6 +331,21 @@
       <div class="modal-body modal-grid-sidebar">
         <div class="modal-sidebar-nav">
           <div id="modalInfoBox" class="info-details-box"></div>
+          <form id="formAdminEdicao" class="admin-edit" hidden>
+            <h4>Corrigir informações do ID</h4>
+            <label>ID <input id="editarId" required></label>
+            <label>OS <input id="editarOs"></label>
+            <label>Cidades <input id="editarCidades"></label>
+            <label>Estado <select id="editarEstado"><option>SP</option><option>MG</option><option>PR</option></select></label>
+            <label>Rede <select id="editarRede"><option>GPON</option><option>BACKBONE</option></select></label>
+            <label>Clientes afetados <input type="number" min="0" id="editarClientes"></label>
+            <label>OLT <input id="editarOlt"></label>
+            <label>Status <input id="editarStatus" required></label>
+            <label>Previsão <input id="editarPrevisao"></label>
+            <label>Supervisor (nome no comunicado) <input id="editarResponsavel"></label>
+            <label>Descrição <textarea id="editarDescricao"></textarea></label>
+            <button type="submit" class="btn-sec-sm">Salvar correção</button>
+          </form>
           <h4 class="section-subtitle" style="margin-top:16px;">📌 Etapas da Timeline</h4>
           <div id="modalSidebarSteps" class="sidebar-steps-list"></div>
         </div>
