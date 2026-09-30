@@ -25,6 +25,7 @@ let usuarioSalvo = '';
 let estadoSalvo = '';
 let usuarioUid = '';
 const ouvintes = new Map();
+let saindo = false;
 const abasPermitidas = {
   admin: ['viewGerente', 'viewNoc', 'viewSac', 'viewTech'],
   gerente: ['viewGerente', 'viewSac'],
@@ -39,6 +40,7 @@ function ouvirUmaVez(chave, consulta, aoReceber) {
   if (ouvintes.has(chave)) return;
   const cancelar = onSnapshot(consulta, aoReceber, erro => {
     console.error(`Falha ao consultar ${chave}:`, erro);
+    if (saindo || !auth.currentUser) return;
     alert('Não foi possível consultar os registros. Confira seu perfil e as regras do Firestore.');
   });
   ouvintes.set(chave, cancelar);
@@ -823,8 +825,16 @@ window.exportarRelatorioCSV = () => {
 };
 
 window.sair = async () => {
-  await signOut(auth);
-  window.location.replace('index.html');
+  saindo = true;
+  for (const cancelar of ouvintes.values()) cancelar();
+  ouvintes.clear();
+  try {
+    await signOut(auth);
+    window.location.replace('index.html');
+  } catch (erro) {
+    saindo = false;
+    alert('Não foi possível sair. Tente novamente.');
+  }
 };
 
 onAuthStateChanged(auth, async (usuario) => {
