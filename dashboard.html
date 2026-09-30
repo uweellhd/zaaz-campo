@@ -36,7 +36,7 @@
 
     <!-- GRUPO DA DIREITA: RELÓGIO, TEMA, USUÁRIO E BOTÃO SAIR -->
     <div class="nav-right-group">
-      <div class="clock-box-inline">
+      <div class="clock-box-inline" aria-label="Data e hora locais">
         <span id="realtimeClock">00:00:00</span>
         <span id="realtimeDate" class="clock-date">--/--/----</span>
       </div>
@@ -68,7 +68,8 @@
     <section id="viewSupervisor" class="view-panel" style="display:none;">
       <p class="section-eyebrow">ACOMPANHAMENTO DE EVIDÊNCIAS</p>
       <h3 class="panel-title">IDs sob sua supervisão</h3>
-      <p class="panel-desc">Acompanhe as etapas do atendimento e as evidências exigidas na finalização.</p>
+      <p class="panel-desc" id="supervisorDescricao">Acompanhe as etapas do atendimento e as evidências exigidas na finalização.</p>
+      <p id="supervisorAviso" class="supervisor-notice" hidden></p>
       <div class="kpi-grid supervisor-kpis">
         <div class="kpi-card"><span class="kpi-title">IDs vinculados</span><h2 id="supervisorTotal">0</h2></div>
         <div class="kpi-card"><span class="kpi-title">Evidência final pendente</span><h2 id="supervisorPendente">0</h2></div>
@@ -95,70 +96,62 @@
     <section id="viewGerente" class="view-panel" style="display:none;">
       <div class="executive-hero">
         <div>
-          <p class="section-eyebrow"><span class="live-dot"></span> VISÃO DA OPERAÇÃO</p>
-          <h3 class="panel-title">Painel executivo</h3>
-          <p class="panel-desc">Indicadores de rede e acompanhamento dos incidentes em tempo real.</p>
+          <p class="section-eyebrow"><span class="live-dot"></span> NEXTFLOW · INTELIGÊNCIA OPERACIONAL</p>
+          <h3 class="panel-title">Visão executiva da rede</h3>
+          <p class="panel-desc">Situação dos incidentes, impacto nos clientes e evidências das equipes em um só lugar.</p>
         </div>
-        <button class="btn-export" onclick="exportarRelatorioCSV()">Exportar relatório CSV <span aria-hidden="true">↗</span></button>
+        <div class="hero-meta"><span id="painelAtualizado">Aguardando dados</span><span id="painelEscopo">Todos os estados</span></div>
       </div>
-      <div class="report-filters" aria-label="Filtros do relatório">
-        <label>De <input type="date" id="relatorioInicio"></label>
-        <label>Até <input type="date" id="relatorioFim"></label>
-        <label>Estado <select id="relatorioEstado"><option value="TODOS">Todos</option><option>SP</option><option>MG</option><option>PR</option></select></label>
-        <label>Supervisor <input type="search" id="relatorioSupervisor" placeholder="Nome ou sobrenome"></label>
+      <div class="executive-section-label"><span>01 / RESUMO</span><strong>O que precisa de atenção agora</strong></div>
+      <div class="executive-summary" aria-live="polite">
+        <p id="resumoExecutivo">Carregando os indicadores da operação...</p>
       </div>
-      
       <div class="kpi-grid executive-kpis">
-        <div class="kpi-card kpi-card-primary" onclick="filtrarPainelPorEstado('TODOS')" style="cursor:pointer;">
+        <div class="kpi-card kpi-card-primary" onclick="filtrarPainelPorEstado('TODOS')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarPainelPorEstado('TODOS')}">
           <span class="kpi-title">Incidentes ativos</span>
           <h2 id="kpiTotalIncidentes" class="kpi-value">0</h2>
-          <span class="kpi-foot">Visão geral da operação</span>
+          <span class="kpi-foot">Chamados em andamento</span>
         </div>
         <div class="kpi-card">
           <span class="kpi-title">Clientes afetados · GPON</span>
           <h2 id="kpiTotalGpon" class="kpi-value alert-text">0</h2>
-          <span class="kpi-foot">Impacto dos chamados ativos</span>
+          <span class="kpi-foot">Soma informada nos chamados ativos</span>
         </div>
         <div class="kpi-card">
           <span class="kpi-title">Paradas de backbone</span>
           <h2 id="kpiTotalBackbone" class="kpi-value warning-text">0</h2>
           <span class="kpi-foot">Ocorrências em andamento</span>
         </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Evidências finais pendentes</span>
+          <h2 id="kpiEvidenciasPendentes" class="kpi-value evidence-text">0</h2>
+          <span class="kpi-foot">IDs ativos sem registro completo</span>
+        </div>
       </div>
 
-      <div class="section-heading"><h4 class="section-subtitle">Operação por estado</h4><span>Selecione uma região para filtrar a lista</span></div>
+      <div class="executive-section-label"><span>02 / REGIÕES</span><strong>Distribuição dos chamados ativos</strong></div>
+      <div class="section-heading"><h4 class="section-subtitle">Operação por estado</h4><span>Selecione uma região para filtrar os chamados abaixo</span></div>
       <div class="kpi-grid state-grid">
-        <div class="kpi-card state-card" id="cardSp" onclick="filtrarPainelPorEstado('SP')">
-          <span class="kpi-title">São Paulo (SP)</span>
-          <h3 id="kpiSpCount" class="state-value">0</h3>
-        </div>
-        <div class="kpi-card state-card" id="cardMg" onclick="filtrarPainelPorEstado('MG')">
-          <span class="kpi-title">Minas Gerais (MG)</span>
-          <h3 id="kpiMgCount" class="state-value">0</h3>
-        </div>
-        <div class="kpi-card state-card" id="cardPr" onclick="filtrarPainelPorEstado('PR')">
-          <span class="kpi-title">Paraná (PR)</span>
-          <h3 id="kpiPrCount" class="state-value">0</h3>
-        </div>
+        <div class="kpi-card state-card" id="cardSp" onclick="filtrarPainelPorEstado('SP')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarPainelPorEstado('SP')}"><span class="kpi-title">São Paulo (SP)</span><h3 id="kpiSpCount" class="state-value">0</h3></div>
+        <div class="kpi-card state-card" id="cardMg" onclick="filtrarPainelPorEstado('MG')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarPainelPorEstado('MG')}"><span class="kpi-title">Minas Gerais (MG)</span><h3 id="kpiMgCount" class="state-value">0</h3></div>
+        <div class="kpi-card state-card" id="cardPr" onclick="filtrarPainelPorEstado('PR')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarPainelPorEstado('PR')}"><span class="kpi-title">Paraná (PR)</span><h3 id="kpiPrCount" class="state-value">0</h3></div>
       </div>
 
-      <div class="section-heading"><h4 class="section-subtitle">Análise da rede</h4><span>Distribuição e andamento dos atendimentos</span></div>
+      <div class="executive-section-label"><span>03 / ANÁLISE</span><strong>Composição e acompanhamento</strong></div>
       <div class="charts-grid-three">
-        <div class="chart-card">
-          <h5>Rede GPON vs Backbone</h5>
-          <canvas id="chartTipoIncidente"></canvas>
-        </div>
-        <div class="chart-card">
-          <h5>Incidentes por Estado</h5>
-          <canvas id="chartEstados"></canvas>
-        </div>
-        <div class="chart-card">
-          <h5>Evidências finais por supervisor</h5>
-          <canvas id="chartSupervisores"></canvas>
-        </div>
+        <div class="chart-card"><h5>Incidentes ativos por rede</h5><canvas id="chartTipoIncidente"></canvas></div>
+        <div class="chart-card"><h5>Incidentes ativos por estado</h5><canvas id="chartEstados"></canvas></div>
+        <div class="chart-card"><h5>Evidências por supervisor</h5><canvas id="chartSupervisores"></canvas></div>
       </div>
 
-      <div class="section-heading"><h4 class="section-subtitle" id="tituloListaConsolidada">Chamados da operação</h4><span>Toque em um chamado para ver o histórico</span></div>
+      <div class="executive-section-label"><span>04 / DETALHES</span><strong>Chamados e relatório para reunião</strong></div>
+      <div class="report-toolbar"><div><h4 class="section-subtitle" id="tituloListaConsolidada">Chamados da operação</h4><p>Selecione um chamado para consultar o histórico.</p></div><button class="btn-export" onclick="exportarRelatorioCSV()">Exportar CSV <span aria-hidden="true">↗</span></button></div>
+      <div class="report-filters" aria-label="Filtros do relatório">
+        <label>De <input type="date" id="relatorioInicio"></label>
+        <label>Até <input type="date" id="relatorioFim"></label>
+        <label>Estado <select id="relatorioEstado"><option value="TODOS">Todos</option><option>SP</option><option>MG</option><option>PR</option></select></label>
+        <label>Supervisor <input type="search" id="relatorioSupervisor" placeholder="Nome ou sobrenome"></label>
+      </div>
       <div id="gerenteIncidentesList" class="incidents-grid-list"></div>
     </section>
 
