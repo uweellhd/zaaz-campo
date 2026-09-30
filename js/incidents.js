@@ -3,7 +3,7 @@
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, updateDoc, runTransaction, query, where, orderBy, documentId, startAfter, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, updateDoc, runTransaction, query, where, startAfter, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut, verifyBeforeUpdateEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -27,7 +27,7 @@ let usuarioUid = '';
 const ouvintes = new Map();
 let saindo = false;
 const abasPermitidas = {
-  admin: ['viewGerente', 'viewNoc', 'viewSac', 'viewTech', 'viewConta', 'viewAcessos'],
+  admin: ['viewGerente', 'viewNoc', 'viewSac', 'viewTech', 'viewSupervisor', 'viewConta', 'viewAcessos'],
   gerente: ['viewGerente', 'viewSac'],
   diretor: ['viewGerente', 'viewSac'],
   noc: ['viewNoc', 'viewSac'],
@@ -219,18 +219,22 @@ function evidenciaFinalRegistrada(incidente) {
 }
 
 function carregarSupervisor() {
+  const descricao = document.getElementById('supervisorDescricao');
+  if (descricao && perfilSalvo === 'admin') descricao.textContent = 'Visão administrativa dos IDs. Para liberar a visão individual do supervisor, vincule o UID dele ao chamado na aba NOC.';
   const consulta = perfilSalvo === 'admin' ? collection(db, 'incidentes')
     : query(collection(db, 'incidentes'), where('supervisorUid', '==', usuarioUid));
   ouvirUmaVez('supervisor', consulta, snapshot => {
     const container = document.getElementById('supervisorResultados');
     container.replaceChildren();
-    let total = 0, completos = 0;
+    let total = 0, completos = 0, semVinculo = 0;
     snapshot.forEach(documento => {
       const item = documento.data();
       if (perfilSalvo !== 'admin' && item.supervisorUid !== usuarioUid) return;
-      total++;
+      const vinculado = Boolean(item.supervisorUid);
+      if (vinculado) total++;
+      else semVinculo++;
       const ok = evidenciaFinalRegistrada(item);
-      if (ok) completos++;
+      if (ok && vinculado) completos++;
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'incidente-card supervisor-card';
@@ -240,7 +244,7 @@ function carregarSupervisor() {
       detalhes.textContent = `${item.cidades || ''} · ${item.statusAtual || ''} · Técnico: ${nomeCurto(item.tecnicoAtribuido) || 'Não atribuído'}`;
       const situacao = document.createElement('span');
       situacao.className = ok ? 'evidence-complete' : 'evidence-pending';
-      situacao.textContent = ok ? 'Evidência final registrada' : 'Evidência final pendente';
+      situacao.textContent = !vinculado && perfilSalvo === 'admin' ? 'Supervisor ainda não vinculado' : ok ? 'Evidência final registrada' : 'Evidência final pendente';
       card.append(titulo, detalhes, situacao);
       card.addEventListener('click', () => abrirModalDetalhes({ ...item, docId: documento.id }));
       container.append(card);
@@ -248,7 +252,14 @@ function carregarSupervisor() {
     document.getElementById('supervisorTotal').textContent = String(total);
     document.getElementById('supervisorPendente').textContent = String(total - completos);
     document.getElementById('supervisorCompleto').textContent = String(completos);
-    if (!total) container.textContent = 'Nenhum ID vinculado. Peça ao NOC ou admin para vincular seus IDs antigos.';
+    const aviso = document.getElementById('supervisorAviso');
+    if (aviso) {
+      aviso.hidden = perfilSalvo !== 'admin' || semVinculo === 0;
+      aviso.textContent = `${semVinculo} ID${semVinculo === 1 ? '' : 's'} sem supervisor vinculado. Use NOC → Atribuir atendimento para associar os registros antigos ao UID correto.`;
+    }
+    if (!snapshot.size) container.textContent = perfilSalvo === 'admin'
+      ? 'Nenhum ID encontrado. Confira os dados do Firestore.'
+      : 'Ainda não há IDs vinculados ao seu usuário. O NOC ou administrador pode vincular os IDs antigos na aba NOC.';
   });
 }
 
@@ -574,14 +585,16 @@ window.filtrarPainelPorEstado = (estado) => {
 
   const tituloList = document.getElementById('tituloListaConsolidada');
   if (tituloList) {
-    tituloList.textContent = estado === "TODOS" ? "📋 Visão Geral Consolidada (Todos os Estados)" : `📋 Visão Geral Consolidada (Estado: ${estado})`;
+    tituloList.textContent = estado === "TODOS" ? "Chamados da operação" : `Chamados em ${estado}`;
   }
+  const escopo = document.getElementById('painelEscopo');
+  if (escopo) escopo.textContent = estado === 'TODOS' ? 'Todos os estados' : `Estado: ${estado}`;
 
   renderizarPainelGerenteFiltrado();
 };
 
 function renderizarPainelGerenteFiltrado() {
-  let totalIncidentes = 0, totalGpon = 0, totalBackbone = 0;
+  let totalIncidentes = 0, totalGpon = 0, totalBackbone = 0, pendentes = 0;
   let spCount = 0, mgCount = 0, prCount = 0;
   let supervisoresMap = {};
 
@@ -598,13 +611,14 @@ function renderizarPainelGerenteFiltrado() {
       if (est === "PR") prCount++;
     }
 
-    const resp = item.responsavel || "SUPERVISOR GERAL";
-    if (!supervisoresMap[resp]) supervisoresMap[resp] = { total: 0, compliance: 0 };
-    supervisoresMap[resp].total++;
-    if (evidenciaFinalRegistrada(item)) supervisoresMap[resp].compliance++;
-
-    if (estadoFiltroAtivo === "TODOS") return true;
-    return est === estadoFiltroAtivo;
+    if (estadoFiltroAtivo !== 'TODOS' && est !== estadoFiltroAtivo) return false;
+    if (!encerrado) {
+      const resp = nomeCurto(item.responsavel) || 'Sem supervisor';
+      if (!supervisoresMap[resp]) supervisoresMap[resp] = { total: 0, compliance: 0 };
+      supervisoresMap[resp].total++;
+      if (evidenciaFinalRegistrada(item)) supervisoresMap[resp].compliance++;
+    }
+    return true;
   });
 
     filtrados.forEach(item => {
@@ -613,6 +627,7 @@ function renderizarPainelGerenteFiltrado() {
       totalIncidentes++;
       if (item.tipoRede === "BACKBONE") totalBackbone++;
       else totalGpon += Number(item.clientesCount || 0);
+      if (!evidenciaFinalRegistrada(item)) pendentes++;
     }
 
     const est = item.estado || "SP";
@@ -636,6 +651,11 @@ function renderizarPainelGerenteFiltrado() {
   document.getElementById('kpiTotalIncidentes').textContent = totalIncidentes;
   document.getElementById('kpiTotalGpon').textContent = totalGpon;
   document.getElementById('kpiTotalBackbone').textContent = totalBackbone;
+  document.getElementById('kpiEvidenciasPendentes').textContent = pendentes;
+  document.getElementById('resumoExecutivo').textContent = totalIncidentes
+    ? `${totalIncidentes} incidente${totalIncidentes === 1 ? '' : 's'} em andamento · ${totalGpon.toLocaleString('pt-BR')} cliente${totalGpon === 1 ? '' : 's'} GPON informado${totalGpon === 1 ? '' : 's'} · ${pendentes} registro${pendentes === 1 ? '' : 's'} sem evidência final completa.`
+    : 'Nenhum incidente ativo no recorte selecionado. Consulte os registros abaixo para acompanhar o histórico.';
+  document.getElementById('painelAtualizado').textContent = `Dados atualizados às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
   document.getElementById('kpiSpCount').textContent = spCount;
   document.getElementById('kpiMgCount').textContent = mgCount;
   document.getElementById('kpiPrCount').textContent = prCount;
@@ -656,7 +676,7 @@ function renderizarGraficosGerenciais(gpon, backbone, sp, mg, pr, supervisoresMa
     if (chartTipoInstance) chartTipoInstance.destroy();
     chartTipoInstance = new Chart(ctxTipo, {
       type: 'doughnut',
-      data: { labels: ['Incidentes GPON', 'Incidentes Backbone'], datasets: [{ data: [gpon, backbone], backgroundColor: ['#EF4444', '#FF9900'] }] },
+      data: { labels: ['GPON', 'Backbone'], datasets: [{ data: [gpon, backbone], backgroundColor: ['#315DB9', '#D89434'] }] },
       options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
     });
   }
@@ -665,27 +685,28 @@ function renderizarGraficosGerenciais(gpon, backbone, sp, mg, pr, supervisoresMa
     if (chartEstadosInstance) chartEstadosInstance.destroy();
     chartEstadosInstance = new Chart(ctxEst, {
       type: 'bar',
-      data: { labels: ['SP', 'MG', 'PR'], datasets: [{ label: 'Incidentes', data: [sp, mg, pr], backgroundColor: '#0052CC' }] },
+      data: { labels: ['SP', 'MG', 'PR'], datasets: [{ label: 'Incidentes ativos', data: [sp, mg, pr], backgroundColor: ['#315DB9', '#7659BF', '#55A6BD'] }] },
       options: { responsive: true, plugins: { legend: { display: false } } }
     });
   }
 
   if (ctxSup) {
     if (chartSupervisoresInstance) chartSupervisoresInstance.destroy();
-    const supNomes = Object.keys(supervisoresMap);
-    const supTotals = supNomes.map(k => supervisoresMap[k].total);
-    const supCompls = supNomes.map(k => supervisoresMap[k].compliance);
+    const principais = Object.entries(supervisoresMap).sort((a, b) => b[1].total - a[1].total).slice(0, 6);
+    const supNomes = principais.map(([nome]) => nome);
+    const supTotals = principais.map(([, dados]) => dados.total);
+    const supCompls = principais.map(([, dados]) => dados.compliance);
 
     chartSupervisoresInstance = new Chart(ctxSup, {
       type: 'bar',
       data: {
         labels: supNomes,
         datasets: [
-          { label: 'Total Incidentes', data: supTotals, backgroundColor: '#94A3B8' },
-          { label: 'Com evidência final', data: supCompls, backgroundColor: '#10B981' }
+          { label: 'Ativos', data: supTotals, backgroundColor: '#AAB9D6' },
+          { label: 'Evidência final', data: supCompls, backgroundColor: '#4D86B7' }
         ]
       },
-      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      options: { responsive: true, indexAxis: 'y', plugins: { legend: { position: 'bottom' } } }
     });
   }
 }
@@ -937,7 +958,7 @@ window.carregarMaisSac = async () => {
   atualizarBotaoSac(true);
   const geracao = geracaoSac;
   try {
-    const partes = [collection(db, 'incidentes'), orderBy(documentId(), 'desc')];
+    const partes = [collection(db, 'incidentes')];
     if (ultimoSac) partes.push(startAfter(ultimoSac));
     partes.push(limit(TAMANHO_PAGINA_SAC));
     const pagina = await getDocs(query(...partes));
@@ -951,7 +972,10 @@ window.carregarMaisSac = async () => {
     renderizarListaSac(listaIncidentesSac);
     atualizarBotaoSac(pagina.size === TAMANHO_PAGINA_SAC);
   } catch (erro) {
-    if (!saindo) alert('Não foi possível carregar os chamados. Tente novamente.');
+    console.error('Falha na consulta paginada do SAC:', erro);
+    const lista = document.getElementById('sacResultsList');
+    if (!saindo && lista) lista.innerHTML = `<p class="empty-state" role="alert">Não foi possível carregar a lista (${escaparHtml(erro.code || 'erro desconhecido')}). Tente buscar um ID ou OS exata. Se persistir, informe esse código ao administrador.</p>`;
+    atualizarBotaoSac(false);
   } finally {
     carregandoSac = false;
     const botao = document.getElementById('btnMaisSac');
@@ -1257,7 +1281,7 @@ onAuthStateChanged(auth, async (usuario) => {
     usuarioSalvo = perfil.nome || usuario.email;
     perfilSalvo = perfil.perfil;
     estadoSalvo = perfil.estado;
-    if (badgeElem) badgeElem.textContent = `${perfilSalvo === 'supervisor' ? nomeCurto(usuarioSalvo) : usuarioSalvo} (${perfilSalvo.toUpperCase()} - ${estadoSalvo})`;
+    if (badgeElem) badgeElem.textContent = nomeCurto(usuarioSalvo) || usuarioSalvo;
     configurarTelasPorPerfil();
     ouvirUmaVez('meuPerfil', doc(db, 'usuarios', usuarioUid), snapshot => {
       if (!snapshot.exists() || snapshot.data().ativo !== true
