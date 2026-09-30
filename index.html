@@ -26,7 +26,7 @@
       <div id="loginSection">
         <p class="card-eyebrow">ACESSO CORPORATIVO</p>
         <h2 id="loginTitle">Entre na sua área</h2>
-        <p class="login-helper">Use a conta cadastrada pelo administrador.</p>
+        <p class="login-helper">Acesse com seu e-mail corporativo. Novas contas precisam de aprovação.</p>
         <form id="loginForm">
           <div class="form-group">
             <label for="usuario">E-mail corporativo</label>
@@ -42,6 +42,20 @@
           <button type="submit" id="btnLogin" class="btn-primary">Entrar no sistema</button>
           <p id="errorMsg" class="error-box" role="alert" aria-live="polite">Não foi possível entrar.</p>
         </form>
+        <button type="button" id="abrirCadastro" class="login-switch">Primeiro acesso? Solicite sua conta</button>
+      </div>
+      <div id="cadastroSection" class="registration-section" hidden>
+        <p class="card-eyebrow">ACESSO CORPORATIVO</p>
+        <h2>Solicitar acesso</h2>
+        <p class="login-helper">Confirme seu e-mail ZAAZ. Depois, o administrador escolherá sua função e região.</p>
+        <form id="cadastroForm">
+          <div class="form-group"><label for="cadastroNome">Nome completo</label><input id="cadastroNome" autocomplete="name" maxlength="120" required></div>
+          <div class="form-group"><label for="cadastroEmail">E-mail corporativo</label><input type="email" id="cadastroEmail" placeholder="nome@zaaztelecom.com.br" autocomplete="email" required></div>
+          <div class="form-group"><label for="cadastroSenha">Crie uma senha</label><input type="password" id="cadastroSenha" autocomplete="new-password" minlength="12" required></div>
+          <button type="submit" id="btnCadastro" class="btn-primary">Criar conta e confirmar e-mail</button>
+          <p id="cadastroAviso" class="registration-feedback" role="status" aria-live="polite"></p>
+        </form>
+        <button type="button" id="voltarLogin" class="login-switch">Já tenho uma conta</button>
       </div>
       <div id="welcomeSection" class="welcome-card" aria-live="polite">
         <h2 id="saudacaoTexto">Bem-vindo</h2>
