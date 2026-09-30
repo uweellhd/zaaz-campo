@@ -3,7 +3,7 @@
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, updateDoc, runTransaction, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, updateDoc, runTransaction, query, where, orderBy, documentId, startAfter, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -638,21 +638,58 @@ window.salvarEtapa4Final = async () => {
 };
 
 // 5. CONSULTA SAC / SUPORTE / NOC
+// Nunca baixe a coleção inteira para montar a lista: cada página consulta até 24 documentos.
 let listaIncidentesSac = [];
+let ultimoSac = null;
+let modoBuscaSac = false;
+let carregandoSac = false;
+let geracaoSac = 0;
+const TAMANHO_PAGINA_SAC = 24;
+
+function atualizarBotaoSac(visivel) {
+  const botao = document.getElementById('btnMaisSac');
+  if (botao) {
+    botao.style.display = visivel ? 'inline-block' : 'none';
+    botao.disabled = carregandoSac;
+  }
+}
 
 function carregarIncidentesSac() {
-  ouvirUmaVez('sac', collection(db, "incidentes"), (snapshot) => {
-    listaIncidentesSac = [];
-    snapshot.forEach(docSnap => {
-      if (verificarEExcluirExpirados(docSnap)) return;
-
-      const data = docSnap.data();
-      data.docId = docSnap.id;
-      listaIncidentesSac.push(data);
-    });
-    renderizarListaSac(listaIncidentesSac);
-  });
+  // A área pode ser reaberta sem repetir a primeira consulta.
+  if (listaIncidentesSac.length || ultimoSac || carregandoSac || modoBuscaSac) return;
+  window.carregarMaisSac();
 }
+
+window.carregarMaisSac = async () => {
+  if (carregandoSac || modoBuscaSac || !auth.currentUser) return;
+  carregandoSac = true;
+  atualizarBotaoSac(true);
+  const geracao = geracaoSac;
+  try {
+    const partes = [collection(db, 'incidentes'), orderBy(documentId(), 'desc')];
+    if (ultimoSac) partes.push(startAfter(ultimoSac));
+    partes.push(limit(TAMANHO_PAGINA_SAC));
+    const pagina = await getDocs(query(...partes));
+    if (geracao !== geracaoSac || saindo) return;
+    ultimoSac = pagina.docs.at(-1) || ultimoSac;
+    for (const documento of pagina.docs) {
+      const item = documento.data();
+      item.docId = documento.id;
+      listaIncidentesSac.push(item);
+    }
+    renderizarListaSac(listaIncidentesSac);
+    atualizarBotaoSac(pagina.size === TAMANHO_PAGINA_SAC);
+  } catch (erro) {
+    if (!saindo) alert('Não foi possível carregar os chamados. Tente novamente.');
+  } finally {
+    carregandoSac = false;
+    const botao = document.getElementById('btnMaisSac');
+    if (botao) botao.disabled = false;
+    if (geracao !== geracaoSac && !modoBuscaSac && !listaIncidentesSac.length && !saindo) {
+      window.carregarMaisSac();
+    }
+  }
+};
 
 function renderizarListaSac(lista) {
   const container = document.getElementById('sacResultsList');
@@ -678,19 +715,40 @@ function renderizarListaSac(lista) {
   });
 }
 
-window.filtrarSac = () => {
+window.filtrarSac = async () => {
   const inputElem = document.getElementById('inputBuscaSac');
   if (!inputElem) return;
-
-  const termo = inputElem.value.toLowerCase().trim();
-  const filtrados = listaIncidentesSac.filter(item => 
-    (item.idIncidente && item.idIncidente.toLowerCase().includes(termo)) ||
-    (item.os && item.os.toLowerCase().includes(termo)) ||
-    (item.cidades && item.cidades.toLowerCase().includes(termo)) ||
-    (item.descricao && item.descricao.toLowerCase().includes(termo))
-  );
-  renderizarListaSac(filtrados);
+  const termo = inputElem.value.trim();
+  geracaoSac++;
+  if (!termo) {
+    modoBuscaSac = false;
+    listaIncidentesSac = [];
+    ultimoSac = null;
+    carregarIncidentesSac();
+    return;
+  }
+  modoBuscaSac = true;
+  atualizarBotaoSac(false);
+  const geracao = geracaoSac;
+  try {
+    const [porId, porOs] = await Promise.all([
+      getDocs(query(collection(db, 'incidentes'), where('idIncidente', '==', termo), limit(24))),
+      getDocs(query(collection(db, 'incidentes'), where('os', '==', termo), limit(24)))
+    ]);
+    if (geracao !== geracaoSac || saindo) return;
+    const encontrados = new Map();
+    for (const documento of [...porId.docs, ...porOs.docs]) {
+      encontrados.set(documento.id, { ...documento.data(), docId: documento.id });
+    }
+    renderizarListaSac([...encontrados.values()]);
+  } catch (erro) {
+    if (!saindo) alert('Não foi possível pesquisar agora. Tente novamente.');
+  }
 };
+
+document.getElementById('inputBuscaSac')?.addEventListener('keydown', event => {
+  if (event.key === 'Enter') { event.preventDefault(); window.filtrarSac(); }
+});
 
 function dataLegadaDentroDoPrazo(dataHora) {
   const partes = String(dataHora || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2})/);
