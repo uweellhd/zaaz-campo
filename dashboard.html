@@ -138,14 +138,16 @@
 
     <!-- 3. PAINEL DE CONSULTA (SAC / SUPORTE / NOC) -->
     <section id="viewSac" class="view-panel" style="display:none;">
-      <h3 class="panel-title">📞 Central de Consulta e Acompanhamento em Tempo Real</h3>
+      <h3 class="panel-title">📞 Central de Consulta e Acompanhamento</h3>
       <p class="panel-desc">Consulte a evolução dos chamados, previsões de restauração e fotos do técnico.</p>
       
       <div class="search-box">
-        <input type="text" id="inputBuscaSac" placeholder="Pesquisar por ID, Cidade, OS, OLT ou Descrição..." onkeyup="filtrarSac()">
+        <input type="search" id="inputBuscaSac" placeholder="Digite o ID ou a OS exata e pressione Enter" aria-label="Buscar por ID ou OS exata">
+        <button type="button" class="btn-sec-sm" onclick="filtrarSac()">Buscar</button>
       </div>
-
+      <p class="search-hint">A lista mostra 24 chamados por vez. A busca por ID ou OS consulta todos os registros, inclusive os que ainda não aparecem nesta página. Apague a busca e clique em Buscar para voltar à lista.</p>
       <div id="sacResultsList" class="incidents-grid-list"></div>
+      <div class="list-actions"><button type="button" id="btnMaisSac" class="btn-sec-sm" onclick="carregarMaisSac()">Carregar mais chamados</button></div>
     </section>
 
     <!-- 4. PAINEL EXCLUSIVO DO TÉCNICO DE CAMPO -->
