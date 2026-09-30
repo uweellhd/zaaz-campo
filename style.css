@@ -334,6 +334,15 @@ input:focus, textarea:focus, select:focus {
 .preview-img { width: 100%; max-height: 180px; object-fit: cover; border-radius: 10px; margin-top: 8px; display: none; border: 1px solid var(--border-color); }
 
 .incidents-grid-list { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+#viewSac .search-box { display: flex; gap: 10px; margin: 26px 0 10px; }
+#viewSac .search-box input { flex: 1; min-width: 0; }
+@media (max-width: 520px) {
+  #viewSac .search-box { flex-direction: column; }
+  #viewSac .search-box .btn-sec-sm { min-height: 44px; }
+}
+.search-hint { color: var(--text-muted); font-size: 12px; line-height: 1.5; margin-bottom: 18px; }
+.list-actions { display: flex; justify-content: center; padding: 22px 0 6px; }
+.list-actions .btn-sec-sm { padding: 12px 20px; }
 .incidente-card { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 18px; transition: all 0.2s ease; cursor: pointer; }
 .incidente-card:hover { border-color: var(--zaaz-blue); transform: translateY(-2px); }
 
