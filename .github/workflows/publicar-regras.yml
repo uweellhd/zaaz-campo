@@ -1,0 +1,38 @@
+name: Validar ou publicar regras do Firestore
+
+on:
+  workflow_dispatch:
+    inputs:
+      publicar:
+        description: Publicar as regras depois de validar?
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  regras:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preparar credenciais
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
+          umask 077
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+      - name: Validar sem publicar
+        run: npx --yes firebase-tools@15.31.0 deploy --only firestore:rules --project nextflow-telecom --non-interactive --dry-run
+      - name: Publicar
+        if: inputs.publicar == 'true'
+        run: npx --yes firebase-tools@15.31.0 deploy --only firestore:rules --project nextflow-telecom --non-interactive
