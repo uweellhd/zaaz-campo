@@ -29,4 +29,4 @@ A origem das mensagens ainda não foi informada. Não há captura automática at
 
 ## Publicação e conferência
 
-Publicar uma vez o código no Netlify via merge no ramo principal. Validar as regras pelo GitHub Actions, depois publicá-las. Antes de criar um perfil Projetos, publicar as regras correspondentes. Conferir admin, NOC, SAC, técnico, supervisor e Projetos com contas distintas. Testar offline no mesmo aparelho e depois enviar ao Firestore. Não considerar um rascunho local como conclusão do atendimento.
+Publicar uma vez o código no Netlify via merge no ramo principal. O GitHub Actions valida as regras na proposta e publica as regras automaticamente quando a alteração chegar ao ramo principal. Acompanhar as duas execuções; antes de criar um perfil Projetos, conferir que as regras já foram publicadas. Conferir admin, NOC, SAC, técnico, supervisor e Projetos com contas distintas. Testar offline no mesmo aparelho e depois enviar ao Firestore. Não considerar um rascunho local como conclusão do atendimento.

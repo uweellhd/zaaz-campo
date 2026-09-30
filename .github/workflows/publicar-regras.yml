@@ -1,6 +1,12 @@
 name: Validar ou publicar regras do Firestore
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'firestore.rules'
+      - 'firebase.json'
+      - '.github/workflows/publicar-regras.yml'
   pull_request:
     paths:
       - 'firestore.rules'
@@ -39,5 +45,5 @@ jobs:
       - name: Validar sem publicar
         run: npx --yes firebase-tools@15.31.0 deploy --only firestore:rules --project nextflow-telecom --non-interactive --dry-run
       - name: Publicar
-        if: inputs.publicar == 'true'
+        if: github.event_name == 'push' || inputs.publicar == 'true'
         run: npx --yes firebase-tools@15.31.0 deploy --only firestore:rules --project nextflow-telecom --non-interactive

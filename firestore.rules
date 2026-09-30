@@ -88,6 +88,9 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'statusAtual', 'timelineEtapas', 'previsao'
           ])
+          && (!request.resource.data.statusAtual.matches('^ETAPA 4.*')
+            || (existsAfter(/databases/$(database)/documents/projetosEvidencias/$(incidentId))
+              && getAfter(/databases/$(database)/documents/projetosEvidencias/$(incidentId)).data.caixas.size() >= 2))
         ) || (role() == 'tecnico' && inRegion(resource.data.estado)
           && resource.data.get('tecnicoUid', '') == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tecnicoUid', 'tecnicoAtribuido'])
@@ -134,10 +137,15 @@ service cloud.firestore {
         && request.resource.data.criadoEm == request.time
         && request.resource.data.statusOzmaps == 'PENDENTE'
         && request.resource.data.caixas is list && request.resource.data.caixas.size() >= 2
+        && request.resource.data.caixas.size() <= 12
+        && request.resource.data.caixas[0].gps is string && request.resource.data.caixas[0].gps.size() >= 5
+        && request.resource.data.caixas[1].gps is string && request.resource.data.caixas[1].gps.size() >= 5
         && request.resource.data.fotoIds is list && request.resource.data.fotoIds.size() == request.resource.data.caixas.size()
         && request.resource.data.descricaoServico is string && request.resource.data.descricaoServico.size() > 0
+        && request.resource.data.descricaoServico.size() <= 5000
         && exists(/databases/$(database)/documents/incidentes/$(incidentId))
         && request.resource.data.estado == get(/databases/$(database)/documents/incidentes/$(incidentId)).data.estado
+        && request.resource.data.idIncidente == get(/databases/$(database)/documents/incidentes/$(incidentId)).data.idIncidente
         && (role() == 'admin' || (inRegion(request.resource.data.estado)
           && get(/databases/$(database)/documents/incidentes/$(incidentId)).data.tecnicoUid == request.auth.uid));
       allow update: if active() && role() in ['admin', 'projetos']

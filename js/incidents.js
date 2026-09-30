@@ -851,7 +851,8 @@ async function restaurarRascunhoTecnico() {
       else elemento.value = valor;
     }
     for (const [chave, foto] of Object.entries(mapaFotosBase64)) {
-      const previsualizacao = document.getElementById(chave.replace('caixaFoto', 'caixaPreview'));
+      const previas = { fotoDeslocamento: 'tp1', fotoChegada: 'tp2', fotoRompimento: 'tp3', fotoPanoramica: 'tp4', fotoEquipe: 'tp5' };
+      const previsualizacao = document.getElementById(previas[chave] || chave.replace('caixaFoto', 'caixaPreview'));
       if (previsualizacao && foto) { previsualizacao.src = foto; previsualizacao.style.display = 'block'; }
     }
     atualizarEstadoLocal('Rascunho recuperado deste aparelho. Confira os dados e envie a etapa.');
