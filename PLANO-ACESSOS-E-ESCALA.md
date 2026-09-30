@@ -46,8 +46,8 @@ O indicador fotográfico deve contar **IDs atribuídos ao supervisor cuja etapa 
 ## Ordem segura de publicação
 
 1. E-mail do admin: concluído e novo login confirmado.
-2. Revisar este código e a regra no simulador do Firebase; publicar as regras do Firestore.
-3. Integrar a proposta ao ramo principal uma única vez para acionar um deploy Netlify. Conferir login admin e IDs existentes.
+2. Integrar a proposta ao ramo principal uma única vez para acionar um deploy Netlify. Durante os minutos até a publicação das regras, novos cadastros ainda não conseguirão criar solicitações; o login do administrador e os IDs existentes continuam com as regras atuais.
+3. No GitHub Actions, executar **Validar ou publicar regras do Firestore** com `publicar=false`, conferir a execução, depois com `publicar=true`. Conferir login admin e IDs existentes. Se a credencial não tiver permissão de publicar regras, interromper e corrigir a permissão antes de repetir.
 4. Testar uma conta corporativa não verificada, uma pendente e uma aprovada (SAC primeiro). Testar bloqueio de conta e reentrada.
 5. Testar um técnico de um estado, atribuir um ID pelo NOC/admin e confirmar que IDs sem atribuição e de outros técnicos não aparecem. Testar as quatro etapas.
 6. Vincular um supervisor a um ID antigo, conferir contagem e leitura sem edição. Conferir exportação CSV filtrada.
