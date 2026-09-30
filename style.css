@@ -685,3 +685,40 @@ input:focus, textarea:focus, select:focus {
   .report-toolbar { align-items: stretch; flex-direction: column; }
   .report-toolbar .btn-export { width: 100%; }
 }
+
+/* NEXTFLOW · refinamento de navegação e formulários */
+.nav-brand { position: relative; min-width: 190px; }
+.brand-fiber { display:block; width: 128px; height: 3px; margin: 5px 0 5px; border-radius: 8px; background: linear-gradient(90deg,#0751bc 0%,#43a8ea 50%,#9ee8ff 85%,transparent); position:relative; box-shadow:0 0 8px rgba(29,145,233,.28); }
+.brand-fiber::after { content:''; position:absolute; width:6px; height:6px; top:-1.5px; left:120px; border-radius:50%; background:#d9f8ff; box-shadow:0 0 8px 3px #53d5ff; animation:fiberPulse 3.4s ease-in-out infinite; }
+@keyframes fiberPulse { 50% { opacity:.45; transform:translateX(-8px); } }
+@media (prefers-reduced-motion:reduce) { .brand-fiber::after { animation:none; } }
+.nav-right-group { min-width:0; }
+.account-menu { position:relative; min-width: min(280px, 100%); z-index:30; }
+.account-menu summary { cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; gap:14px; background:var(--card-bg); border:1px solid var(--border-color); color:var(--text-main); padding:11px 14px; border-radius:14px; font-weight:700; box-shadow:0 3px 12px rgba(12,39,80,.04); }
+.account-menu summary::-webkit-details-marker { display:none; }
+.account-menu summary:hover, .account-menu[open] summary { border-color:var(--zaaz-blue); }
+#userBadge { overflow-wrap:anywhere; line-height:1.4; }
+.account-chevron { flex:0 0 auto; font-size:20px; }
+.account-dropdown { position:absolute; right:0; top:calc(100% + 8px); width:max(100%,235px); padding:10px; background:var(--card-bg); border:1px solid var(--border-color); box-shadow:0 18px 50px rgba(12,39,80,.17); border-radius:16px; }
+.account-dropdown button { display:block; width:100%; text-align:left; border:0; border-radius:10px; background:transparent; color:var(--text-main); padding:11px 12px; cursor:pointer; font-size:13px; font-weight:600; }
+.account-dropdown button:hover { background:var(--input-bg); }
+.account-dropdown label { margin:10px 12px 7px; }
+.account-dropdown .theme-select { display:block; width:100%; min-width:0; border-radius:10px; }
+.account-dropdown .menu-logout { color:var(--danger); margin-top:8px; border-top:1px solid var(--border-color); border-radius:0; }
+.dashboard-body .form-group input:not([type=file]):not([type=checkbox]), .dashboard-body .form-group select, .dashboard-body .form-group textarea,
+.dashboard-body .assignment-search input, .dashboard-body .search-box input, .dashboard-body .report-filters input, .dashboard-body .report-filters select,
+.dashboard-body #formAdminEdicao input, .dashboard-body #formAdminEdicao select, .dashboard-body #formAdminEdicao textarea { border-radius:12px; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text-main); padding:12px 14px; min-height:45px; width:100%; }
+.dashboard-body :is(input,select,textarea,button):focus-visible { outline:3px solid rgba(26,137,231,.35); outline-offset:2px; }
+.dashboard-body .report-filters, .dashboard-body .assignment-box, .dashboard-body #formNocIncidente, .dashboard-body .search-box { border-radius:20px; }
+.dashboard-body .report-filters { padding:18px; box-shadow:0 5px 24px rgba(12,39,80,.04); }
+.dashboard-body .field-card { background:var(--card-bg); border:1px solid var(--border-color); border-radius:18px; padding:18px; margin:14px 0; box-shadow:0 8px 25px rgba(12,39,80,.035); }
+.dashboard-body .field-card h5 { margin-bottom:15px; }
+.dashboard-body .field-card .btn-sec-sm { margin:9px 0 17px; }
+.dashboard-body .field-card .preview-img { max-height:170px; }
+.dashboard-body .project-box { display:flex; flex-wrap:wrap; align-items:center; gap:14px; border-top:1px solid var(--border-color); padding:12px 0; }
+.dashboard-body .project-box img { width:96px; height:75px; object-fit:cover; border-radius:9px; cursor:pointer; }
+.dashboard-body .box-evidence label { margin-top:10px; }
+.dashboard-body .step { background:var(--card-bg); border:1px solid var(--border-color); border-radius:20px; padding:clamp(18px,3vw,28px); box-shadow:0 10px 30px rgba(12,39,80,.05); }
+.dashboard-body .step-indicator { border-radius:18px; padding:7px; gap:5px; }
+.dashboard-body .step-number { border-radius:12px; }
+@media (max-width: 700px) { .account-menu { width:100%; } .account-dropdown { width:100%; } .nav-right-group { align-items:stretch; } }

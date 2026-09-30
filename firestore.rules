@@ -22,30 +22,32 @@ service cloud.firestore {
       return role() in ['admin', 'noc', 'gerente', 'diretor', 'sac', 'suporte'];
     }
     function inRegion(estado) {
-      return profile().estado in ['SP', 'MG', 'PR'] && profile().estado == estado;
+      return profile().estado.matches('^[A-Z]{2}$') && profile().estado == estado;
     }
 
     match /usuarios/{uid} {
       allow get: if (signedIn() && request.auth.uid == uid)
-        || (active() && (role() == 'admin' || (role() == 'noc' && resource.data.perfil in ['tecnico', 'supervisor'])));
-      allow list: if active() && (role() == 'admin' || (role() == 'noc' && resource.data.perfil in ['tecnico', 'supervisor']));
+        || (active() && (role() == 'admin' || (role() == 'noc' && resource.data.perfil in ['tecnico', 'supervisor'])
+          || (role() == 'tecnico' && resource.data.perfil == 'tecnico')));
+      allow list: if active() && (role() == 'admin' || (role() == 'noc' && resource.data.perfil in ['tecnico', 'supervisor'])
+        || (role() == 'tecnico' && resource.data.perfil == 'tecnico'));
       allow create: if active() && role() == 'admin' && uid != request.auth.uid
         && request.resource.data.keys().hasOnly(['ativo', 'estado', 'nome', 'perfil'])
         && request.resource.data.ativo == true
-        && request.resource.data.estado in ['SP', 'MG', 'PR', 'TODOS']
+        && (request.resource.data.estado == 'TODOS' || request.resource.data.estado.matches('^[A-Z]{2}$'))
         && request.resource.data.nome is string
         && request.resource.data.nome.size() >= 3
         && request.resource.data.nome.size() <= 120
-        && request.resource.data.perfil in ['noc', 'sac', 'suporte', 'tecnico', 'gerente', 'diretor', 'supervisor']
-        && (request.resource.data.perfil != 'tecnico' || request.resource.data.estado in ['SP', 'MG', 'PR'])
+        && request.resource.data.perfil in ['noc', 'sac', 'suporte', 'tecnico', 'gerente', 'diretor', 'supervisor', 'projetos']
+        && (request.resource.data.perfil != 'tecnico' || request.resource.data.estado.matches('^[A-Z]{2}$'))
         && exists(/databases/$(database)/documents/solicitacoesAcesso/$(uid))
         && get(/databases/$(database)/documents/solicitacoesAcesso/$(uid)).data.status == 'pendente';
       allow update: if active() && role() == 'admin' && uid != request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ativo', 'estado', 'nome', 'perfil'])
         && request.resource.data.ativo is bool
-        && request.resource.data.estado in ['SP', 'MG', 'PR', 'TODOS']
-        && request.resource.data.perfil in ['noc', 'sac', 'suporte', 'tecnico', 'gerente', 'diretor', 'supervisor']
-        && (request.resource.data.perfil != 'tecnico' || request.resource.data.estado in ['SP', 'MG', 'PR']);
+        && (request.resource.data.estado == 'TODOS' || request.resource.data.estado.matches('^[A-Z]{2}$'))
+        && request.resource.data.perfil in ['noc', 'sac', 'suporte', 'tecnico', 'gerente', 'diretor', 'supervisor', 'projetos']
+        && (request.resource.data.perfil != 'tecnico' || request.resource.data.estado.matches('^[A-Z]{2}$'));
       allow delete: if false;
     }
 
@@ -76,7 +78,7 @@ service cloud.firestore {
         (role() == 'tecnico' && resource.data.get('tecnicoUid', '') == request.auth.uid) ||
         (role() == 'supervisor' && resource.data.get('supervisorUid', '') == request.auth.uid));
       allow create: if active() && role() in ['admin', 'noc']
-        && request.resource.data.estado in ['SP', 'MG', 'PR'];
+        && request.resource.data.estado.matches('^[A-Z]{2}$');
       allow delete: if active() && role() == 'admin';
       allow update: if active() && (
         role() == 'admin' || role() == 'noc' ||
@@ -86,6 +88,17 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'statusAtual', 'timelineEtapas', 'previsao'
           ])
+          && (!request.resource.data.statusAtual.matches('^ETAPA 4.*')
+            || (existsAfter(/databases/$(database)/documents/projetosEvidencias/$(incidentId))
+              && getAfter(/databases/$(database)/documents/projetosEvidencias/$(incidentId)).data.caixas.size() >= 2))
+        ) || (role() == 'tecnico' && inRegion(resource.data.estado)
+          && resource.data.get('tecnicoUid', '') == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tecnicoUid', 'tecnicoAtribuido'])
+          && exists(/databases/$(database)/documents/usuarios/$(request.resource.data.tecnicoUid))
+          && get(/databases/$(database)/documents/usuarios/$(request.resource.data.tecnicoUid)).data.ativo == true
+          && get(/databases/$(database)/documents/usuarios/$(request.resource.data.tecnicoUid)).data.perfil == 'tecnico'
+          && get(/databases/$(database)/documents/usuarios/$(request.resource.data.tecnicoUid)).data.estado == resource.data.estado
+          && request.resource.data.tecnicoAtribuido == get(/databases/$(database)/documents/usuarios/$(request.resource.data.tecnicoUid)).data.nome
         )
       );
     }
@@ -93,7 +106,10 @@ service cloud.firestore {
     match /fotos/{photoId} {
       allow get: if active()
         && resource.data.criadoEm > request.time - duration.value(15, 'd')
-        && (globalReader() || (role() == 'tecnico'
+        && (globalReader() || (role() == 'projetos'
+          && exists(/databases/$(database)/documents/projetosEvidencias/$(resource.data.incidenteId))
+          && photoId in get(/databases/$(database)/documents/projetosEvidencias/$(resource.data.incidenteId)).data.fotoIds)
+          || (role() == 'tecnico'
           && get(/databases/$(database)/documents/incidentes/$(resource.data.incidenteId)).data.get('tecnicoUid', '') == request.auth.uid)
           || (role() == 'supervisor'
           && get(/databases/$(database)/documents/incidentes/$(resource.data.incidenteId)).data.get('supervisorUid', '') == request.auth.uid));
@@ -110,6 +126,32 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/incidentes/$(request.resource.data.incidenteId)).data.tecnicoUid == request.auth.uid));
       // Somente a rotina agendada no servidor apaga fotos. O Admin SDK ignora estas regras.
       allow update, delete: if false;
+    }
+
+    match /projetosEvidencias/{incidentId} {
+      allow read: if active() && role() in ['admin', 'projetos'];
+      allow create: if active() && role() in ['admin', 'tecnico']
+        && request.resource.data.keys().hasOnly(['incidenteId', 'idIncidente', 'os', 'estado', 'criadoPorUid', 'criadoEm', 'caixas', 'descricaoServico', 'fotoIds', 'statusOzmaps'])
+        && request.resource.data.incidenteId == incidentId
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.criadoEm == request.time
+        && request.resource.data.statusOzmaps == 'PENDENTE'
+        && request.resource.data.caixas is list && request.resource.data.caixas.size() >= 2
+        && request.resource.data.caixas.size() <= 12
+        && request.resource.data.caixas[0].gps is string && request.resource.data.caixas[0].gps.size() >= 5
+        && request.resource.data.caixas[1].gps is string && request.resource.data.caixas[1].gps.size() >= 5
+        && request.resource.data.fotoIds is list && request.resource.data.fotoIds.size() == request.resource.data.caixas.size()
+        && request.resource.data.descricaoServico is string && request.resource.data.descricaoServico.size() > 0
+        && request.resource.data.descricaoServico.size() <= 5000
+        && exists(/databases/$(database)/documents/incidentes/$(incidentId))
+        && request.resource.data.estado == get(/databases/$(database)/documents/incidentes/$(incidentId)).data.estado
+        && request.resource.data.idIncidente == get(/databases/$(database)/documents/incidentes/$(incidentId)).data.idIncidente
+        && (role() == 'admin' || (inRegion(request.resource.data.estado)
+          && get(/databases/$(database)/documents/incidentes/$(incidentId)).data.tecnicoUid == request.auth.uid));
+      allow update: if active() && role() in ['admin', 'projetos']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['statusOzmaps'])
+        && request.resource.data.statusOzmaps == 'REGISTRADO';
+      allow delete: if false;
     }
 
     match /{document=**} {
