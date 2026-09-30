@@ -29,6 +29,7 @@
       <button id="btnTabNoc" class="nav-btn" onclick="alternarAba('viewNoc')">🚨 NOC</button>
       <button id="btnTabSac" class="nav-btn" onclick="alternarAba('viewSac')">📞 SAC / Suporte</button>
       <button id="btnTabTech" class="nav-btn" onclick="alternarAba('viewTech')">👷 Técnico</button>
+      <button id="btnTabConta" class="nav-btn" onclick="alternarAba('viewConta')" style="display:none">Minha conta</button>
     </nav>
 
     <!-- GRUPO DA DIREITA: RELÓGIO, TEMA, USUÁRIO E BOTÃO SAIR -->
@@ -53,6 +54,20 @@
   </header>
 
   <main class="dashboard-container widescreen-container">
+
+    <section id="viewConta" class="view-panel" style="display:none;">
+      <h3 class="panel-title">Meu acesso</h3>
+      <p class="panel-desc">Atualize seu e-mail corporativo sem perder seu histórico ou suas permissões.</p>
+      <form id="formAlterarEmail" class="account-form">
+        <div class="form-group">
+          <label for="novoEmail">Novo e-mail ZAAZ</label>
+          <input type="email" id="novoEmail" placeholder="nome@zaaztelecom.com.br" autocomplete="email" required>
+        </div>
+        <button type="submit" id="btnAlterarEmail" class="btn-primary">Enviar confirmação ao novo e-mail</button>
+        <p id="avisoAlterarEmail" class="account-feedback" role="status" aria-live="polite"></p>
+      </form>
+      <p class="account-hint">Abra a mensagem recebida no novo endereço e confirme a troca. Depois, saia do sistema e entre com o novo e-mail e a senha atual.</p>
+    </section>
 
     <!-- 1. PAINEL DA DIRETORIA / GERÊNCIA -->
     <section id="viewGerente" class="view-panel" style="display:none;">

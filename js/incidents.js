@@ -4,7 +4,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, updateDoc, runTransaction, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signOut, verifyBeforeUpdateEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
@@ -27,7 +27,7 @@ let usuarioUid = '';
 const ouvintes = new Map();
 let saindo = false;
 const abasPermitidas = {
-  admin: ['viewGerente', 'viewNoc', 'viewSac', 'viewTech'],
+  admin: ['viewGerente', 'viewNoc', 'viewSac', 'viewTech', 'viewConta'],
   gerente: ['viewGerente', 'viewSac'],
   diretor: ['viewGerente', 'viewSac'],
   noc: ['viewNoc', 'viewSac'],
@@ -54,13 +54,14 @@ function configurarTelasPorPerfil() {
   const btnNoc = document.getElementById('btnTabNoc');
   const btnSac = document.getElementById('btnTabSac');
   const btnTech = document.getElementById('btnTabTech');
+  const btnConta = document.getElementById('btnTabConta');
   // Oculta todas as abas inicialmente
-  [btnGerente, btnNoc, btnSac, btnTech].forEach(btn => { if (btn) btn.style.display = 'none'; });
+  [btnGerente, btnNoc, btnSac, btnTech, btnConta].forEach(btn => { if (btn) btn.style.display = 'none'; });
   document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
 
   if (perfilSalvo === 'admin') {
     // Administrador da operação vê as quatro áreas.
-    [btnGerente, btnNoc, btnSac, btnTech].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
+    [btnGerente, btnNoc, btnSac, btnTech, btnConta].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
     alternarAba('viewGerente');
   } else if (perfilSalvo === 'gerente' || perfilSalvo === 'diretor') {
     [btnGerente, btnSac].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
@@ -103,8 +104,38 @@ window.alternarAba = (idAba) => {
     const b = document.getElementById('btnTabTech');
     if (b) b.classList.add('active');
     carregarListaTecnico();
+  } else if (idAba === 'viewConta') {
+    document.getElementById('btnTabConta')?.classList.add('active');
   }
 };
+
+document.getElementById('formAlterarEmail')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (perfilSalvo !== 'admin' || !auth.currentUser) return;
+  const novoEmail = document.getElementById('novoEmail').value.trim().toLowerCase();
+  const aviso = document.getElementById('avisoAlterarEmail');
+  const botao = document.getElementById('btnAlterarEmail');
+  if (!/^[^\s@]+@zaaztelecom\.com\.br$/.test(novoEmail)) {
+    aviso.textContent = 'Use um e-mail terminado em @zaaztelecom.com.br.';
+    return;
+  }
+  botao.disabled = true;
+  aviso.textContent = 'Enviando confirmação...';
+  try {
+    await verifyBeforeUpdateEmail(auth.currentUser, novoEmail);
+    aviso.textContent = 'Enviamos um link ao novo e-mail. Abra a mensagem, confirme a troca e depois entre novamente.';
+    document.getElementById('novoEmail').value = '';
+  } catch (erro) {
+    console.error('Falha ao solicitar troca do e-mail:', erro);
+    aviso.textContent = erro.code === 'auth/requires-recent-login'
+      ? 'Saia, entre novamente com seu e-mail atual e tente de novo.'
+      : erro.code === 'auth/email-already-in-use'
+        ? 'Esse e-mail já pertence a outra conta. Não crie uma nova conta; procure o administrador.'
+        : 'Não foi possível enviar a confirmação. Confira o endereço e tente novamente.';
+  } finally {
+    botao.disabled = false;
+  }
+});
 
 function iniciarRelocioTempoReal() {
   const elemClock = document.getElementById('realtimeClock');
