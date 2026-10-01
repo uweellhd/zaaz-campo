@@ -928,6 +928,11 @@ async function iniciarAtendimentoTecnico(item, novoAtendimento = true) {
     localStorage.setItem(`tech_active_doc_${usuarioUid}`, item.docId);
   }
   chamadoAtivoTecnico = item;
+  const areaEstado = document.getElementById('techEstadoLegadoArea');
+  areaEstado.hidden = /^[A-Z]{2}$/.test(item.estado || '');
+  const seletorLegado = document.getElementById('techEstadoLegado');
+  seletorLegado.replaceChildren(new Option('Selecione o estado real do atendimento', ''), ...estadosBrasil.map(uf => new Option(uf, uf)));
+  seletorLegado.disabled = perfilSalvo !== 'admin';
   if (trocouChamado) {
     document.getElementById('techFormFlow').reset();
     document.getElementById('caixasTecnico').replaceChildren();
@@ -1003,7 +1008,7 @@ window.adicionarCaixaTecnico = (idExistente) => {
   const caixa = document.createElement('div');
   caixa.className = 'field-card box-evidence';
   caixa.dataset.caixaId = String(numero);
-  caixa.innerHTML = `<div class="box-heading"><h5>Caixa</h5><button type="button" class="remove-box" aria-label="Remover esta caixa">Remover</button></div><label for="caixaGps${numero}">Localização GPS</label><input id="caixaGps${numero}" class="box-gps" readonly placeholder="Ainda não capturada"><button type="button" class="btn-sec-sm btn-capture" onclick="capturarGPSTecnico('caixaGps${numero}')">📍 Capturar localização</button><label for="caixaFoto${numero}">Foto da caixa acomodada</label><input id="caixaFoto${numero}" type="file" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'caixaPreview${numero}', 'caixaFoto${numero}')"><img id="caixaPreview${numero}" class="preview-img" alt="Prévia da caixa">`;
+  caixa.innerHTML = `<div class="box-heading"><h5>Caixa</h5><button type="button" class="remove-box" aria-label="Remover esta caixa">Remover</button></div><label for="caixaGps${numero}">Localização GPS</label><input id="caixaGps${numero}" type="text" class="box-gps" readonly placeholder="Ainda não capturada"><button type="button" class="btn-sec-sm btn-capture" onclick="capturarGPSTecnico('caixaGps${numero}')">📍 Capturar localização</button><label for="caixaFoto${numero}">Foto da caixa acomodada</label><input id="caixaFoto${numero}" type="file" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'caixaPreview${numero}', 'caixaFoto${numero}')"><img id="caixaPreview${numero}" class="preview-img" alt="Prévia da caixa">`;
   caixa.querySelector('.remove-box').addEventListener('click', () => {
     if (document.querySelectorAll('.box-evidence').length <= 2) return;
     delete mapaFotosBase64[`caixaFoto${numero}`];
@@ -1056,15 +1061,29 @@ function confirmarEnvioEtapa(numero) {
 }
 
 async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevisao = null, campos = {}) {
-  if (!chamadoAtivoTecnico) return;
+  if (!chamadoAtivoTecnico?.docId) throw new Error('Abra novamente o ID antes de enviar.');
   const docRef = doc(db, "incidentes", chamadoAtivoTecnico.docId);
+  const registro = await getDoc(docRef);
+  if (!registro.exists()) throw new Error('Este ID não existe mais.');
+  let estadoEnvio = registro.data().estado;
+  if (!estadosBrasil.includes(estadoEnvio)) {
+    const confirmado = document.getElementById('techEstadoLegado').value;
+    if (perfilSalvo !== 'admin' || !estadosBrasil.includes(confirmado)) {
+      document.getElementById('techEstadoLegadoArea').hidden = false;
+      throw new Error('Este ID antigo não tem estado válido. O administrador deve confirmar o estado no campo acima do formulário.');
+    }
+    await updateDoc(docRef, { estado: confirmado });
+    estadoEnvio = confirmado;
+    chamadoAtivoTecnico.estado = confirmado;
+    document.getElementById('techEstadoLegadoArea').hidden = true;
+  }
 
   // Cada foto vai para um documento próprio. O incidente guarda apenas referências.
   const fotoIds = [];
   for (const dadosBase64 of fotosArr) {
     const fotoRef = await addDoc(collection(db, 'fotos'), {
       incidenteId: chamadoAtivoTecnico.docId,
-      estado: chamadoAtivoTecnico.estado,
+      estado: estadoEnvio,
       criadoPorUid: usuarioUid,
       criadoEm: serverTimestamp(),
       dadosBase64
@@ -1095,7 +1114,7 @@ async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevi
         incidenteId: chamadoAtivoTecnico.docId,
         idIncidente: atual.data().idIncidente || '',
         os: atual.data().os || '',
-        estado: atual.data().estado || '',
+        estado: estadoEnvio,
         criadoPorUid: usuarioUid,
         criadoEm: serverTimestamp(),
         caixas: campos.caixas,
@@ -1121,7 +1140,7 @@ window.salvarEtapa1 = async () => {
     });
     avancarEtapaVisual(2);
     confirmarEnvioEtapa(1);
-  } catch (erro) { alert('A etapa 1 não foi enviada. Confira a conexão e tente novamente.'); }
+  } catch (erro) { alert('Etapa 1 não enviada: ' + erro.message); }
 };
 
 window.salvarEtapa2 = async () => {
@@ -1142,7 +1161,7 @@ window.salvarEtapa2 = async () => {
     await registrarEventoTimeline('ETAPA 2: NO LOCAL / ROMPIMENTO', fotos, `Causa: ${causa}. Previsão: ${previsaoVal}`, previsaoVal, { causaRompimento: causa, fotosEsperadas: 2, fotosPendentes: 2 - fotos.length });
     avancarEtapaVisual(3);
     confirmarEnvioEtapa(2);
-  } catch (erro) { alert('A etapa 2 não foi enviada. Confira a conexão e tente novamente.'); }
+  } catch (erro) { alert('Etapa 2 não enviada: ' + erro.message); }
 };
 
 window.salvarEtapa3 = async () => {
@@ -1155,7 +1174,7 @@ window.salvarEtapa3 = async () => {
     await registrarEventoTimeline('ETAPA 3: EXECUTANDO / FUSIONANDO', fotos, 'Técnico atuando e fusionando.', null, { fotosEsperadas: 2, fotosPendentes: 2 - fotos.length });
     avancarEtapaVisual(4);
     confirmarEnvioEtapa(3);
-  } catch (erro) { alert('A etapa 3 não foi enviada. Confira a conexão e tente novamente.'); }
+  } catch (erro) { alert('Etapa 3 não enviada: ' + erro.message); }
 };
 
 window.salvarEtapa4Final = async () => {
@@ -1194,7 +1213,7 @@ window.salvarEtapa4Final = async () => {
     location.reload();
   } catch (erro) {
     console.error('Falha na etapa 4:', erro);
-    mensagem.textContent = `Não foi possível enviar a etapa 4 (${erro.code || 'falha de envio'}). O rascunho continua neste aparelho. Confira a conexão e tente novamente; se persistir, informe esse código ao administrador.`;
+    mensagem.textContent = `Etapa 4 não enviada: ${erro.message || erro.code || 'falha de envio'}. Seu rascunho foi preservado.`;
     mensagem.hidden = false;
     mensagem.scrollIntoView({ behavior: 'smooth', block: 'center' });
     btn.disabled = false;
