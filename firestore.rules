@@ -149,8 +149,13 @@ service cloud.firestore {
         && (role() == 'admin' || (inRegion(request.resource.data.estado)
           && get(/databases/$(database)/documents/incidentes/$(incidentId)).data.tecnicoUid == request.auth.uid));
       allow update: if active() && role() in ['admin', 'projetos']
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['statusOzmaps'])
-        && request.resource.data.statusOzmaps == 'REGISTRADO';
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['statusOzmaps', 'observacaoOzmaps', 'tratadoPorUid', 'tratadoPorNome', 'tratadoEm'])
+        && request.resource.data.statusOzmaps == 'REGISTRADO'
+        && request.resource.data.tratadoPorUid == request.auth.uid
+        && request.resource.data.tratadoPorNome == profile().nome
+        && request.resource.data.tratadoEm == request.time
+        && request.resource.data.observacaoOzmaps is string
+        && request.resource.data.observacaoOzmaps.size() <= 2000;
       allow delete: if false;
     }
 

@@ -3,7 +3,7 @@
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, updateDoc, runTransaction, query, where, startAfter, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, updateDoc, runTransaction, query, where, documentId, startAfter, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut, verifyBeforeUpdateEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { avaliarFinalizacao } from '../lib/field-flow.mjs';
 
@@ -293,19 +293,28 @@ function abrirModalProjeto(id, registro) {
     }).catch(() => { if (geracao === geracaoModalProjeto) linha.append('Foto indisponível'); });
     conteudo.append(linha);
   }
-  if (registro.statusOzmaps !== 'REGISTRADO') {
-    const botao = document.createElement('button'); botao.type = 'button'; botao.className = 'btn-sec-sm';
-    botao.textContent = 'Marcar registrado no OZmaps';
-    botao.onclick = async () => {
-      botao.disabled = true;
-      try {
-        await updateDoc(doc(db, 'projetosEvidencias', id), { statusOzmaps: 'REGISTRADO' });
-        status.textContent = 'OZmaps: Registrado';
-        botao.remove();
-      } catch { botao.disabled = false; alert('Não foi possível atualizar. Tente novamente.'); }
-    };
-    conteudo.append(botao);
-  }
+  const tratamento = document.createElement('form'); tratamento.className = 'project-treatment field-card';
+  const titulo = document.createElement('h4'); titulo.textContent = 'Tratamento em Projetos';
+  const observacaoLabel = document.createElement('label'); observacaoLabel.textContent = 'Observação / referência no OZmaps'; observacaoLabel.htmlFor = 'projetoObservacao';
+  const observacao = document.createElement('textarea'); observacao.id = 'projetoObservacao'; observacao.maxLength = 2000; observacao.rows = 3; observacao.placeholder = 'Informe o que foi registrado, referências das caixas ou observações.'; observacao.value = registro.observacaoOzmaps || '';
+  const confirmacao = document.createElement('label'); confirmacao.className = 'project-check';
+  const check = document.createElement('input'); check.type = 'checkbox'; check.required = true; check.checked = registro.statusOzmaps === 'REGISTRADO';
+  confirmacao.append(check, document.createTextNode('Confirmo que as caixas foram registradas no OZmaps e a entrega foi tratada.'));
+  const responsavel = document.createElement('p'); responsavel.className = 'project-audit';
+  const data = registro.tratadoEm?.toDate?.();
+  responsavel.textContent = registro.tratadoPorNome ? `Responsável: ${registro.tratadoPorNome}${data ? ' · ' + data.toLocaleString('pt-BR') : ''}` : (check.checked ? 'Registro anterior sem identificação do responsável.' : `Será registrado por: ${usuarioSalvo}`);
+  const botao = document.createElement('button'); botao.type = 'submit'; botao.className = 'btn-primary'; botao.textContent = '✓ Confirmar tratamento';
+  const feedback = document.createElement('p'); feedback.className = 'account-feedback'; feedback.setAttribute('role','status');
+  tratamento.append(titulo, observacaoLabel, observacao, confirmacao, responsavel, botao, feedback);
+  tratamento.onsubmit = async event => {
+    event.preventDefault(); if (!check.checked) return; botao.disabled = true;
+    try {
+      await updateDoc(doc(db, 'projetosEvidencias', id), { statusOzmaps: 'REGISTRADO', observacaoOzmaps: observacao.value.trim(), tratadoPorUid: usuarioUid, tratadoPorNome: usuarioSalvo, tratadoEm: serverTimestamp() });
+      status.textContent = 'OZmaps: Registrado'; responsavel.textContent = `Responsável: ${usuarioSalvo} · ${new Date().toLocaleString('pt-BR')}`; feedback.textContent = 'Tratamento salvo com responsável, data e observação.';
+    } catch { feedback.textContent = 'Não foi possível salvar. Confira a conexão e tente novamente.'; }
+    finally { botao.disabled = false; }
+  };
+  conteudo.append(tratamento);
   modal.style.display = 'flex';
   modal.querySelector('.modal-close').focus();
 }
@@ -1164,10 +1173,13 @@ async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevi
 }
 
 window.salvarEtapa1 = async () => {
+  const botao = document.querySelector('#step-1 .btn-primary');
+  if (botao.disabled) return;
   if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
   const fotos = [];
   if (mapaFotosBase64['fotoDeslocamento']) fotos.push(mapaFotosBase64['fotoDeslocamento']);
   const ajudantes = [...document.getElementById('techAjudantes').selectedOptions].map(option => ({ uid: option.value, nome: option.textContent }));
+  botao.disabled = true;
   try {
     await registrarEventoTimeline('ETAPA 1: EM DESLOCAMENTO', fotos, `Técnico ${usuarioSalvo} iniciou deslocamento.`, null, {
       ajudantes, tipoArea: document.getElementById('techArea').value, condicaoRisco: document.getElementById('techRisco').value,
@@ -1176,9 +1188,12 @@ window.salvarEtapa1 = async () => {
     avancarEtapaVisual(2);
     confirmarEnvioEtapa(1);
   } catch (erro) { alert('Etapa 1 não enviada: ' + erro.message); }
+  finally { botao.disabled = false; }
 };
 
 window.salvarEtapa2 = async () => {
+  const botao = document.querySelector('#step-2 .btn-primary');
+  if (botao.disabled) return;
   if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
   const previsaoVal = document.getElementById('techPrevisaoInput').value.trim();
   const causa = document.getElementById('techCausaRompimento').value.trim();
@@ -1192,24 +1207,30 @@ window.salvarEtapa2 = async () => {
   if (mapaFotosBase64['fotoChegada']) fotos.push(mapaFotosBase64['fotoChegada']);
   if (mapaFotosBase64['fotoRompimento']) fotos.push(mapaFotosBase64['fotoRompimento']);
 
+  botao.disabled = true;
   try {
     await registrarEventoTimeline('ETAPA 2: NO LOCAL / ROMPIMENTO', fotos, `Causa: ${causa}. Previsão: ${previsaoVal}`, previsaoVal, { causaRompimento: causa, fotosEsperadas: 2, fotosPendentes: 2 - fotos.length });
     avancarEtapaVisual(3);
     confirmarEnvioEtapa(2);
   } catch (erro) { alert('Etapa 2 não enviada: ' + erro.message); }
+  finally { botao.disabled = false; }
 };
 
 window.salvarEtapa3 = async () => {
+  const botao = document.querySelector('#step-3 .btn-primary');
+  if (botao.disabled) return;
   if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
   const fotos = [];
   if (mapaFotosBase64['fotoPanoramica']) fotos.push(mapaFotosBase64['fotoPanoramica']);
   if (mapaFotosBase64['fotoEquipe']) fotos.push(mapaFotosBase64['fotoEquipe']);
 
+  botao.disabled = true;
   try {
     await registrarEventoTimeline('ETAPA 3: EXECUTANDO / FUSIONANDO', fotos, 'Técnico atuando e fusionando.', null, { fotosEsperadas: 2, fotosPendentes: 2 - fotos.length });
     avancarEtapaVisual(4);
     confirmarEnvioEtapa(3);
   } catch (erro) { alert('Etapa 3 não enviada: ' + erro.message); }
+  finally { botao.disabled = false; }
 };
 
 window.salvarEtapa4Final = async () => {
@@ -1259,6 +1280,18 @@ window.salvarEtapa4Final = async () => {
 // 5. CONSULTA SAC / SUPORTE / NOC
 // Nunca baixe a coleção inteira para montar a lista: cada página consulta até 24 documentos.
 let listaIncidentesSac = [];
+function limparOuvintesSac() {
+  for (const [chave, cancelar] of ouvintes) if (chave.startsWith('sac-live-')) { cancelar(); ouvintes.delete(chave); }
+}
+function acompanharPaginaSac(ids, geracao) {
+  if (!ids.length) return;
+  ouvirUmaVez(`sac-live-${ids.join('|')}`, query(collection(db, 'incidentes'), where(documentId(), 'in', ids)), snapshot => {
+    if (geracao !== geracaoSac || saindo) return;
+    const atuais = new Map(snapshot.docs.map(d => [d.id, { ...d.data(), docId: d.id }]));
+    listaIncidentesSac = listaIncidentesSac.filter(item => !ids.includes(item.docId) || atuais.has(item.docId)).map(item => atuais.get(item.docId) || item);
+    renderizarListaSac(listaIncidentesSac);
+  });
+}
 let ultimoSac = null;
 let modoBuscaSac = false;
 let carregandoSac = false;
@@ -1297,6 +1330,7 @@ window.carregarMaisSac = async () => {
       listaIncidentesSac.push(item);
     }
     renderizarListaSac(listaIncidentesSac);
+    acompanharPaginaSac(pagina.docs.map(d => d.id), geracao);
     atualizarBotaoSac(pagina.size === TAMANHO_PAGINA_SAC);
   } catch (erro) {
     console.error('Falha na consulta paginada do SAC:', erro);
@@ -1342,6 +1376,7 @@ window.filtrarSac = async () => {
   if (!inputElem) return;
   const termo = inputElem.value.trim();
   geracaoSac++;
+  limparOuvintesSac();
   if (!termo) {
     modoBuscaSac = false;
     listaIncidentesSac = [];
@@ -1362,7 +1397,9 @@ window.filtrarSac = async () => {
     for (const documento of [...porId.docs, ...porOs.docs]) {
       encontrados.set(documento.id, { ...documento.data(), docId: documento.id });
     }
-    renderizarListaSac([...encontrados.values()]);
+    listaIncidentesSac = [...encontrados.values()];
+    renderizarListaSac(listaIncidentesSac);
+    for (let inicio = 0; inicio < listaIncidentesSac.length; inicio += 24) acompanharPaginaSac(listaIncidentesSac.slice(inicio, inicio + 24).map(i => i.docId), geracao);
   } catch (erro) {
     if (!saindo) alert('Não foi possível pesquisar agora. Tente novamente.');
   }
@@ -1389,11 +1426,18 @@ function adicionarMiniatura(galeria, dados) {
   galeria.appendChild(imagem);
 }
 
-window.abrirModalDetalhes = (item) => {
+window.abrirModalDetalhes = (item, atualizacaoAoVivo = false) => {
+  if (!atualizacaoAoVivo) {
+    ouvintes.get('modal-incidente')?.(); ouvintes.delete('modal-incidente');
+    if (item.docId) ouvirUmaVez('modal-incidente', doc(db, 'incidentes', item.docId), snapshot => {
+      if (snapshot.exists()) abrirModalDetalhes({ ...snapshot.data(), docId: snapshot.id }, true);
+      else fecharModal();
+    });
+  }
   document.getElementById('modalIdTitle').textContent = `🚨 Incidente ID: ${item.idIncidente}`;
   const formularioAdmin = document.getElementById('formAdminEdicao');
   formularioAdmin.hidden = perfilSalvo !== 'admin';
-  if (perfilSalvo === 'admin') {
+  if (perfilSalvo === 'admin' && !atualizacaoAoVivo) {
     formularioAdmin.dataset.docId = item.docId;
     formularioAdmin.dataset.responsavelOriginal = item.responsavel || '';
     document.getElementById('editarId').value = item.idIncidente || '';
@@ -1413,6 +1457,7 @@ window.abrirModalDetalhes = (item) => {
   
   const infoBox = document.getElementById('modalInfoBox');
   infoBox.innerHTML = `
+    <span class="live-status">● Acompanhamento ao vivo · etapas recebidas automaticamente</span>
     <strong>OS:</strong> ${escaparHtml(item.os)}<br>
     <strong>Cidades:</strong> ${escaparHtml(item.cidades)} (${escaparHtml(item.estado || 'SP')})<br>
     <strong>Rede:</strong> ${escaparHtml(item.tipoRede || 'GPON')} | <strong>OLT:</strong> ${escaparHtml(item.olt)}<br>
@@ -1529,6 +1574,7 @@ window.fecharZoomFoto = () => {
 };
 
 window.fecharModal = () => {
+  ouvintes.get('modal-incidente')?.(); ouvintes.delete('modal-incidente');
   document.getElementById('modalDetalhesIncidente').style.display = 'none';
 };
 document.getElementById('modalDetalhesIncidente')?.addEventListener('click', event => {

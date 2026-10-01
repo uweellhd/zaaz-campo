@@ -23,8 +23,17 @@ O roteiro marca as ações realizadas. Fotos escolhidas do aparelho ficam apenas
 
 ## Testes das permissões reais, sem e-mails corporativos
 
-A rotina **Testar permissões por setor**, no GitHub Actions, usa o emulador oficial do Firestore com o projeto fictício `demo-nextflow-security`. Não usa credenciais de produção. Executa dez cenários: acesso sem sessão/domínio externo/pendente/inativo; funções globais; isolamento de técnicos; fotos e transferência; supervisor; Projetos; conclusão atômica da etapa 4; expiração das fotos; cadastro e aprovação; listas de equipe.
+A rotina **Testar permissões por setor**, no GitHub Actions, usa o emulador oficial do Firestore com o projeto fictício `demo-nextflow-security`. Não usa credenciais de produção. Executa onze cenários: acesso sem sessão/domínio externo/pendente/inativo; funções globais; isolamento de técnicos; fotos e transferência; supervisor; Projetos; conclusão atômica da etapa 4; expiração das fotos; cadastro e aprovação; listas de equipe.
 
 Esses testes carregam o arquivo `firestore.rules` do repositório e avaliam as operações permitidas e proibidas. Passar nos cenários não substitui a conferência de deploy das regras nem cobre todas as possibilidades de segurança.
 
 Para executar em uma máquina de desenvolvimento: Node 22 e Java 21 ou superior, `npm ci --prefix tests/security` e `npm test --prefix tests/security`. Não é necessário login Firebase; o projeto demo só usa o emulador.
+
+## Ajustes para apresentação à diretoria
+
+- As etapas 1, 2 e 3 são enviadas separadamente. O avanço ocorre depois da confirmação do Firestore; os botões ficam bloqueados durante o envio para evitar cliques duplicados.
+- SAC e Suporte recebem mudanças nos IDs já carregados e no histórico aberto, sem atualizar a página. A lista continua em páginas de 24 IDs; a busca exata também acompanha os resultados carregados. IDs novos podem ser encontrados pela busca ou recarregando a lista.
+- Sem conexão, o técnico mantém o rascunho local. Acompanhamento ao vivo exige que a etapa seja enviada com internet. Não há promessa de envio automático do rascunho.
+- Projetos confirma o tratamento com uma caixa de seleção, observação opcional (até 2.000 caracteres), nome/UID da pessoa autenticada e data do servidor. Registros antigos sem responsável continuam identificados como anteriores.
+- A confirmação registra o trabalho informado pelo projetista; não há integração automática com a API do OZmaps.
+- As regras do Firestore validam o responsável e impedem Projetos de alterar as evidências do técnico.

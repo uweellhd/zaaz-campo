@@ -58,6 +58,16 @@
       const period = 4200 + i * 230;
       const progress = ((time + i * 470) % period) / period;
       const point = pointOnFiber(i, progress);
+      // Rastro curto acompanha a curva sem cobrir os controles do formulário.
+      for (let trecho = 0; trecho < 7; trecho++) {
+        const t = progress - trecho * .005;
+        if (t < .005) continue;
+        const anterior = pointOnFiber(i, t - .005);
+        const atual = pointOnFiber(i, t);
+        context.beginPath(); context.moveTo(anterior.x, anterior.y); context.lineTo(atual.x, atual.y);
+        context.strokeStyle = yellow ? `rgba(255,218,110,${.5 * (1 - trecho / 7)})` : `rgba(179,222,255,${.45 * (1 - trecho / 7)})`;
+        context.lineWidth = 1.6; context.stroke();
+      }
       // Pequeno brilho viajando no mesmo sentido das fibras.
       const glow = context.createRadialGradient(point.x, point.y, 0, point.x, point.y, 17);
       glow.addColorStop(0, yellow ? 'rgba(255,218,110,.9)' : 'rgba(179,222,255,.8)');
