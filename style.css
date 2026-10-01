@@ -777,3 +777,11 @@ input:focus, textarea:focus, select:focus {
   .dashboard-body #techFormArea .box-evidence { padding:14px; }
   .dashboard-body #techFormArea .tech-flow-header { flex-direction:row; flex-wrap:wrap; align-items:center; }
 }
+
+/* Projetos: identificação e coordenadas legíveis */
+.dashboard-body #projetosResultados .project-incident-title { font-size:clamp(23px,2.2vw,30px); line-height:1.25; color:var(--zaaz-blue); margin-bottom:8px; overflow-wrap:anywhere; }
+.dashboard-body #projetosResultados .project-incident-meta { color:var(--text-muted); font-size:14px; font-weight:600; margin-bottom:16px; }
+.dashboard-body #projetosResultados .field-card > p { line-height:1.6; margin-bottom:10px; }
+.dashboard-body #projetosResultados .project-box { font-size:15px; line-height:1.6; gap:18px; padding:16px 0; }
+.dashboard-body #projetosResultados .project-box span { overflow-wrap:anywhere; }
+.dashboard-body #projetosResultados .project-box img { width:140px; height:105px; }
