@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Laboratório de setores · NEXTFLOW</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="simulacao.css"></head>
+<body class="dashboard-body theme-light">
+<header class="top-nav"><div class="nav-brand"><h2 class="zaaz-title">NEXTFLOW</h2><span class="brand-fiber" aria-hidden="true"></span><span class="nextflow-highlight">Laboratório de setores</span></div><div class="nav-right-group"><a href="dashboard.html" class="sim-back">← Voltar ao sistema</a></div></header>
+<main class="dashboard-container widescreen-container">
+<p id="simAcesso" role="status">Verificando seu acesso de administrador...</p>
+<div id="simLaboratorio" hidden>
+<div class="sim-banner"><strong>🧪 SIMULAÇÃO · DADOS FICTÍCIOS</strong><p>As ações abaixo acontecem só neste laboratório. Nenhum chamado, foto, usuário ou permissão será alterado no sistema real. Atualizar a página reinicia o teste.</p></div>
+<div class="sim-toolbar"><label for="simPerfil">Testar como<select id="simPerfil"><option value="noc">🚨 NOC</option><option value="tecnicoA">👷 Técnico A · SP</option><option value="tecnicoB">👷 Técnico B · SP</option><option value="sac">📞 SAC / Suporte</option><option value="supervisorA">👥 Supervisor A</option><option value="projetos">📐 Projetos</option><option value="diretor">📊 Diretor</option></select></label><button id="simReiniciar" class="btn-sec-sm" type="button">Reiniciar teste</button></div>
+<p id="simOrientacao" class="sim-help" role="status"></p>
+<details class="sim-checklist" open><summary>Roteiro para testar sozinho</summary><ol id="simRoteiro"></ol></details>
+<div id="simAviso" class="sim-feedback" role="status" aria-live="polite"></div>
+<section id="simNoc" class="view-panel"><h3 class="panel-title">🚨 NOC · laboratório</h3><form id="simNocForm"><div class="form-group"><label for="simNovoId">ID fictício</label><input id="simNovoId" value="TESTE-1004" required maxlength="40"></div><div class="form-group"><label for="simCidade">Cidade</label><input id="simCidade" value="Cidade de teste / SP" required maxlength="100"></div><button class="btn-primary" type="submit">Criar ID fictício</button></form><h4 class="section-subtitle">Atribuir e acompanhar</h4><div id="simNocLista" class="incidents-grid-list"></div></section>
+<section id="simConsulta" class="view-panel" hidden><h3 id="simConsultaTitulo" class="panel-title"></h3><div id="simConsultaLista" class="incidents-grid-list"></div></section>
+<section id="simDiretor" class="view-panel" hidden><h3 class="panel-title">📊 Visão executiva · teste</h3><div id="simKpis" class="kpi-grid executive-kpis"></div><button type="button" id="simExportar" class="btn-export">Exportar relatório fictício</button><div id="simDiretorLista" class="incidents-grid-list"></div></section>
+    <section id="viewTech" class="view-panel" style="display:none;">
+      <h3 class="panel-title">👷 Atendimento Técnico de Rua</h3>
+      
+      <div id="techSelectArea">
+        <p class="panel-desc">Chamados abertos na sua região de atendimento:</p>
+        <div id="techIncidentsList" class="incidents-grid-list"></div>
+      </div>
+
+      <div id="techFormArea" style="display:none;">
+        <div class="tech-flow-header">
+          <button class="btn-sec-sm" onclick="liberarAtendimentoTecnico()">← Voltar à lista</button>
+          <span id="techActiveIdDisplay" class="active-incident-badge">Atendimento Ativo</span>
+        </div>
+
+        <div class="step-indicator">
+          <span class="step-number active" id="ind-1">1. Partida</span>
+          <span class="step-number" id="ind-2">2. Chegada</span>
+          <span class="step-number" id="ind-3">3. Atuação</span>
+          <span class="step-number" id="ind-4">4. Finalização</span>
+        </div>
+        <p id="techLocalStatus" class="search-hint" role="status" aria-live="polite">Preenchimento salvo neste aparelho. Envie cada etapa quando houver conexão.</p>
+        <div id="techEstadoLegadoArea" class="form-group" hidden>
+          <label for="techEstadoLegado">Estado deste ID antigo</label>
+          <select id="techEstadoLegado"><option value="">Selecione o estado real do atendimento</option></select>
+          <small>Este chamado não tem estado cadastrado. O administrador precisa confirmar a região antes de enviar fotos.</small>
+        </div>
+
+        <form id="techFormFlow">
+          <!-- ETAPA 1 -->
+          <div class="step active" id="step-1">
+            <h4>Etapa 1: Foto do Deslocamento</h4>
+            <p class="panel-desc" style="margin-bottom:10px;">Técnico Responsável: <strong id="techNomeDisplayStage1">---</strong></p>
+            <div class="form-group"><label for="techAjudantes">Técnicos que atuam junto</label><select id="techAjudantes" multiple size="3" aria-describedby="ajudantesAjuda"></select><small id="ajudantesAjuda">Selecione apenas profissionais cadastrados. No celular, toque nas opções desejadas.</small></div>
+            <div class="form-group"><label for="techArea">Tipo de área</label><select id="techArea"><option value="URBANA">Urbana</option><option value="RURAL">Rural</option></select></div>
+            <div class="form-group"><label for="techRisco">Condição de risco</label><select id="techRisco"><option value="NAO_INFORMADO">Não identificada</option><option value="COMUNIDADE">Comunidade / área de risco</option><option value="OUTRO">Outro risco</option></select></div>
+            <div class="form-group"><label for="techTransferir">Transferir atendimento para outro técnico</label><select id="techTransferir"><option value="">Manter comigo</option></select><button type="button" class="btn-sec-sm" onclick="transferirAtendimentoTecnico()">Confirmar transferência</button></div>
+            <div class="form-group">
+              <label>Print da tela de deslocamento (opcional):</label>
+              <input type="file" id="tf1" accept="image/*" onchange="processarFotoComMarcaDagua(this, 'tp1', 'fotoDeslocamento')">
+              <img id="tp1" class="preview-img">
+            </div>
+            <button type="button" class="btn-primary" onclick="salvarEtapa1()">Avançar e Enviar Etapa 1</button>
+            <p class="search-hint">Foto opcional nesta etapa. A falta de evidência ficará registrada para acompanhamento.</p>
+          </div>
+
+          <!-- ETAPA 2 -->
+          <div class="step" id="step-2">
+            <h4>Etapa 2: Chegada, Rompimento e Previsão</h4>
+            <div class="form-group">
+              <label>Foto do Local de Chegada:</label>
+              <input type="file" id="tf2" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp2', 'fotoChegada')">
+              <img id="tp2" class="preview-img">
+            </div>
+            <div class="form-group">
+              <label>Foto do Rompimento Localizado:</label>
+              <input type="file" id="tf3" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp3', 'fotoRompimento')">
+              <img id="tp3" class="preview-img">
+            </div>
+            <div class="form-group">
+              <label for="techCausaRompimento">O que causou o rompimento?</label>
+              <textarea id="techCausaRompimento" rows="3" maxlength="1000" placeholder="Ex.: veículo atingiu o cabo; queda de árvore; obra de terceiros. Se ainda não souber, informe 'Em apuração'." required></textarea>
+            </div>
+
+            <div class="form-group" style="background:#E0F2FE; padding:14px; border-radius:12px; border:1px solid #7DD3FC;">
+              <label style="color:#0369A1; font-weight:700;">⏱️ Previsão Aproximada de Restauração:</label>
+              <input type="text" id="techPrevisaoInput" placeholder="Ex: 17:30 28-09-2026" style="border-color:#38BDF8; font-weight:600;" required>
+            </div>
+
+            <div class="btn-step-group">
+              <button type="button" class="btn-sec-sm" onclick="voltarEtapaTecnica()">← Voltar</button>
+              <button type="button" class="btn-primary" onclick="salvarEtapa2()">Avançar e Enviar Etapa 2</button>
+            </div>
+          </div>
+
+          <!-- ETAPA 3 -->
+          <div class="step" id="step-3">
+            <h4>Etapa 3: Atuação e fusão</h4>
+            <div class="form-group">
+              <label>Foto do técnico atuando:</label>
+              <input type="file" id="tf4" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp4', 'fotoPanoramica')">
+              <img id="tp4" class="preview-img">
+            </div>
+            <div class="form-group">
+              <label>Foto da fusão:</label>
+              <input type="file" id="tf5" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp5', 'fotoEquipe')">
+              <img id="tp5" class="preview-img">
+            </div>
+            <div class="btn-step-group">
+              <button type="button" class="btn-sec-sm" onclick="voltarEtapaTecnica()">← Voltar</button>
+              <button type="button" class="btn-primary" onclick="salvarEtapa3()">Avançar e Enviar Etapa 3</button>
+            </div>
+          </div>
+
+          <!-- ETAPA 4 -->
+          <div class="step" id="step-4">
+            <h4>Etapa 4: Caixas instaladas e serviço executado</h4>
+            <p class="panel-desc">Informe a foto e a localização de cada caixa. Duas caixas são exigidas; adicione outras se necessário.</p>
+            <div id="caixasTecnico"></div>
+            <button type="button" id="btnAdicionarCaixa" class="btn-sec-sm btn-add-box" onclick="adicionarCaixaTecnico(); salvarRascunhoTecnico()">+ Adicionar outra caixa</button>
+            <p id="techEtapa4Erro" class="field-error" role="alert" hidden></p>
+            <div class="form-group">
+              <label for="tobs">Descrição do serviço realizado:</label>
+              <textarea id="tobs" placeholder="Descreva detalhadamente a solução aplicada..." required></textarea>
+            </div>
+
+            <div class="btn-step-group">
+              <button type="button" class="btn-sec-sm" onclick="voltarEtapaTecnica()">← Voltar</button>
+              <button type="button" id="btnSalvarTecnicoFinal" class="btn-primary" style="background-color: var(--success);" onclick="salvarEtapa4Final()">Finalizar Atendimento de Campo</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+</div></main>
+<div id="modalSim" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalSimTitulo"><div class="modal-content"><div class="modal-header"><h3 id="modalSimTitulo"></h3><button type="button" id="simFechar" class="modal-close" aria-label="Fechar">✕</button></div><div id="modalSimCorpo"></div></div></div>
+<script type="module" src="js/simulacao-access.js"></script>
+</body></html>

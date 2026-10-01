@@ -1,0 +1,145 @@
+import { avaliarFinalizacao } from '../lib/field-flow.mjs';
+
+// Laboratório isolado: nenhuma importação ou escrita no Firebase.
+let chamados = [], conquistas = new Set(), perfil = 'noc', ativo, passo = 1, fotos = {}, numeroCaixa = 0;
+const nomes = { tecnicoA:'Técnico A (fictício)', tecnicoB:'Técnico B (fictício)' };
+const roteiro = [
+ ['noc','NOC: criar um ID fictício e atribuir ao Técnico A.'],
+ ['etapa1','Técnico A: enviar a etapa 1, mesmo sem foto.'],
+ ['etapa2','Técnico A: informar causa e previsão, e enviar a etapa 2.'],
+ ['etapa3','Técnico A: enviar a etapa 3.'],
+ ['etapa4','Técnico A: completar duas caixas, fotos e descrição; finalizar.'],
+ ['sac','SAC: abrir o ID e conferir o histórico sem edição.'],
+ ['supervisor','Supervisor A: abrir seu ID e conferir as evidências.'],
+ ['projetos','Projetos: abrir a entrega final e marcar lançamento no OZmaps.'],
+ ['diretor','Diretor: conferir os indicadores e exportar o relatório fictício.'],
+ ['transferencia','Opcional: transferir um atendimento e conferir na conta do Técnico B.']
+];
+const $ = id => document.getElementById(id);
+function avisar(texto) { $('simAviso').textContent = texto; }
+function conquistar(chave) { conquistas.add(chave); atualizarRoteiro(); }
+function atualizarRoteiro() {
+ $('simRoteiro').replaceChildren();
+ for(const [chave,texto] of roteiro){ const li=document.createElement('li'); li.textContent=(conquistas.has(chave)?'✓ ':'')+texto; if(conquistas.has(chave))li.className='done'; $('simRoteiro').append(li); }
+}
+function iniciarDados(){
+ chamados=[
+  {id:'TESTE-1001',os:'OS-FICTICIA-01',cidade:'Cidade de teste / SP',tecnico:'tecnicoA',supervisor:'supervisorA',eventos:[],status:'ABERTO'},
+  {id:'TESTE-1002',os:'OS-FICTICIA-02',cidade:'Outra cidade de teste / SP',tecnico:'tecnicoB',supervisor:'supervisorB',eventos:[],status:'ABERTO'},
+  {id:'TESTE-1003',os:'OS-FICTICIA-03',cidade:'Cidade de teste / SP',tecnico:'',supervisor:'',eventos:[],status:'ABERTO'}
+ ]; conquistas.clear(); ativo=null; atualizarRoteiro(); renderizar();
+}
+function card(chamado,onclick){
+ const el=document.createElement('button');el.type='button';el.className='incidente-card supervisor-card';
+ const titulo=document.createElement('strong');titulo.textContent=`ID ${chamado.id}`;
+ const info=document.createElement('small');info.textContent=`${chamado.os} · ${chamado.cidade}`;
+ const status=document.createElement('span');status.textContent=chamado.status;
+ el.append(titulo,info,status);el.onclick=onclick;return el;
+}
+function renderizar(){
+ for(const id of ['simNoc','simConsulta','simDiretor'])$(id).hidden=true;
+ $('viewTech').style.display='none';
+ const orientacoes={noc:'Crie ou atribua um ID ao Técnico A. Depois troque o perfil para acompanhar as etapas.',tecnicoA:'Somente IDs atribuídos ao Técnico A. GPS e fotos de exemplo são fictícios; nada é enviado ao sistema real.',tecnicoB:'Somente IDs atribuídos ao Técnico B. O ID TESTE-1001 não aparece enquanto continuar com o Técnico A.',sac:'Consulta geral: abra o chamado para ler as etapas. Este perfil não oferece edição.',supervisorA:'Somente IDs ligados ao Supervisor A; os IDs do Supervisor B não aparecem.',projetos:'Somente entregas da etapa 4. Finalize um chamado como técnico para ele aparecer aqui.',diretor:'Indicadores e relatório dos dados fictícios deste laboratório.'};
+ $('simOrientacao').textContent=orientacoes[perfil];
+ if(perfil==='noc'){
+  $('simNoc').hidden=false;const lista=$('simNocLista');lista.replaceChildren();
+  for(const item of chamados){
+   const bloco=document.createElement('article');bloco.className='field-card';
+   const titulo=document.createElement('strong');titulo.textContent=`${item.id} · ${item.status}`;
+   const seletor=document.createElement('select');seletor.setAttribute('aria-label',`Técnico de ${item.id}`);
+   seletor.add(new Option('Sem técnico',''));for(const [uid,nome]of Object.entries(nomes))seletor.add(new Option(nome,uid));seletor.value=item.tecnico;
+   const atribuir=document.createElement('button');atribuir.type='button';atribuir.className='btn-sec-sm';atribuir.textContent='Atribuir técnico e Supervisor A';
+   atribuir.onclick=()=>{item.tecnico=seletor.value;item.supervisor='supervisorA';conquistar('noc');avisar(`Atribuição fictícia salva para ${item.id}.`);renderizar()};
+   const abrir=document.createElement('button');abrir.className='btn-sec-sm';abrir.textContent='Ver devolutivas';abrir.onclick=()=>abrirDetalhes(item);
+   bloco.append(titulo,seletor,atribuir,abrir);lista.append(bloco);
+  }
+ } else if(perfil.startsWith('tecnico')){
+  $('viewTech').style.display='block';$('techSelectArea').style.display='block';$('techFormArea').style.display='none';
+  const lista=$('techIncidentsList');lista.replaceChildren();
+  for(const item of chamados.filter(i=>i.tecnico===perfil&&i.status!=='FINALIZADO')) lista.append(card(item,()=>abrirTecnico(item)));
+  if(!lista.children.length)lista.textContent='Nenhum atendimento aberto atribuído a este técnico fictício.';
+ } else if(perfil==='diretor'){
+  $('simDiretor').hidden=false;
+  const valores=[['Incidentes ativos',chamados.filter(i=>i.status!=='FINALIZADO').length],['IDs finalizados',chamados.filter(i=>i.final).length],['Entregas pendentes no OZmaps',chamados.filter(i=>i.final&&!i.ozmaps).length]];
+  const kpis=$('simKpis');kpis.replaceChildren();for(const [rotulo,valor]of valores){const el=document.createElement('div');el.className='kpi-card';const nome=document.createElement('span');nome.className='kpi-title';nome.textContent=rotulo;const n=document.createElement('h2');n.className='kpi-value';n.textContent=valor;el.append(nome,n);kpis.append(el)}
+  $('simDiretorLista').replaceChildren(...chamados.map(item=>card(item,()=>abrirDetalhes(item))));
+ } else {
+  $('simConsulta').hidden=false;
+  $('simConsultaTitulo').textContent=perfil==='projetos'?'📐 Projetos · entregas finais':perfil==='supervisorA'?'👥 Supervisor A · seus IDs':'📞 SAC / Suporte · consulta';
+  const lista=$('simConsultaLista');lista.replaceChildren();
+  const filtrados=chamados.filter(i=>perfil==='projetos'?Boolean(i.final):perfil==='supervisorA'?i.supervisor==='supervisorA':true);
+  for(const item of filtrados)lista.append(card(item,()=>abrirDetalhes(item)));
+  if(!filtrados.length)lista.textContent='Nenhum registro disponível neste perfil fictício.';
+ }
+}
+function texto(tag,conteudo){const el=document.createElement(tag);el.textContent=conteudo;return el}
+function abrirDetalhes(item){
+ const corpo=$('modalSimCorpo');corpo.replaceChildren();$('modalSimTitulo').textContent=`${item.id} · ${perfil==='projetos'?'Projetos':'Histórico fictício'}`;
+ corpo.append(texto('p',`${item.os} · ${item.cidade}`));
+ if(perfil==='projetos'){
+  corpo.append(texto('p',`Serviço: ${item.final.descricao}`));
+  for(const [indice,caixa]of item.final.caixas.entries()){const linha=document.createElement('div');linha.className='sim-event';linha.append(texto('strong',`Caixa ${indice+1} · GPS ${caixa.gps}`));const img=document.createElement('img');img.className='sim-photo';img.alt='Foto local do laboratório';img.src=caixa.foto;linha.append(img);corpo.append(linha)}
+  const status=texto('p',item.ozmaps?'Registrado no OZmaps (simulação)':'Aguardando OZmaps (simulação)');corpo.append(status);
+  if(!item.ozmaps){const b=texto('button','Marcar registrado no OZmaps');b.className='btn-sec-sm';b.onclick=()=>{item.ozmaps=true;conquistar('projetos');status.textContent='Registrado no OZmaps (simulação)';b.remove();renderizar()};corpo.append(b)}
+ } else {
+  if(!item.eventos.length)corpo.append(texto('p','Ainda não há etapas enviadas neste ID fictício.'));
+  for(const evento of item.eventos){const linha=document.createElement('div');linha.className='sim-event';linha.append(texto('strong',`Etapa ${evento.numero} · ${evento.hora}`),texto('p',evento.descricao),texto('p',`${evento.fotos.length} foto(s) no laboratório`));for(const foto of evento.fotos){const img=document.createElement('img');img.src=foto;img.className='sim-photo';img.alt='Foto local de teste';linha.append(img)}corpo.append(linha)}
+  if(perfil==='sac')conquistar('sac');if(perfil==='supervisorA')conquistar('supervisor');
+ }
+ $('modalSim').style.display='flex';$('simFechar').focus();
+}
+function mudarPasso(n){for(let i=1;i<=4;i++){ $(`step-${i}`).classList.toggle('active',i===n);$(`ind-${i}`).classList.toggle('active',i===n) }passo=n}
+function abrirTecnico(item){
+ ativo=item;fotos={};numeroCaixa=0;$('techFormFlow').reset();$('caixasTecnico').replaceChildren();
+ $('techFormFlow').querySelectorAll('.preview-img').forEach(i=>{i.removeAttribute('src');i.style.display='none'});
+ $('techEtapa4Erro').hidden=true;$('techSelectArea').style.display='none';$('techFormArea').style.display='block';
+ $('techNomeDisplayStage1').textContent=nomes[perfil];$('techActiveIdDisplay').textContent=`TESTE · ${item.id}`;
+ $('techAjudantes').replaceChildren(new Option(nomes[perfil==='tecnicoA'?'tecnicoB':'tecnicoA'],perfil==='tecnicoA'?'tecnicoB':'tecnicoA'));
+ $('techTransferir').replaceChildren(new Option('Manter comigo',''),new Option(nomes[perfil==='tecnicoA'?'tecnicoB':'tecnicoA'],perfil==='tecnicoA'?'tecnicoB':'tecnicoA'));
+ adicionarCaixaTecnico();adicionarCaixaTecnico();
+ $('techLocalStatus').textContent='SIMULAÇÃO: envios fictícios disponíveis imediatamente aos outros perfis deste laboratório.';
+ mudarPasso(Math.min(4,Math.max(0,...item.eventos.map(e=>e.numero))+1));
+}
+function samplePhoto(rotulo){const canvas=document.createElement('canvas');canvas.width=480;canvas.height=320;const c=canvas.getContext('2d');c.fillStyle='#eaf1ff';c.fillRect(0,0,480,320);c.fillStyle='#0052cc';c.font='bold 28px sans-serif';c.fillText('NEXTFLOW · TESTE',35,120);c.font='22px sans-serif';c.fillText(rotulo,35,175);c.fillText('Foto fictícia',35,220);return canvas.toDataURL('image/jpeg',.7)}
+function publicar(numero,descricao,chaves){
+ const anexos=chaves.map(chave=>fotos[chave]).filter(Boolean);
+ ativo.eventos.push({numero,descricao,fotos:anexos,hora:new Date().toLocaleTimeString('pt-BR')});ativo.status=`ETAPA ${numero}`;conquistar(`etapa${numero}`);
+ $('techLocalStatus').textContent=`Etapa ${numero} enviada no laboratório. Troque para SAC ou Supervisor para conferir.`;
+ if(numero<4)mudarPasso(numero+1);
+}
+export function iniciarLaboratorio(){
+ $('simPerfil').onchange=()=>{perfil=$('simPerfil').value;ativo=null;fecharModal();avisar('');renderizar()};
+ $('simReiniciar').onclick=()=>{if(confirm('Reiniciar somente os dados fictícios deste laboratório?')){iniciarDados();avisar('Laboratório reiniciado.')}};
+ $('techFormFlow').addEventListener('input',()=>{$('techEtapa4Erro').hidden=true});
+ $('simNocForm').onsubmit=e=>{e.preventDefault();const id=$('simNovoId').value.trim();if(chamados.some(i=>i.id===id)){avisar('Esse ID fictício já existe.');return}chamados.push({id,os:'OS-FICTICIA',cidade:$('simCidade').value.trim(),tecnico:'',supervisor:'',eventos:[],status:'ABERTO'});avisar('ID fictício criado. Agora atribua um técnico.');renderizar()};
+ $('simFechar').onclick=fecharModal;$('modalSim').onclick=e=>{if(e.target===$('modalSim'))fecharModal()};document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharModal()});
+ $('simExportar').onclick=()=>{const escape=v=>'"'+String(v).replace(/^[=+@-]/,"'").replaceAll('"','""')+'"';const csv=['ID;OS;Status',...chamados.map(i=>[i.id,i.os,i.status].map(escape).join(';'))].join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='SIMULACAO_NEXTFLOW.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);conquistar('diretor')};
+ const exemplo=texto('button','Usar fotos fictícias nesta etapa');exemplo.type='button';exemplo.className='btn-sec-sm sim-example-photos';exemplo.onclick=()=>{
+  const chaves=passo===1?['fotoDeslocamento']:passo===2?['fotoChegada','fotoRompimento']:passo===3?['fotoPanoramica','fotoEquipe']:[...$('caixasTecnico').querySelectorAll('input[type=file]')].map(i=>i.id);
+  for(const chave of chaves){fotos[chave]=samplePhoto(`Etapa ${passo}`);const preview=$(({fotoDeslocamento:'tp1',fotoChegada:'tp2',fotoRompimento:'tp3',fotoPanoramica:'tp4',fotoEquipe:'tp5'})[chave]||chave.replace('simFoto','simPreview'));preview.src=fotos[chave];preview.style.display='block'}$('techEtapa4Erro').hidden=true;$('techLocalStatus').textContent='Fotos fictícias adicionadas. Na etapa 4 ainda informe GPS e descrição.';
+ };$('techFormFlow').before(exemplo);iniciarDados();
+}
+function fecharModal(){$('modalSim').style.display='none'}
+window.liberarAtendimentoTecnico=()=>{ativo=null;renderizar()};
+window.voltarEtapaTecnica=()=>{if(passo>1)mudarPasso(passo-1)};
+window.salvarRascunhoTecnico=()=>{};
+window.transferirAtendimentoTecnico=()=>{const uid=$('techTransferir').value;if(!uid||!nomes[uid]){avisar('Selecione o técnico fictício.');return}ativo.tecnico=uid;conquistar('transferencia');avisar(`Transferido no laboratório para ${nomes[uid]}.`);ativo=null;renderizar()};
+window.capturarGPSTecnico=id=>{$('techEtapa4Erro').hidden=true;$(id).value='-23.100000, -48.200000';$('techLocalStatus').textContent='Coordenada fictícia preenchida para o teste.'};
+window.processarFotoComMarcaDagua=async(input,preview,chave)=>{
+ const file=input.files?.[0];if(!file)return;
+ try{const bitmap=await createImageBitmap(file);const canvas=document.createElement('canvas');const ratio=Math.min(1,800/Math.max(bitmap.width,bitmap.height));canvas.width=Math.round(bitmap.width*ratio);canvas.height=Math.round(bitmap.height*ratio);const c=canvas.getContext('2d');c.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();fotos[chave]=canvas.toDataURL('image/jpeg',.65);$(preview).src=fotos[chave];$(preview).style.display='block';$('techEtapa4Erro').hidden=true}catch{alert('Não foi possível ler essa imagem. Você pode usar as fotos fictícias do laboratório.')}
+};
+function atualizarCaixas(){const caixas=[...$('caixasTecnico').children];caixas.forEach((el,i)=>{el.querySelector('h5').textContent=`Caixa ${i+1}`;el.querySelector('.remove-box').hidden=caixas.length<=2})}
+window.adicionarCaixaTecnico=()=>{
+ if($('caixasTecnico').children.length>=12)return;const n=++numeroCaixa;const el=document.createElement('div');el.className='field-card box-evidence';
+ el.innerHTML=`<div class="box-heading"><h5>Caixa de teste</h5><button type="button" class="remove-box">Remover extra</button></div><label for="simGps${n}">Localização GPS fictícia</label><input id="simGps${n}" type="text" class="box-gps" readonly placeholder="Ainda não preenchida"><button type="button" class="btn-sec-sm btn-capture" onclick="capturarGPSTecnico('simGps${n}')">📍 Usar GPS fictício</button><label for="simFoto${n}">Foto</label><input id="simFoto${n}" type="file" accept="image/*" onchange="processarFotoComMarcaDagua(this,'simPreview${n}','simFoto${n}')"><img id="simPreview${n}" class="preview-img" alt="Foto local de teste">`;
+ el.querySelector('.remove-box').onclick=()=>{if($('caixasTecnico').children.length<=2)return;delete fotos[`simFoto${n}`];el.remove();atualizarCaixas()};$('caixasTecnico').append(el);atualizarCaixas();
+};
+window.salvarEtapa1=()=>publicar(1,`Deslocamento em área ${$('techArea').value}. Risco: ${$('techRisco').value}.`,['fotoDeslocamento']);
+window.salvarEtapa2=()=>{const causa=$('techCausaRompimento').value.trim(),previsao=$('techPrevisaoInput').value.trim();if(!causa||!previsao){alert('Informe causa e previsão para testar a etapa 2.');return}publicar(2,`Causa: ${causa}. Previsão: ${previsao}.`,['fotoChegada','fotoRompimento'])};
+window.salvarEtapa3=()=>publicar(3,'Técnico atuando e fusionando (teste).',['fotoPanoramica','fotoEquipe']);
+window.salvarEtapa4Final=()=>{
+ const caixas=[...$('caixasTecnico').children].map(el=>({gps:el.querySelector('.box-gps').value,foto:fotos[el.querySelector('input[type=file]').id]}));const descricao=$('tobs').value.trim();const validacao=avaliarFinalizacao(caixas,descricao);
+ $('techEtapa4Erro').hidden=validacao.valido;if(!validacao.valido){$('techEtapa4Erro').textContent=validacao.mensagem;return}
+ publicar(4,descricao,[]);ativo.eventos.at(-1).fotos=caixas.map(caixa=>caixa.foto);ativo.final={caixas,descricao};ativo.status='FINALIZADO';avisar('Atendimento fictício finalizado. Troque para Projetos para ver apenas a etapa 4.');ativo=null;renderizar();
+};
