@@ -251,38 +251,70 @@ function carregarProjetos() {
     if (snapshot.empty) { lista.textContent = 'Ainda não há entregas da etapa 4.'; return; }
     snapshot.forEach(documento => {
       const registro = documento.data();
-      const card = document.createElement('article');
-      card.className = 'field-card';
-      const titulo = document.createElement('h4'); titulo.className = 'project-incident-title'; titulo.textContent = `ID ${registro.idIncidente}`;
-      const identificacao = document.createElement('p'); identificacao.className = 'project-incident-meta'; identificacao.textContent = `OS ${registro.os || '—'} · ${registro.estado}`;
-      const descricao = document.createElement('p'); descricao.textContent = `Serviço: ${registro.descricaoServico}`;
-      const status = document.createElement('p'); status.textContent = `OZmaps: ${registro.statusOzmaps === 'REGISTRADO' ? 'Registrado' : 'Pendente'}`;
-      card.append(titulo, identificacao, descricao, status);
-      for (const caixa of registro.caixas || []) {
-        const linha = document.createElement('div'); linha.className = 'project-box';
-        const info = document.createElement('span'); info.textContent = `Caixa ${caixa.numero} · GPS ${caixa.gps}`;
-        linha.append(info);
-        const fotoId = registro.fotoIds?.[caixa.indiceFoto];
-        if (fotoId) getDoc(doc(db, 'fotos', fotoId)).then(fotoDoc => {
-          if (fotoDoc.exists()) adicionarMiniatura(linha, fotoDoc.data().dadosBase64);
-          else linha.append(' · Foto expirada (15 dias)');
-        }).catch(() => linha.append(' · Foto indisponível'));
-        card.append(linha);
-      }
-      if (registro.statusOzmaps !== 'REGISTRADO') {
-        const botao = document.createElement('button'); botao.className = 'btn-sec-sm';
-        botao.textContent = 'Marcar registrado no OZmaps';
-        botao.onclick = async () => {
-          botao.disabled = true;
-          try { await updateDoc(doc(db, 'projetosEvidencias', documento.id), { statusOzmaps: 'REGISTRADO' }); }
-          catch { botao.disabled = false; alert('Não foi possível atualizar. Tente novamente.'); }
-        };
-        card.append(botao);
-      }
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'incidente-card supervisor-card project-list-card';
+      const titulo = document.createElement('strong'); titulo.textContent = `ID ${registro.idIncidente}`;
+      const identificacao = document.createElement('small'); identificacao.textContent = `OS ${registro.os || '—'} · ${registro.estado} · ${(registro.caixas || []).length} caixas`;
+      const status = document.createElement('span');
+      status.className = registro.statusOzmaps === 'REGISTRADO' ? 'evidence-complete' : 'evidence-pending';
+      status.textContent = registro.statusOzmaps === 'REGISTRADO' ? 'Registrado no OZmaps' : 'Aguardando lançamento no OZmaps';
+      const ajuda = document.createElement('small'); ajuda.textContent = 'Ver serviço, coordenadas e fotos →';
+      card.append(titulo, identificacao, status, ajuda);
+      card.onclick = () => abrirModalProjeto(documento.id, registro);
       lista.append(card);
     });
   });
 }
+let geracaoModalProjeto = 0;
+let focoProjetoAnterior;
+function abrirModalProjeto(id, registro) {
+  const geracao = ++geracaoModalProjeto;
+  const modal = document.getElementById('modalProjetos');
+  const conteudo = document.getElementById('modalProjetoConteudo');
+  focoProjetoAnterior = document.activeElement;
+  document.getElementById('modalProjetoTitulo').textContent = `ID ${registro.idIncidente} · Projetos`;
+  conteudo.replaceChildren();
+  const identificacao = document.createElement('p'); identificacao.textContent = `OS ${registro.os || '—'} · Estado ${registro.estado}`;
+  const descricao = document.createElement('p'); descricao.textContent = `Serviço realizado: ${registro.descricaoServico}`;
+  const status = document.createElement('p'); status.textContent = `OZmaps: ${registro.statusOzmaps === 'REGISTRADO' ? 'Registrado' : 'Pendente'}`;
+  conteudo.append(identificacao, descricao, status);
+  for (const caixa of registro.caixas || []) {
+    const linha = document.createElement('div'); linha.className = 'project-box';
+    const info = document.createElement('strong'); info.textContent = `Caixa ${caixa.numero} · GPS ${caixa.gps}`;
+    linha.append(info);
+    const fotoId = registro.fotoIds?.[caixa.indiceFoto];
+    if (fotoId) getDoc(doc(db, 'fotos', fotoId)).then(fotoDoc => {
+      if (geracao !== geracaoModalProjeto) return;
+      if (fotoDoc.exists()) adicionarMiniatura(linha, fotoDoc.data().dadosBase64);
+      else linha.append('Foto expirada (15 dias)');
+    }).catch(() => { if (geracao === geracaoModalProjeto) linha.append('Foto indisponível'); });
+    conteudo.append(linha);
+  }
+  if (registro.statusOzmaps !== 'REGISTRADO') {
+    const botao = document.createElement('button'); botao.type = 'button'; botao.className = 'btn-sec-sm';
+    botao.textContent = 'Marcar registrado no OZmaps';
+    botao.onclick = async () => {
+      botao.disabled = true;
+      try {
+        await updateDoc(doc(db, 'projetosEvidencias', id), { statusOzmaps: 'REGISTRADO' });
+        status.textContent = 'OZmaps: Registrado';
+        botao.remove();
+      } catch { botao.disabled = false; alert('Não foi possível atualizar. Tente novamente.'); }
+    };
+    conteudo.append(botao);
+  }
+  modal.style.display = 'flex';
+  modal.querySelector('.modal-close').focus();
+}
+window.fecharModalProjeto = () => {
+  geracaoModalProjeto++;
+  document.getElementById('modalProjetos').style.display = 'none';
+  focoProjetoAnterior?.focus();
+};
+document.getElementById('modalProjetos')?.addEventListener('click', event => {
+  if (event.target === event.currentTarget) fecharModalProjeto();
+});
 
 function carregarSupervisor() {
   const descricao = document.getElementById('supervisorDescricao');
@@ -1503,6 +1535,7 @@ document.getElementById('modalDetalhesIncidente')?.addEventListener('click', eve
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
     if (document.getElementById('lightboxOverlay')?.style.display === 'flex') fecharZoomFoto();
+    else if (document.getElementById('modalProjetos')?.style.display === 'flex') fecharModalProjeto();
     else fecharModal();
   }
 });
