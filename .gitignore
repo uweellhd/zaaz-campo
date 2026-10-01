@@ -1,1 +1,3 @@
 maintenance/node_modules/
+/tests/security/node_modules/
+*-debug.log

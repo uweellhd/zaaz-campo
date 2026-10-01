@@ -149,6 +149,8 @@ function configurarTelasPorPerfil() {
   const btnTech = document.getElementById('btnTabTech');
   const btnConta = document.getElementById('btnTabConta');
   const btnAcessos = document.getElementById('btnTabAcessos');
+  const btnSimular = document.getElementById('btnSimularSetores');
+  if (btnSimular) btnSimular.style.display = perfilSalvo === 'admin' ? 'block' : 'none';
   const btnSupervisor = document.getElementById('btnTabSupervisor');
   const btnProjetos = document.getElementById('btnTabProjetos');
   // Oculta todas as abas inicialmente
