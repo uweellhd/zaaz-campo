@@ -253,10 +253,11 @@ function carregarProjetos() {
       const registro = documento.data();
       const card = document.createElement('article');
       card.className = 'field-card';
-      const titulo = document.createElement('h4'); titulo.textContent = `ID ${registro.idIncidente} · OS ${registro.os || '—'} · ${registro.estado}`;
+      const titulo = document.createElement('h4'); titulo.className = 'project-incident-title'; titulo.textContent = `ID ${registro.idIncidente}`;
+      const identificacao = document.createElement('p'); identificacao.className = 'project-incident-meta'; identificacao.textContent = `OS ${registro.os || '—'} · ${registro.estado}`;
       const descricao = document.createElement('p'); descricao.textContent = `Serviço: ${registro.descricaoServico}`;
       const status = document.createElement('p'); status.textContent = `OZmaps: ${registro.statusOzmaps === 'REGISTRADO' ? 'Registrado' : 'Pendente'}`;
-      card.append(titulo, descricao, status);
+      card.append(titulo, identificacao, descricao, status);
       for (const caixa of registro.caixas || []) {
         const linha = document.createElement('div'); linha.className = 'project-box';
         const info = document.createElement('span'); info.textContent = `Caixa ${caixa.numero} · GPS ${caixa.gps}`;
