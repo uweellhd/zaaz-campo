@@ -86,7 +86,7 @@
       <p class="section-eyebrow">REPASSE DE CAMPO</p>
       <h3 class="panel-title">Projetos · caixas para OZmaps</h3>
       <p class="panel-desc">Somente os dados da etapa 4: ID, OS, localizações, fotos das caixas e serviço executado.</p>
-      <div id="projetosResultados" class="projects-list"><p>Carregando entregas...</p></div>
+      <div id="projetosResultados" class="incidents-grid-list"><p>Carregando entregas...</p></div>
     </section>
 
     <section id="viewConta" class="view-panel" style="display:none;">
@@ -360,6 +360,15 @@
   </div>
 
   <!-- LIGHTBOX / ZOOM DE IMAGEM -->
+  <div id="modalProjetos" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalProjetoTitulo">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalProjetoTitulo">Detalhes para Projetos</h3>
+        <button type="button" class="modal-close" aria-label="Fechar detalhes de Projetos" onclick="fecharModalProjeto()">✕</button>
+      </div>
+      <div id="modalProjetoConteudo" class="project-details"></div>
+    </div>
+  </div>
   <div id="lightboxOverlay" class="lightbox-overlay" onclick="fecharZoomFoto()">
     <span class="lightbox-close">✕</span>
     <img id="lightboxImage" src="" alt="Zoom Foto">
