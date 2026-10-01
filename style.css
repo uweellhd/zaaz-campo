@@ -693,7 +693,7 @@ input:focus, textarea:focus, select:focus {
 @keyframes fiberPulse { 50% { opacity:.45; transform:translateX(-8px); } }
 @media (prefers-reduced-motion:reduce) { .brand-fiber::after { animation:none; } }
 .nav-right-group { min-width:0; }
-.account-menu { position:relative; min-width: min(280px, 100%); z-index:30; }
+.account-menu { position:relative; min-width:0; width:280px; max-width:100%; flex:1 1 280px; z-index:30; }
 .account-menu summary { cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; gap:14px; background:var(--card-bg); border:1px solid var(--border-color); color:var(--text-main); padding:11px 14px; border-radius:14px; font-weight:700; box-shadow:0 3px 12px rgba(12,39,80,.04); }
 .account-menu summary::-webkit-details-marker { display:none; }
 .account-menu summary:hover, .account-menu[open] summary { border-color:var(--zaaz-blue); }
