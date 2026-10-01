@@ -25,6 +25,125 @@ service cloud.firestore {
       return profile().estado.matches('^[A-Z]{2}$') && profile().estado == estado;
     }
 
+    // A etapa enviada fica imutável; nova etapa é sempre a próxima da sequência.
+    function legacyStage(data) {
+      let events = data.get('timelineEtapas', []);
+      let last = events.size() > 0 ? events[events.size() - 1].get('etapa', '') : '';
+      return last.matches('^ETAPA 4.*') ? 4 : last.matches('^ETAPA 3.*') ? 3 : last.matches('^ETAPA 2.*') ? 2 : last.matches('^ETAPA 1.*') ? 1 : 0;
+    }
+    function stage(data) {
+      return 'etapaConcluida' in data ? data.etapaConcluida : legacyStage(data);
+    }
+    function text(value, maximum) {
+      return value is string && value.size() > 0 && value.size() <= maximum;
+    }
+    function photoEvidence(event, photoIndex, incidentId) {
+      let photo = get(/databases/$(database)/documents/fotos/$(event.fotoIds[photoIndex])).data;
+      return photo.incidenteId == incidentId && photo.criadoPorUid == request.auth.uid
+        && photo.get('numeroEtapa', 0) == event.numeroEtapa
+        && photo.criadoEm > request.time - duration.value(15, 'd');
+    }
+    function photoGroup(event, name, incidentId) {
+      let group = event.gruposFotos[name];
+      return group.indiceFoto is int && group.indiceFoto >= 0
+        && group.quantidadeFotos is int && group.quantidadeFotos >= 1 && group.quantidadeFotos <= 6
+        && group.indiceFoto + group.quantidadeFotos <= event.fotoIds.size()
+        && photoEvidence(event, group.indiceFoto, incidentId);
+    }
+    function boxFields(box, photoCount) {
+      return box.gps.matches('^-?[0-9]+([.][0-9]+)?,[ ]*-?[0-9]+([.][0-9]+)?$')
+        && box.quantidadeFotos in [1, 2, 3, 4, 5, 6]
+        && box.indiceFoto is int && box.indiceFoto >= 0
+        && box.indiceFoto + box.quantidadeFotos <= photoCount;
+    }
+    function boxValid(boxes, index, photoCount) {
+      return index >= boxes.size() ? true : boxFields(boxes[index], photoCount);
+    }
+    // As primeiras quatro caixas são validadas no incidente e as demais na entrega.
+    // A transação vincula os dois documentos e respeita o orçamento das regras.
+    function firstBoxes(boxes, photoCount) {
+      return boxes is list && boxes.size() >= 2 && boxes.size() <= 12
+        && boxValid(boxes, 0, photoCount) && boxValid(boxes, 1, photoCount)
+        && boxValid(boxes, 2, photoCount) && boxValid(boxes, 3, photoCount);
+    }
+    function remainingBoxes(boxes, photoCount) {
+      return boxes is list && boxes.size() >= 2 && boxes.size() <= 12 && photoCount >= boxes.size()
+        && boxValid(boxes, 4, photoCount) && boxValid(boxes, 5, photoCount)
+        && boxValid(boxes, 6, photoCount) && boxValid(boxes, 7, photoCount)
+        && boxValid(boxes, 8, photoCount) && boxValid(boxes, 9, photoCount)
+        && boxValid(boxes, 10, photoCount) && boxValid(boxes, 11, photoCount);
+    }
+    function finalRecord(record) {
+      return record is map && record.keys().hasOnly(['causa', 'solucao', 'observacao'])
+        && text(record.causa, 5000) && text(record.solucao, 5000) && text(record.observacao, 5000);
+    }
+    function finalDelivery(event, incidentId) {
+      let delivery = getAfter(/databases/$(database)/documents/projetosEvidencias/$(incidentId)).data;
+      return delivery.caixas == event.caixas && delivery.fotoIds == event.fotoIds && delivery.registroFinal == event.registroFinal;
+    }
+    function validStage(event, incidentId) {
+      return event.numeroEtapa == 1 ? ( event.tipoArea in ['URBANA', 'RURAL'] && event.condicaoRisco in ['NAO_INFORMADO', 'COMUNIDADE', 'OUTRO']
+        && photoGroup(event, 'fotoDeslocamento', incidentId)
+        && event.gruposFotos.fotoDeslocamento.indiceFoto == 0
+        && event.fotoIds.size() == event.gruposFotos.fotoDeslocamento.quantidadeFotos)
+      : event.numeroEtapa == 2 ? ( text(event.causaRompimento, 1000) && text(event.previsaoInformada, 120)
+        && request.resource.data.previsao == event.previsaoInformada
+        && photoGroup(event, 'fotoChegada', incidentId) && photoGroup(event, 'fotoRompimento', incidentId)
+        && event.gruposFotos.fotoChegada.indiceFoto == 0
+        && event.gruposFotos.fotoRompimento.indiceFoto == event.gruposFotos.fotoChegada.quantidadeFotos
+        && event.fotoIds.size() == event.gruposFotos.fotoChegada.quantidadeFotos + event.gruposFotos.fotoRompimento.quantidadeFotos)
+      : event.numeroEtapa == 3 ? ( text(event.observacaoAtuacao, 1500)
+        && (event.previsaoRevisada == '' ? request.resource.data.get('previsao', '') == resource.data.get('previsao', '')
+          : text(event.previsaoRevisada, 120) && text(event.motivoRevisao, 1000)
+            && event.previsaoAnterior == resource.data.get('previsao', 'A definir')
+            && request.resource.data.previsao == event.previsaoRevisada)
+        && photoGroup(event, 'fotoPanoramica', incidentId) && photoGroup(event, 'fotoEquipe', incidentId)
+        && event.gruposFotos.fotoPanoramica.indiceFoto == 0
+        && event.gruposFotos.fotoEquipe.indiceFoto == event.gruposFotos.fotoPanoramica.quantidadeFotos
+        && event.fotoIds.size() == event.gruposFotos.fotoPanoramica.quantidadeFotos + event.gruposFotos.fotoEquipe.quantidadeFotos)
+      : (event.numeroEtapa == 4 && firstBoxes(event.caixas, event.fotoIds.size())
+        && text(event.descricaoServico, 5000) && finalRecord(event.registroFinal)
+        && event.descricaoServico == 'CAUSA: ' + event.registroFinal.causa + '\n\nSOLUÇÃO: ' + event.registroFinal.solucao + '\n\nOBSERVAÇÃO: ' + event.registroFinal.observacao
+        && photoEvidence(event, 0, incidentId) && photoEvidence(event, event.caixas[1].indiceFoto, incidentId)
+        && finalDelivery(event, incidentId));
+    }
+    function sequentialUpdate(incidentId) {
+      let previousStage = stage(resource.data);
+      let previous = resource.data.get('timelineEtapas', []);
+      let events = request.resource.data.timelineEtapas;
+      let event = events[events.size() - 1];
+      return previousStage < 4 && events.size() == previous.size() + 1
+        && events.removeAll([event]) == previous
+        && request.resource.data.fluxoVersao == 2 && request.resource.data.etapaConcluida == previousStage + 1
+        && event.numeroEtapa == request.resource.data.etapaConcluida && event.fluxoVersao == 2
+        && event.tecnicoUid == request.auth.uid && event.tecnico == profile().nome
+        && event.fotosPendentes == 0 && event.fotoIds is list && event.fotoIds.size() >= 1 && event.fotoIds.size() <= 72
+        && event.fotoIds.toSet().size() == event.fotoIds.size()
+        && event.etapa == request.resource.data.statusAtual
+        && ((event.numeroEtapa == 1 && event.etapa == 'ETAPA 1: EM DESLOCAMENTO')
+          || (event.numeroEtapa == 2 && event.etapa == 'ETAPA 2: NO LOCAL / ROMPIMENTO')
+          || (event.numeroEtapa == 3 && event.etapa == 'ETAPA 3: EXECUTANDO / FUSIONANDO')
+          || (event.numeroEtapa == 4 && event.etapa == 'ETAPA 4: REPARO CONCLUÍDO / FINALIZADO'))
+        && validStage(event, incidentId);
+    }
+
+    function createDelivery(incidentId) {
+      let data = request.resource.data;
+      let incident = get(/databases/$(database)/documents/incidentes/$(incidentId)).data;
+      let person = profile();
+      return person.perfil in ['admin', 'tecnico']
+        && data.keys().hasOnly(['incidenteId', 'idIncidente', 'os', 'estado', 'criadoPorUid', 'criadoEm', 'caixas', 'descricaoServico', 'fotoIds', 'statusOzmaps', 'fluxoVersao', 'registroFinal'])
+        && data.incidenteId == incidentId && data.criadoPorUid == request.auth.uid && data.criadoEm == request.time
+        && data.statusOzmaps == 'PENDENTE' && data.fluxoVersao == 2
+        && data.fotoIds is list && data.fotoIds.size() <= 72
+        && remainingBoxes(data.caixas, data.fotoIds.size())
+        && text(data.descricaoServico, 5000) && finalRecord(data.registroFinal)
+        && data.estado == incident.estado && data.idIncidente == incident.idIncidente
+        && (person.perfil == 'admin' || (person.estado == incident.estado && incident.tecnicoUid == request.auth.uid
+          && getAfter(/databases/$(database)/documents/incidentes/$(incidentId)).data.fluxoVersao == 2
+          && stage(getAfter(/databases/$(database)/documents/incidentes/$(incidentId)).data) == 4));
+    }
+
     match /usuarios/{uid} {
       allow get: if (signedIn() && request.auth.uid == uid)
         || (active() && (role() == 'admin' || (role() == 'noc' && resource.data.perfil in ['tecnico', 'supervisor'])
@@ -86,11 +205,8 @@ service cloud.firestore {
           && resource.data.get('tecnicoUid', '') == request.auth.uid
           && request.resource.data.tecnicoUid == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'statusAtual', 'timelineEtapas', 'previsao'
-          ])
-          && (!request.resource.data.statusAtual.matches('^ETAPA 4.*')
-            || (existsAfter(/databases/$(database)/documents/projetosEvidencias/$(incidentId))
-              && getAfter(/databases/$(database)/documents/projetosEvidencias/$(incidentId)).data.caixas.size() >= 2))
+            'statusAtual', 'timelineEtapas', 'previsao', 'etapaConcluida', 'fluxoVersao'
+          ]) && sequentialUpdate(incidentId)
         ) || (role() == 'tecnico' && inRegion(resource.data.estado)
           && resource.data.get('tecnicoUid', '') == request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tecnicoUid', 'tecnicoAtribuido'])
@@ -115,39 +231,25 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/incidentes/$(resource.data.incidenteId)).data.get('supervisorUid', '') == request.auth.uid));
       allow list: if false;
       allow create: if active() && role() in ['admin', 'tecnico']
-        && request.resource.data.keys().hasOnly(['incidenteId', 'estado', 'criadoPorUid', 'criadoEm', 'dadosBase64'])
+        && request.resource.data.keys().hasOnly(['incidenteId', 'estado', 'criadoPorUid', 'criadoEm', 'dadosBase64', 'numeroEtapa'])
         && request.resource.data.criadoPorUid == request.auth.uid
         && request.resource.data.criadoEm == request.time
         && request.resource.data.dadosBase64 is string
         && request.resource.data.dadosBase64.size() <= 700000
+        && request.resource.data.numeroEtapa in [1, 2, 3, 4]
+        && request.resource.data.dadosBase64.matches('^data:image/jpeg;base64,.*')
         && exists(/databases/$(database)/documents/incidentes/$(request.resource.data.incidenteId))
         && request.resource.data.estado == get(/databases/$(database)/documents/incidentes/$(request.resource.data.incidenteId)).data.estado
         && (role() == 'admin' || (inRegion(request.resource.data.estado)
-          && get(/databases/$(database)/documents/incidentes/$(request.resource.data.incidenteId)).data.tecnicoUid == request.auth.uid));
+          && get(/databases/$(database)/documents/incidentes/$(request.resource.data.incidenteId)).data.tecnicoUid == request.auth.uid
+          && request.resource.data.numeroEtapa == stage(get(/databases/$(database)/documents/incidentes/$(request.resource.data.incidenteId)).data) + 1));
       // Somente a rotina agendada no servidor apaga fotos. O Admin SDK ignora estas regras.
       allow update, delete: if false;
     }
 
     match /projetosEvidencias/{incidentId} {
       allow read: if active() && role() in ['admin', 'projetos'];
-      allow create: if active() && role() in ['admin', 'tecnico']
-        && request.resource.data.keys().hasOnly(['incidenteId', 'idIncidente', 'os', 'estado', 'criadoPorUid', 'criadoEm', 'caixas', 'descricaoServico', 'fotoIds', 'statusOzmaps'])
-        && request.resource.data.incidenteId == incidentId
-        && request.resource.data.criadoPorUid == request.auth.uid
-        && request.resource.data.criadoEm == request.time
-        && request.resource.data.statusOzmaps == 'PENDENTE'
-        && request.resource.data.caixas is list && request.resource.data.caixas.size() >= 2
-        && request.resource.data.caixas.size() <= 12
-        && request.resource.data.caixas[0].gps is string && request.resource.data.caixas[0].gps.size() >= 5
-        && request.resource.data.caixas[1].gps is string && request.resource.data.caixas[1].gps.size() >= 5
-        && request.resource.data.fotoIds is list && request.resource.data.fotoIds.size() == request.resource.data.caixas.size()
-        && request.resource.data.descricaoServico is string && request.resource.data.descricaoServico.size() > 0
-        && request.resource.data.descricaoServico.size() <= 5000
-        && exists(/databases/$(database)/documents/incidentes/$(incidentId))
-        && request.resource.data.estado == get(/databases/$(database)/documents/incidentes/$(incidentId)).data.estado
-        && request.resource.data.idIncidente == get(/databases/$(database)/documents/incidentes/$(incidentId)).data.idIncidente
-        && (role() == 'admin' || (inRegion(request.resource.data.estado)
-          && get(/databases/$(database)/documents/incidentes/$(incidentId)).data.tecnicoUid == request.auth.uid));
+      allow create: if active() && createDelivery(incidentId);
       allow update: if active() && role() in ['admin', 'projetos']
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['statusOzmaps', 'observacaoOzmaps', 'tratadoPorUid', 'tratadoPorNome', 'tratadoEm'])
         && request.resource.data.statusOzmaps == 'REGISTRADO'

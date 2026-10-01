@@ -15,7 +15,7 @@
 <section id="simDiretor" class="view-panel" hidden><h3 class="panel-title">📊 Visão executiva · teste</h3><div id="simKpis" class="kpi-grid executive-kpis"></div><button type="button" id="simExportar" class="btn-export">Exportar relatório fictício</button><div id="simDiretorLista" class="incidents-grid-list"></div></section>
     <section id="viewTech" class="view-panel" style="display:none;">
       <h3 class="panel-title">👷 Atendimento Técnico de Rua</h3>
-      
+
       <div id="techSelectArea">
         <p class="panel-desc">Chamados abertos na sua região de atendimento:</p>
         <div id="techIncidentsList" class="incidents-grid-list"></div>
@@ -33,7 +33,7 @@
           <span class="step-number" id="ind-3">3. Atuação</span>
           <span class="step-number" id="ind-4">4. Finalização</span>
         </div>
-        <p id="techLocalStatus" class="search-hint" role="status" aria-live="polite">Preenchimento salvo neste aparelho. Envie cada etapa quando houver conexão.</p>
+        <p id="techLocalStatus" class="search-hint" role="status" aria-live="polite">Preenchimento salvo neste aparelho. Envie cada etapa quando houver conexão. O envio confirmado libera a próxima etapa e bloqueia o retorno.</p>
         <div id="techEstadoLegadoArea" class="form-group" hidden>
           <label for="techEstadoLegado">Estado deste ID antigo</label>
           <select id="techEstadoLegado"><option value="">Selecione o estado real do atendimento</option></select>
@@ -50,12 +50,12 @@
             <div class="form-group"><label for="techRisco">Condição de risco</label><select id="techRisco"><option value="NAO_INFORMADO">Não identificada</option><option value="COMUNIDADE">Comunidade / área de risco</option><option value="OUTRO">Outro risco</option></select></div>
             <div class="form-group"><label for="techTransferir">Transferir atendimento para outro técnico</label><select id="techTransferir"><option value="">Manter comigo</option></select><button type="button" class="btn-sec-sm" onclick="transferirAtendimentoTecnico()">Confirmar transferência</button></div>
             <div class="form-group">
-              <label>Print da tela de deslocamento (opcional):</label>
-              <input type="file" id="tf1" accept="image/*" onchange="processarFotoComMarcaDagua(this, 'tp1', 'fotoDeslocamento')">
-              <img id="tp1" class="preview-img">
+              <label>Print da tela de deslocamento (obrigatório):</label>
+              <input type="file" id="tf1" accept="image/*" multiple onchange="processarFotoComMarcaDagua(this, 'tp1', 'fotoDeslocamento')">
+              <div id="tp1" class="photo-gallery" aria-live="polite"></div>
             </div>
             <button type="button" class="btn-primary" onclick="salvarEtapa1()">Avançar e Enviar Etapa 1</button>
-            <p class="search-hint">Foto opcional nesta etapa. A falta de evidência ficará registrada para acompanhamento.</p>
+            <p class="search-hint">Todas as informações e fotos desta etapa são obrigatórias. Após o envio, não será possível voltar para editá-la.</p>
           </div>
 
           <!-- ETAPA 2 -->
@@ -63,13 +63,13 @@
             <h4>Etapa 2: Chegada, Rompimento e Previsão</h4>
             <div class="form-group">
               <label>Foto do Local de Chegada:</label>
-              <input type="file" id="tf2" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp2', 'fotoChegada')">
-              <img id="tp2" class="preview-img">
+              <input type="file" id="tf2" accept="image/*" multiple capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp2', 'fotoChegada')">
+              <div id="tp2" class="photo-gallery" aria-live="polite"></div>
             </div>
             <div class="form-group">
               <label>Foto do Rompimento Localizado:</label>
-              <input type="file" id="tf3" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp3', 'fotoRompimento')">
-              <img id="tp3" class="preview-img">
+              <input type="file" id="tf3" accept="image/*" multiple capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp3', 'fotoRompimento')">
+              <div id="tp3" class="photo-gallery" aria-live="polite"></div>
             </div>
             <div class="form-group">
               <label for="techCausaRompimento">O que causou o rompimento?</label>
@@ -78,11 +78,11 @@
 
             <div class="form-group" style="background:#E0F2FE; padding:14px; border-radius:12px; border:1px solid #7DD3FC;">
               <label style="color:#0369A1; font-weight:700;">⏱️ Previsão Aproximada de Restauração:</label>
-              <input type="text" id="techPrevisaoInput" placeholder="Ex: 17:30 28-09-2026" style="border-color:#38BDF8; font-weight:600;" required>
+              <input type="text" id="techPrevisaoInput" maxlength="120" placeholder="Ex: 17:30 28-09-2026" style="border-color:#38BDF8; font-weight:600;" required>
             </div>
 
             <div class="btn-step-group">
-              <button type="button" class="btn-sec-sm" onclick="voltarEtapaTecnica()">← Voltar</button>
+
               <button type="button" class="btn-primary" onclick="salvarEtapa2()">Avançar e Enviar Etapa 2</button>
             </div>
           </div>
@@ -92,16 +92,17 @@
             <h4>Etapa 3: Atuação e fusão</h4>
             <div class="form-group">
               <label>Foto do técnico atuando:</label>
-              <input type="file" id="tf4" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp4', 'fotoPanoramica')">
-              <img id="tp4" class="preview-img">
+              <input type="file" id="tf4" accept="image/*" multiple capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp4', 'fotoPanoramica')">
+              <div id="tp4" class="photo-gallery" aria-live="polite"></div>
             </div>
             <div class="form-group">
               <label>Foto da fusão:</label>
-              <input type="file" id="tf5" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp5', 'fotoEquipe')">
-              <img id="tp5" class="preview-img">
+              <input type="file" id="tf5" accept="image/*" multiple capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp5', 'fotoEquipe')">
+              <div id="tp5" class="photo-gallery" aria-live="polite"></div>
             </div>
+            <div class="form-group"><label for="techObservacaoEtapa3">Observação da atuação (obrigatória)</label><textarea id="techObservacaoEtapa3" rows="3" maxlength="1500" placeholder="Informe o andamento, dificuldades ou outros detalhes. Se não houver, escreva Sem observações adicionais." required></textarea></div>
+            <div class="field-card"><h5>Imprevisto / revisão da previsão</h5><p id="techPrevisaoAtual" class="search-hint"></p><label for="techNovaPrevisao">Nova previsão de conclusão (somente se precisar alterar)</label><input type="datetime-local" id="techNovaPrevisao"><label for="techMotivoPrevisao">Motivo da alteração</label><textarea id="techMotivoPrevisao" rows="2" maxlength="1000" placeholder="Explique o imprevisto quando mudar a previsão."></textarea></div>
             <div class="btn-step-group">
-              <button type="button" class="btn-sec-sm" onclick="voltarEtapaTecnica()">← Voltar</button>
               <button type="button" class="btn-primary" onclick="salvarEtapa3()">Avançar e Enviar Etapa 3</button>
             </div>
           </div>
@@ -114,12 +115,12 @@
             <button type="button" id="btnAdicionarCaixa" class="btn-sec-sm btn-add-box" onclick="adicionarCaixaTecnico(); salvarRascunhoTecnico()">+ Adicionar outra caixa</button>
             <p id="techEtapa4Erro" class="field-error" role="alert" hidden></p>
             <div class="form-group">
-              <label for="tobs">Descrição do serviço realizado:</label>
-              <textarea id="tobs" placeholder="Descreva detalhadamente a solução aplicada..." required></textarea>
+              <label for="tobs">Registro final: causa, solução e observação (obrigatórios):</label>
+              <textarea id="tobs" rows="8" maxlength="5000" placeholder="CAUSA:&#10;&#10;SOLUÇÃO:&#10;&#10;OBSERVAÇÃO:" required></textarea>
             </div>
 
             <div class="btn-step-group">
-              <button type="button" class="btn-sec-sm" onclick="voltarEtapaTecnica()">← Voltar</button>
+
               <button type="button" id="btnSalvarTecnicoFinal" class="btn-primary" style="background-color: var(--success);" onclick="salvarEtapa4Final()">Finalizar Atendimento de Campo</button>
             </div>
           </div>

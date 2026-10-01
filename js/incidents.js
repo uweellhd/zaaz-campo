@@ -5,7 +5,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, updateDoc, runTransaction, query, where, documentId, startAfter, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut, verifyBeforeUpdateEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { avaliarFinalizacao } from '../lib/field-flow.mjs';
+import { avaliarFinalizacao, avaliarEtapa, categoriasEtapa, listaFotos, LIMITE_FOTOS, etapaConcluida, exigirProximaEtapa, modeloDescricao, separarDescricao } from '../lib/field-flow.mjs';
+import { renderizarGaleria } from '../lib/photo-gallery.mjs';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
@@ -285,8 +286,8 @@ function abrirModalProjeto(id, registro) {
     const linha = document.createElement('div'); linha.className = 'project-box';
     const info = document.createElement('strong'); info.textContent = `Caixa ${caixa.numero} · GPS ${caixa.gps}`;
     linha.append(info);
-    const fotoId = registro.fotoIds?.[caixa.indiceFoto];
-    if (fotoId) getDoc(doc(db, 'fotos', fotoId)).then(fotoDoc => {
+    const fotosCaixa = (registro.fotoIds || []).slice(caixa.indiceFoto, caixa.indiceFoto + (caixa.quantidadeFotos || 1));
+    for (const fotoId of fotosCaixa) getDoc(doc(db, 'fotos', fotoId)).then(fotoDoc => {
       if (geracao !== geracaoModalProjeto) return;
       if (fotoDoc.exists()) adicionarMiniatura(linha, fotoDoc.data().dadosBase64);
       else linha.append('Foto expirada (15 dias)');
@@ -839,6 +840,8 @@ function renderizarGraficosGerenciais(gpon, backbone, estadosContagem, superviso
 // 4. MÓDULO TÉCNICO DE CAMPO
 let chamadoAtivoTecnico = null;
 let mapaFotosBase64 = {};
+let enviandoEtapa = false, processandoFotos = false;
+let uploadPendente = null;
 let bancoRascunhos;
 function abrirBancoRascunhos() {
   if (!bancoRascunhos) bancoRascunhos = new Promise((resolve, reject) => {
@@ -901,11 +904,7 @@ async function restaurarRascunhoTecnico() {
       if (elemento.multiple) [...elemento.options].forEach(opcao => { opcao.selected = valor.includes(opcao.value); });
       else elemento.value = valor;
     }
-    for (const [chave, foto] of Object.entries(mapaFotosBase64)) {
-      const previas = { fotoDeslocamento: 'tp1', fotoChegada: 'tp2', fotoRompimento: 'tp3', fotoPanoramica: 'tp4', fotoEquipe: 'tp5' };
-      const previsualizacao = document.getElementById(previas[chave] || chave.replace('caixaFoto', 'caixaPreview'));
-      if (previsualizacao && foto) { previsualizacao.src = foto; previsualizacao.style.display = 'block'; }
-    }
+    for (const chave of Object.keys(mapaFotosBase64)) atualizarGaleriaTecnica(chave);
     atualizarEstadoLocal('Rascunho recuperado deste aparelho. Confira os dados e envie a etapa.');
   } catch { atualizarEstadoLocal('Não foi possível recuperar o rascunho local.'); }
 }
@@ -965,6 +964,7 @@ async function iniciarAtendimentoTecnico(item, novoAtendimento = true) {
       if (!atual.exists() || (perfilSalvo === 'tecnico' && atual.data().tecnicoUid !== usuarioUid)) {
         throw new Error('Este chamado não está atribuído à sua conta.');
       }
+      item = { ...atual.data(), docId:item.docId };
     } catch (erro) {
       alert(erro.message);
       return;
@@ -982,6 +982,8 @@ async function iniciarAtendimentoTecnico(item, novoAtendimento = true) {
     document.getElementById('caixasTecnico').replaceChildren();
     numeroCaixa = 0;
     mapaFotosBase64 = {};
+    uploadPendente = null;
+    document.querySelectorAll('.photo-gallery').forEach(elemento => elemento.replaceChildren());
   }
   document.getElementById('techNomeDisplayStage1').textContent = usuarioSalvo;
   if (!document.getElementById('caixasTecnico').children.length) {
@@ -994,37 +996,55 @@ async function iniciarAtendimentoTecnico(item, novoAtendimento = true) {
   document.getElementById('techFormArea').style.display = 'block';
   document.getElementById('techActiveIdDisplay').textContent = `Atendendo ID: ${item.idIncidente}`;
 
-  const etapasConcluidas = new Set((item.timelineEtapas || []).map(evento => String(evento.etapa).match(/^ETAPA (\d)/)?.[1])).size;
-  if (etapasConcluidas >= 3) avancarEtapaVisual(4);
-  else if (etapasConcluidas >= 2) avancarEtapaVisual(3);
-  else if (etapasConcluidas >= 1) avancarEtapaVisual(2);
-  else avancarEtapaVisual(1);
+  const concluida = etapaConcluida(item);
+  document.querySelectorAll('.step-number').forEach((elemento, indice) => elemento.classList.toggle('step-sent', indice < concluida));
+  avancarEtapaVisual(Math.min(4, concluida + 1));
+  document.getElementById('techPrevisaoAtual').textContent = `Previsão atual: ${item.previsao || 'A definir'}. Deixe os campos abaixo vazios para manter.`;
+  const campoFinal = document.getElementById('tobs');
+  const causaAnterior = document.getElementById('techCausaRompimento').value || (item.timelineEtapas || []).find(e => e.causaRompimento)?.causaRompimento || '';
+  if (!campoFinal.value.trim()) campoFinal.value = modeloDescricao(causaAnterior);
+  else if (!separarDescricao(campoFinal.value)) campoFinal.value = `CAUSA: ${causaAnterior}\n\nSOLUÇÃO: ${campoFinal.value.trim()}\n\nOBSERVAÇÃO: `;
+  if (concluida === 4) { liberarAtendimentoTecnico(); alert('Este atendimento já foi finalizado. Consulte o histórico nas áreas de acompanhamento.'); }
+
 }
 
 window.liberarAtendimentoTecnico = async () => {
+  if (enviandoEtapa || processandoFotos) { alert('Aguarde o processamento ou envio terminar.'); return; }
   localStorage.removeItem(`tech_active_doc_${usuarioUid}`);
   chamadoAtivoTecnico = null;
   document.getElementById('techSelectArea').style.display = 'block';
   document.getElementById('techFormArea').style.display = 'none';
 };
 
+const previasTecnicas = { fotoDeslocamento:'tp1', fotoChegada:'tp2', fotoRompimento:'tp3', fotoPanoramica:'tp4', fotoEquipe:'tp5' };
+function bloquearFormulario(bloqueado) {
+  document.querySelectorAll('#techFormFlow input, #techFormFlow textarea, #techFormFlow select, #techFormFlow button').forEach(elemento => { elemento.disabled = bloqueado; });
+}
+function atualizarGaleriaTecnica(chave) {
+  const container = document.getElementById(previasTecnicas[chave] || chave.replace('caixaFoto','caixaPreview'));
+  renderizarGaleria(container, mapaFotosBase64[chave], indice => {
+    if (enviandoEtapa || processandoFotos) return;
+    mapaFotosBase64[chave] = listaFotos(mapaFotosBase64[chave]).filter((_, i) => i !== indice);
+    atualizarGaleriaTecnica(chave); salvarRascunhoTecnico();
+  });
+}
 window.processarFotoComMarcaDagua = async (input, idPreview, chaveFoto) => {
-  const file = input.files[0];
-  if (file) {
-    try {
-      const textoMarca = `ZAAZ TELECOM | ${new Date().toLocaleString('pt-BR')} | ${usuarioSalvo}`;
-      const foto = await comprimirEMarcarDagua(file, textoMarca);
-      const img = document.getElementById(idPreview);
-      img.src = foto;
-      img.style.display = 'block';
-      mapaFotosBase64[chaveFoto] = foto;
-      await salvarRascunhoTecnico();
-    } catch (erro) {
-      input.value = '';
-      delete mapaFotosBase64[chaveFoto];
-      alert(erro.message);
+  const files = [...(input.files || [])];
+  if (!files.length || enviandoEtapa || processandoFotos) return;
+  const anteriores = listaFotos(mapaFotosBase64[chaveFoto]);
+  if (anteriores.length + files.length > LIMITE_FOTOS) { input.value = ''; alert(`Limite de ${LIMITE_FOTOS} fotos por categoria. Remova uma foto antes de adicionar outras.`); return; }
+  processandoFotos = true; bloquearFormulario(true);
+  try {
+    const novas = [];
+    for (const file of files) {
+      if (!file.type.startsWith('image/') || file.size > 20 * 1024 * 1024) throw new Error('Selecione imagens de até 20 MB cada.');
+      novas.push(await comprimirEMarcarDagua(file, `ZAAZ TELECOM | ${new Date().toLocaleString('pt-BR')} | ${usuarioSalvo}`));
     }
-  }
+    mapaFotosBase64[chaveFoto] = [...anteriores, ...novas];
+    atualizarGaleriaTecnica(chaveFoto);
+    await salvarRascunhoTecnico();
+  } catch (erro) { alert(erro.message); }
+  finally { input.value = ''; processandoFotos = false; bloquearFormulario(false); }
 };
 
 window.capturarGPSTecnico = (idInput) => {
@@ -1052,7 +1072,7 @@ window.adicionarCaixaTecnico = (idExistente) => {
   const caixa = document.createElement('div');
   caixa.className = 'field-card box-evidence';
   caixa.dataset.caixaId = String(numero);
-  caixa.innerHTML = `<div class="box-heading"><h5>Caixa</h5><button type="button" class="remove-box" aria-label="Remover esta caixa">Remover</button></div><label for="caixaGps${numero}">Localização GPS</label><input id="caixaGps${numero}" type="text" class="box-gps" readonly placeholder="Ainda não capturada"><button type="button" class="btn-sec-sm btn-capture" onclick="capturarGPSTecnico('caixaGps${numero}')">📍 Capturar localização</button><label for="caixaFoto${numero}">Foto da caixa acomodada</label><input id="caixaFoto${numero}" type="file" accept="image/*" capture="environment" onchange="processarFotoComMarcaDagua(this, 'caixaPreview${numero}', 'caixaFoto${numero}')"><img id="caixaPreview${numero}" class="preview-img" alt="Prévia da caixa">`;
+  caixa.innerHTML = `<div class="box-heading"><h5>Caixa</h5><button type="button" class="remove-box" aria-label="Remover esta caixa">Remover</button></div><label for="caixaGps${numero}">Localização GPS</label><input id="caixaGps${numero}" type="text" class="box-gps" readonly placeholder="Ainda não capturada"><button type="button" class="btn-sec-sm btn-capture" onclick="capturarGPSTecnico('caixaGps${numero}')">📍 Capturar localização</button><label for="caixaFoto${numero}">Fotos da caixa acomodada (pelo menos uma)</label><input id="caixaFoto${numero}" type="file" accept="image/*" multiple capture="environment" onchange="processarFotoComMarcaDagua(this, 'caixaPreview${numero}', 'caixaFoto${numero}')"><div id="caixaPreview${numero}" class="photo-gallery" aria-live="polite"></div>`;
   caixa.querySelector('.remove-box').addEventListener('click', () => {
     if (document.querySelectorAll('.box-evidence').length <= 2) return;
     delete mapaFotosBase64[`caixaFoto${numero}`];
@@ -1065,7 +1085,7 @@ window.adicionarCaixaTecnico = (idExistente) => {
 };
 
 window.voltarEtapaTecnica = () => {
-  if (currentStepTech > 1) avancarEtapaVisual(currentStepTech - 1);
+  atualizarEstadoLocal('As etapas enviadas estão bloqueadas para edição. Consulte o histórico na área de acompanhamento.');
 };
 
 async function carregarColegasTecnicos(estado) {
@@ -1095,7 +1115,8 @@ let currentStepTech = 1;
 function avancarEtapaVisual(novaEtapa) {
   document.getElementById(`step-${currentStepTech}`).classList.remove('active');
   document.getElementById(`ind-${currentStepTech}`).classList.remove('active');
-  currentStepTech = novaEtapa;
+  const minima = Math.min(4, etapaConcluida(chamadoAtivoTecnico) + 1);
+  currentStepTech = Math.max(minima, Math.min(4, novaEtapa));
   document.getElementById(`step-${currentStepTech}`).classList.add('active');
   document.getElementById(`ind-${currentStepTech}`).classList.add('active');
 }
@@ -1122,18 +1143,20 @@ async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevi
     document.getElementById('techEstadoLegadoArea').hidden = true;
   }
 
-  // Cada foto vai para um documento próprio. O incidente guarda apenas referências.
-  const fotoIds = [];
-  for (const dadosBase64 of fotosArr) {
-    const fotoRef = await addDoc(collection(db, 'fotos'), {
-      incidenteId: chamadoAtivoTecnico.docId,
-      estado: estadoEnvio,
-      criadoPorUid: usuarioUid,
-      criadoEm: serverTimestamp(),
-      dadosBase64
-    });
-    fotoIds.push(fotoRef.id);
+  const numero = Number(tituloEtapa.match(/^ETAPA ([1-4])/)[1]);
+  exigirProximaEtapa(registro.data(), numero);
+  // Reutiliza uploads da mesma tentativa para não reenviar fotos em uma falha de transação.
+  if (!uploadPendente || uploadPendente.docId !== chamadoAtivoTecnico.docId || uploadPendente.numero !== numero || uploadPendente.fotos.length !== fotosArr.length || !uploadPendente.fotos.every((foto, i) => foto === fotosArr[i])) {
+    uploadPendente = { docId:chamadoAtivoTecnico.docId, numero, fotos:[...fotosArr], ids:[] };
   }
+  for (let indice = uploadPendente.ids.length; indice < fotosArr.length; indice++) {
+    const fotoRef = await addDoc(collection(db, 'fotos'), {
+      incidenteId: chamadoAtivoTecnico.docId, estado: estadoEnvio, criadoPorUid: usuarioUid,
+      criadoEm: serverTimestamp(), dadosBase64: fotosArr[indice], numeroEtapa: numero
+    });
+    uploadPendente.ids.push(fotoRef.id);
+  }
+  const fotoIds = [...uploadPendente.ids];
 
   const evento = {
     etapa: tituloEtapa,
@@ -1141,7 +1164,7 @@ async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevi
     tecnico: usuarioSalvo,
     fotoIds,
     observacao: descObs,
-    ...campos
+    ...campos, numeroEtapa: numero, fluxoVersao: 2, tecnicoUid: usuarioUid
   };
   const timelineAtualizada = await runTransaction(db, async transacao => {
     const atual = await transacao.get(docRef);
@@ -1149,8 +1172,9 @@ async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevi
     if (perfilSalvo === 'tecnico' && atual.data().tecnicoUid !== usuarioUid) {
       throw new Error('Este incidente não está atribuído à sua conta.');
     }
+    exigirProximaEtapa(atual.data(), numero);
     const timelineAtual = [...(atual.data().timelineEtapas || []), evento];
-    const payload = { statusAtual: tituloEtapa, timelineEtapas: timelineAtual };
+    const payload = { statusAtual: tituloEtapa, timelineEtapas: timelineAtual, etapaConcluida: numero, fluxoVersao: 2 };
     if (novaPrevisao) payload.previsao = novaPrevisao;
     transacao.update(docRef, payload);
     if (campos.caixas) {
@@ -1164,117 +1188,102 @@ async function registrarEventoTimeline(tituloEtapa, fotosArr, descObs, novaPrevi
         caixas: campos.caixas,
         descricaoServico: campos.descricaoServico,
         fotoIds,
-        statusOzmaps: 'PENDENTE'
+        statusOzmaps: 'PENDENTE', fluxoVersao: 2, registroFinal: campos.registroFinal
       });
     }
     return timelineAtual;
   });
   chamadoAtivoTecnico.timelineEtapas = timelineAtualizada;
+  chamadoAtivoTecnico.etapaConcluida = numero;
+  if (novaPrevisao) chamadoAtivoTecnico.previsao = novaPrevisao;
+  uploadPendente = null;
+  await salvarRascunhoTecnico();
 }
 
-window.salvarEtapa1 = async () => {
-  const botao = document.querySelector('#step-1 .btn-primary');
-  if (botao.disabled) return;
+async function enviarEtapaTecnica(numero, dados, executar) {
+  if (enviandoEtapa || processandoFotos) { atualizarEstadoLocal('Aguarde as fotos ou o envio terminarem.'); return; }
+  try { exigirProximaEtapa(chamadoAtivoTecnico, numero); } catch (erro) { alert(erro.message); return; }
+  const validacao = avaliarEtapa(numero, { ...dados, fotos:mapaFotosBase64 });
+  if (!validacao.valido) { alert(validacao.mensagem); return; }
   if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
-  const fotos = [];
-  if (mapaFotosBase64['fotoDeslocamento']) fotos.push(mapaFotosBase64['fotoDeslocamento']);
-  const ajudantes = [...document.getElementById('techAjudantes').selectedOptions].map(option => ({ uid: option.value, nome: option.textContent }));
-  botao.disabled = true;
-  try {
-    await registrarEventoTimeline('ETAPA 1: EM DESLOCAMENTO', fotos, `Técnico ${usuarioSalvo} iniciou deslocamento.`, null, {
-      ajudantes, tipoArea: document.getElementById('techArea').value, condicaoRisco: document.getElementById('techRisco').value,
-      fotosEsperadas: 1, fotosPendentes: fotos.length ? 0 : 1
-    });
-    avancarEtapaVisual(2);
-    confirmarEnvioEtapa(1);
-  } catch (erro) { alert('Etapa 1 não enviada: ' + erro.message); }
-  finally { botao.disabled = false; }
-};
-
-window.salvarEtapa2 = async () => {
-  const botao = document.querySelector('#step-2 .btn-primary');
-  if (botao.disabled) return;
-  if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
-  const previsaoVal = document.getElementById('techPrevisaoInput').value.trim();
-  const causa = document.getElementById('techCausaRompimento').value.trim();
-  if (!previsaoVal) {
-    alert("⚠️ Por favor, informe a Previsão Aproximada de Restauração!");
-    return;
+  enviandoEtapa = true; bloquearFormulario(true);
+  atualizarEstadoLocal(`Enviando etapa ${numero} e suas fotos. Aguarde a confirmação para avançar.`);
+  try { await executar(); avancarEtapaVisual(numero + 1); confirmarEnvioEtapa(numero); }
+  catch (erro) { atualizarEstadoLocal(`Etapa ${numero} não enviada. O rascunho foi preservado.`); alert(`Etapa ${numero} não enviada: ${erro.message}`); }
+  finally { enviandoEtapa = false; bloquearFormulario(false); }
+}
+function evidenciasEtapa(numero) {
+  let indice = 0;
+  const gruposFotos = {}, fotos = [];
+  for (const chave of categoriasEtapa[numero]) {
+    const grupo = listaFotos(mapaFotosBase64[chave]);
+    gruposFotos[chave] = { indiceFoto:indice, quantidadeFotos:grupo.length };
+    fotos.push(...grupo); indice += grupo.length;
   }
-  if (!causa) { alert('Descreva a causa do rompimento. Se ainda não souber, escreva “Em apuração”.'); document.getElementById('techCausaRompimento').focus(); return; }
-
-  const fotos = [];
-  if (mapaFotosBase64['fotoChegada']) fotos.push(mapaFotosBase64['fotoChegada']);
-  if (mapaFotosBase64['fotoRompimento']) fotos.push(mapaFotosBase64['fotoRompimento']);
-
-  botao.disabled = true;
-  try {
-    await registrarEventoTimeline('ETAPA 2: NO LOCAL / ROMPIMENTO', fotos, `Causa: ${causa}. Previsão: ${previsaoVal}`, previsaoVal, { causaRompimento: causa, fotosEsperadas: 2, fotosPendentes: 2 - fotos.length });
-    avancarEtapaVisual(3);
-    confirmarEnvioEtapa(2);
-  } catch (erro) { alert('Etapa 2 não enviada: ' + erro.message); }
-  finally { botao.disabled = false; }
+  return { gruposFotos, fotos, fotosEsperadas:categoriasEtapa[numero].length, fotosPendentes:0 };
+}
+window.salvarEtapa1 = async () => {
+  const tipoArea = document.getElementById('techArea').value, condicaoRisco = document.getElementById('techRisco').value;
+  await enviarEtapaTecnica(1, { tipoArea, condicaoRisco }, async () => {
+    const { fotos, ...evidencias } = evidenciasEtapa(1);
+    const ajudantes = [...document.getElementById('techAjudantes').selectedOptions].map(option => ({ uid:option.value, nome:option.textContent }));
+    await registrarEventoTimeline('ETAPA 1: EM DESLOCAMENTO', fotos, `Técnico ${usuarioSalvo} iniciou deslocamento.`, null, { ajudantes, tipoArea, condicaoRisco, ...evidencias });
+  });
 };
-
+window.salvarEtapa2 = async () => {
+  const previsao = document.getElementById('techPrevisaoInput').value.trim(), causa = document.getElementById('techCausaRompimento').value.trim();
+  await enviarEtapaTecnica(2, { causa, previsao }, async () => {
+    const { fotos, ...evidencias } = evidenciasEtapa(2);
+    await registrarEventoTimeline('ETAPA 2: NO LOCAL / ROMPIMENTO', fotos, `Causa: ${causa}. Previsão: ${previsao}`, previsao, { causaRompimento:causa, previsaoInformada:previsao, ...evidencias });
+    document.getElementById('techPrevisaoAtual').textContent = `Previsão atual: ${previsao}. Deixe os campos abaixo vazios para manter.`;
+    const campoFinal = document.getElementById('tobs');
+    const final = separarDescricao(campoFinal.value);
+    if (!final) campoFinal.value = modeloDescricao(causa);
+    else if (!final.causa) campoFinal.value = `CAUSA: ${causa}\n\nSOLUÇÃO: ${final.solucao}\n\nOBSERVAÇÃO: ${final.observacao}`;
+  });
+};
 window.salvarEtapa3 = async () => {
-  const botao = document.querySelector('#step-3 .btn-primary');
-  if (botao.disabled) return;
-  if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
-  const fotos = [];
-  if (mapaFotosBase64['fotoPanoramica']) fotos.push(mapaFotosBase64['fotoPanoramica']);
-  if (mapaFotosBase64['fotoEquipe']) fotos.push(mapaFotosBase64['fotoEquipe']);
-
-  botao.disabled = true;
-  try {
-    await registrarEventoTimeline('ETAPA 3: EXECUTANDO / FUSIONANDO', fotos, 'Técnico atuando e fusionando.', null, { fotosEsperadas: 2, fotosPendentes: 2 - fotos.length });
-    avancarEtapaVisual(4);
-    confirmarEnvioEtapa(3);
-  } catch (erro) { alert('Etapa 3 não enviada: ' + erro.message); }
-  finally { botao.disabled = false; }
+  const observacao = document.getElementById('techObservacaoEtapa3').value.trim(), novaPrevisao = document.getElementById('techNovaPrevisao').value, motivoPrevisao = document.getElementById('techMotivoPrevisao').value.trim();
+  await enviarEtapaTecnica(3, { observacao, novaPrevisao, motivoPrevisao }, async () => {
+    const { fotos, ...evidencias } = evidenciasEtapa(3);
+    const revisada = novaPrevisao ? new Date(novaPrevisao).toLocaleString('pt-BR') : '';
+    const anterior = chamadoAtivoTecnico.previsao || 'A definir';
+    await registrarEventoTimeline('ETAPA 3: EXECUTANDO / FUSIONANDO', fotos, `${observacao}${revisada ? `\nPrevisão alterada de ${anterior} para ${revisada}. Motivo: ${motivoPrevisao}` : ''}`, revisada || null, { observacaoAtuacao:observacao, previsaoAnterior:anterior, previsaoRevisada:revisada, motivoRevisao:revisada ? motivoPrevisao : '', ...evidencias });
+  });
 };
-
 window.salvarEtapa4Final = async () => {
-  if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
-  const mensagem = document.getElementById('techEtapa4Erro');
-  mensagem.hidden = true;
+  if (enviandoEtapa || processandoFotos) return;
+  const mensagem = document.getElementById('techEtapa4Erro'); mensagem.hidden = true;
+  try { exigirProximaEtapa(chamadoAtivoTecnico, 4); } catch (erro) { mensagem.textContent = erro.message; mensagem.hidden = false; return; }
   document.querySelectorAll('.box-evidence').forEach(caixa => caixa.classList.remove('invalid-box'));
   const obsTexto = document.getElementById('tobs').value.trim();
   const caixas = [...document.querySelectorAll('.box-evidence')].map((elemento, indice) => {
-    const gps = elemento.querySelector('.box-gps').value.trim();
     const chave = elemento.querySelector('input[type=file]').id;
-    return { numero: indice + 1, gps, foto: mapaFotosBase64[chave], chave };
+    return { numero:indice + 1, gps:elemento.querySelector('.box-gps').value.trim(), fotos:listaFotos(mapaFotosBase64[chave]), chave };
   });
   const avaliacao = avaliarFinalizacao(caixas, obsTexto);
   if (!avaliacao.valido) {
     const elemento = avaliacao.indice >= 0 ? document.getElementById(caixas[avaliacao.indice].chave).closest('.box-evidence') : document.getElementById('tobs');
     if (avaliacao.indice >= 0) elemento.classList.add('invalid-box');
-    mensagem.textContent = avaliacao.mensagem;
-    mensagem.hidden = false;
-    elemento.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    return;
+    mensagem.textContent = avaliacao.mensagem; mensagem.hidden = false; elemento.scrollIntoView({ behavior:'smooth', block:'center' }); return;
   }
-
+  if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
   const btn = document.getElementById('btnSalvarTecnicoFinal');
-  btn.textContent = "⏳ Finalizando...";
-  btn.disabled = true;
-
+  enviandoEtapa = true; bloquearFormulario(true); btn.textContent = 'Enviando fotos e finalizando…';
   try {
-    const fotos = caixas.map(caixa => caixa.foto);
-    await registrarEventoTimeline('ETAPA 4: REPARO CONCLUÍDO / FINALIZADO', fotos, obsTexto, null, {
-      caixas: caixas.map((caixa, indice) => ({ numero: caixa.numero, gps: caixa.gps, indiceFoto: indice })), descricaoServico: obsTexto
-    });
+    let indiceFoto = 0;
+    const metadados = caixas.map(caixa => { const resultado = { numero:caixa.numero, gps:caixa.gps, indiceFoto, quantidadeFotos:caixa.fotos.length }; indiceFoto += caixa.fotos.length; return resultado; });
+    const registroFinal = separarDescricao(obsTexto);
+    const descricaoCanonica = `CAUSA: ${registroFinal.causa}\n\nSOLUÇÃO: ${registroFinal.solucao}\n\nOBSERVAÇÃO: ${registroFinal.observacao}`;
+    await registrarEventoTimeline('ETAPA 4: REPARO CONCLUÍDO / FINALIZADO', caixas.flatMap(caixa => caixa.fotos), descricaoCanonica, null, { caixas:metadados, descricaoServico:descricaoCanonica, registroFinal, fotosEsperadas:caixas.length, fotosPendentes:0 });
     localStorage.removeItem(`tech_active_doc_${usuarioUid}`);
+    clearTimeout(temporizadorRascunho);
     await operarRascunho('readwrite', 'delete').catch(() => {});
-    alert('Atendimento concluído e entregue a Projetos.');
-    location.reload();
+    alert('Atendimento concluído e entregue a Projetos.'); location.reload();
   } catch (erro) {
-    console.error('Falha na etapa 4:', erro);
     mensagem.textContent = `Etapa 4 não enviada: ${erro.message || erro.code || 'falha de envio'}. Seu rascunho foi preservado.`;
-    mensagem.hidden = false;
-    mensagem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    btn.disabled = false;
-    btn.textContent = 'Finalizar Atendimento de Campo';
-  }
+    mensagem.hidden = false; mensagem.scrollIntoView({ behavior:'smooth', block:'center' });
+  } finally { enviandoEtapa = false; bloquearFormulario(false); btn.textContent = 'Finalizar Atendimento de Campo'; }
 };
 
 // 5. CONSULTA SAC / SUPORTE / NOC

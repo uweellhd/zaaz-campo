@@ -824,3 +824,13 @@ input:focus, textarea:focus, select:focus {
   .dashboard-body .account-dropdown { max-height:70dvh; overflow-y:auto; }
 }
 @media(prefers-reduced-motion:reduce) { .dashboard-body .account-chevron,.dashboard-body .account-menu[open] .account-dropdown,.dashboard-body .view-panel { animation:none; transition:none; } }
+
+/* Evidências de campo: seleção múltipla ou adição de uma foto por vez. */
+.photo-gallery { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-top:10px; }
+.photo-gallery figure { min-width:0; margin:0; border:1px solid var(--border-color); border-radius:14px; padding:8px; background:var(--input-bg); }
+.photo-gallery img { display:block; width:100%; height:145px; object-fit:cover; border-radius:9px; }
+.photo-gallery button { width:100%; margin-top:8px; min-height:44px; }
+.photo-gallery > p { grid-column:1/-1; }
+#techFormFlow input[type=file] { width:100%; min-width:0; }
+#techFormFlow input[type=datetime-local] { width:100%; min-width:0; }
+#techFormFlow .field-card + .btn-step-group { margin-top:16px; }
