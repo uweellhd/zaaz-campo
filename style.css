@@ -793,3 +793,34 @@ input:focus, textarea:focus, select:focus {
 .dashboard-body .project-details .project-box { display:flex; flex-direction:column; align-items:flex-start; gap:12px; padding:16px 0; border-top:1px solid var(--border-color); }
 .dashboard-body .project-details .project-box strong { font-size:14px; overflow-wrap:anywhere; }
 .dashboard-body .project-details .project-box img { width:160px; height:120px; object-fit:cover; border-radius:10px; cursor:pointer; }
+
+/* Apresentação: controles com espaço próprio e movimento discreto. */
+.dashboard-body :is(.btn-primary,.btn-sec,.btn-sec-sm,.btn-export,.nav-btn,.incidente-card) {
+  position:relative; max-width:100%; white-space:normal; overflow-wrap:anywhere;
+  transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,color .18s ease;
+}
+.dashboard-body :is(.btn-primary,.btn-sec,.btn-sec-sm,.btn-export,.nav-btn,.incidente-card):hover { transform:none; }
+.dashboard-body button:disabled { opacity:.6; cursor:wait; box-shadow:none; }
+.dashboard-body .btn-export { display:inline-flex; align-items:center; justify-content:center; margin-bottom:20px; min-height:44px; line-height:1.4; }
+.dashboard-body #techFormArea select + .btn-sec-sm { display:flex; margin:14px 0 4px; }
+.dashboard-body .btn-step-group { flex-wrap:wrap; }
+.dashboard-body .account-chevron { width:24px; height:24px; display:grid; place-items:center; line-height:1; transition:transform .22s ease; transform-origin:center; }
+.dashboard-body .account-menu[open] .account-chevron { transform:rotate(180deg); }
+.dashboard-body .account-menu summary:active { background:var(--input-bg); }
+.dashboard-body .account-menu[open] .account-dropdown { animation:menuReveal .18s ease-out; }
+@keyframes menuReveal { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+.dashboard-body .view-panel { animation:panelReveal .2s ease-out; }
+@keyframes panelReveal { from { opacity:.65; } to { opacity:1; } }
+.dashboard-body .project-treatment { margin-top:24px; padding:20px; }
+.dashboard-body .project-treatment h4 { margin-bottom:18px; }
+.dashboard-body .project-treatment .project-check { display:flex; align-items:flex-start; gap:12px; margin:18px 0; line-height:1.6; }
+.dashboard-body .project-check input[type=checkbox] { appearance:auto; width:20px; height:20px; min-width:20px; margin:3px 0 0; padding:0; accent-color:var(--zaaz-blue); }
+.dashboard-body .project-audit { color:var(--text-muted); font-size:13px; margin:12px 0 18px; }
+.dashboard-body .project-treatment .btn-primary { width:auto; min-height:44px; }
+.dashboard-body .live-status { display:block; color:var(--success); font-size:12px; font-weight:700; padding-bottom:12px; }
+@media(max-width:600px) {
+  .dashboard-body .project-treatment { padding:16px; }
+  .dashboard-body .project-treatment .btn-primary { width:100%; }
+  .dashboard-body .account-dropdown { max-height:70dvh; overflow-y:auto; }
+}
+@media(prefers-reduced-motion:reduce) { .dashboard-body .account-chevron,.dashboard-body .account-menu[open] .account-dropdown,.dashboard-body .view-panel { animation:none; transition:none; } }

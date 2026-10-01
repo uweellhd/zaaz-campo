@@ -44,16 +44,16 @@
       <details id="accountMenu" class="account-menu">
         <summary><span id="userBadge">Carregando perfil...</span><span class="account-chevron" aria-hidden="true">⌄</span></summary>
         <div class="account-dropdown">
-          <button id="btnTabConta" type="button" onclick="alternarAba('viewConta')" style="display:none">Minha conta</button>
-          <button id="btnTabAcessos" type="button" onclick="alternarAba('viewAcessos')" style="display:none">Gerenciar acessos <span id="badgePendentes" class="pending-count" hidden>0</span></button>
+          <button id="btnTabConta" type="button" onclick="alternarAba('viewConta')" style="display:none">👤 Minha conta</button>
+          <button id="btnTabAcessos" type="button" onclick="alternarAba('viewAcessos')" style="display:none">🔐 Gerenciar acessos <span id="badgePendentes" class="pending-count" hidden>0</span></button>
           <button id="btnSimularSetores" type="button" onclick="location.assign('simulacao.html')" style="display:none">🧪 Testar setores</button>
-          <label for="themeSelector">Aparência</label>
+          <label for="themeSelector">🎨 Aparência</label>
           <select id="themeSelector" class="theme-select" onchange="mudarTemaSistema(this.value)">
             <option value="theme-light">☀️ Claro</option>
             <option value="theme-dark">🌙 Escuro</option>
             <option value="theme-zaaz">🟣 ZAAZ</option>
           </select>
-          <button type="button" class="menu-logout" onclick="sair()">Sair da conta</button>
+          <button type="button" class="menu-logout" onclick="sair()">↪ Sair da conta</button>
         </div>
       </details>
     </div>

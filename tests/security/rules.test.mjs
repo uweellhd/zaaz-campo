@@ -1,7 +1,7 @@
 import { before, beforeEach, after, test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, Timestamp, runTransaction } from 'firebase/firestore';
+import { doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, Timestamp, runTransaction, onSnapshot } from 'firebase/firestore';
 
 let env;
 const users = {
@@ -73,7 +73,9 @@ test('Projetos acessa somente a entrega e as fotos finais, sem incidente complet
   await assertSucceeds(getDoc(doc(db,'fotos','final1')));
   await assertFails(getDoc(doc(db,'fotos','partida')));
   await assertFails(getDoc(doc(db,'incidentes','a')));
-  await assertSucceeds(updateDoc(doc(db,'projetosEvidencias','a'),{statusOzmaps:'REGISTRADO'}));
+  await assertSucceeds(updateDoc(doc(db,'projetosEvidencias','a'),{statusOzmaps:'REGISTRADO',observacaoOzmaps:'Caixas cadastradas no OZmaps',tratadoPorUid:'projetos',tratadoPorNome:'projetos',tratadoEm:serverTimestamp()}));
+  await assertFails(updateDoc(doc(db,'projetosEvidencias','a'),{tratadoPorUid:'admin',tratadoPorNome:'admin',tratadoEm:serverTimestamp()}));
+  await assertFails(updateDoc(doc(db,'projetosEvidencias','a'),{observacaoOzmaps:'x'.repeat(2001),tratadoEm:serverTimestamp()}));
   await assertFails(updateDoc(doc(db,'projetosEvidencias','a'),{descricaoServico:'Alteração indevida'}));
 });
 test('etapa 4 exige repasse com caixas e pode concluir atomicamente no perfil técnico',async()=>{
@@ -102,4 +104,23 @@ test('listas de equipe respeitam o perfil: NOC e técnico não recebem todos os 
   await assertSucceeds(getDocs(query(collection(ctx('tecnicoA'),'usuarios'),where('perfil','==','tecnico'))));
   await assertFails(getDocs(collection(ctx('noc'),'usuarios')));
   await assertFails(getDocs(collection(ctx('projetos'),'usuarios')));
+});
+
+test('SAC recebe cada etapa do técnico ao vivo com o histórico aberto', async()=>{
+  let cancelar;
+  try {
+    let receber;
+    let rejeitar;
+    const proxima = () => new Promise((resolve,reject)=>{receber=resolve;rejeitar=reject;});
+    let espera = proxima();
+    cancelar = onSnapshot(doc(ctx('sac'),'incidentes','a'), s=>receber(s.data()), e=>rejeitar(e));
+    await espera;
+    const tecnico = ctx('tecnicoA');
+    for (const numero of [1,2,3]) {
+      espera = proxima();
+      await updateDoc(doc(tecnico,'incidentes','a'),{statusAtual:`ETAPA ${numero}: TESTE`,timelineEtapas:[{etapa:`ETAPA ${numero}: TESTE`,observacao:'Envio ao vivo'}]});
+      const recebido = await espera;
+      if (recebido.statusAtual !== `ETAPA ${numero}: TESTE`) throw new Error('Etapa não recebida ao vivo');
+    }
+  } finally { cancelar?.(); }
 });
