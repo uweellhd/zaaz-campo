@@ -747,3 +747,33 @@ input:focus, textarea:focus, select:focus {
   .dashboard-body #techFormArea .btn-step-group .btn-sec-sm { order:2; }
   .dashboard-body #techFormArea .box-evidence { padding:16px; }
 }
+
+/* Atendimento técnico: controles proporcionais e organização para campo */
+.dashboard-body #techFormArea { max-width:860px; margin:0 auto; }
+.dashboard-body #techFormArea .step h4 { font-size:19px; margin-bottom:18px; }
+.dashboard-body #techFormArea .form-group { margin-bottom:20px; }
+.dashboard-body #techFormArea input:not([type=file]), .dashboard-body #techFormArea select, .dashboard-body #techFormArea textarea { font-size:15px; min-height:44px; padding:11px 13px; border-radius:11px; }
+.dashboard-body #techFormArea textarea { min-height:100px; line-height:1.5; }
+.dashboard-body #techFormArea small { display:block; margin-top:7px; color:var(--text-muted); line-height:1.5; }
+.dashboard-body #techFormArea .btn-sec-sm, .dashboard-body #techFormArea .btn-primary { width:auto; min-height:42px; padding:10px 17px; border-radius:11px; font-size:13px; }
+.dashboard-body #techFormArea .btn-step-group { display:flex; justify-content:flex-end; align-items:center; gap:10px; border-top:1px solid var(--border-color); padding-top:18px; }
+.dashboard-body #techFormArea .btn-capture { display:inline-flex; width:auto; margin:8px 0 14px; }
+.dashboard-body #techFormArea .btn-add-box { display:inline-flex; width:auto; margin:0 0 18px; }
+.dashboard-body #techFormArea input[type=file] { width:100%; padding:10px; border:1px dashed var(--border-color); border-radius:12px; background:var(--input-bg); color:var(--text-main); font-size:13px; }
+.dashboard-body #techFormArea input[type=file]::file-selector-button { display:inline-block; width:auto; min-height:38px; margin:0 10px 0 0; padding:8px 14px; border:0; border-radius:9px; background:var(--zaaz-blue); color:white; font-weight:600; font-family:inherit; }
+.dashboard-body #techFormArea .preview-img { max-width:100%; width:auto; max-height:180px; object-fit:contain; margin:12px auto 0; border:1px solid var(--border-color); border-radius:10px; }
+.dashboard-body #techFormArea .box-evidence { padding:18px; }
+.dashboard-body #techFormArea .box-heading .remove-box { min-height:36px; padding:7px 11px; font-size:12px; }
+.dashboard-body #techFormArea .tech-flow-header .btn-sec-sm { padding:8px 12px; }
+.dashboard-body #techFormArea .step-indicator { margin-bottom:12px; }
+.dashboard-body #techFormArea #techLocalStatus { background:var(--input-bg); border-radius:12px; padding:12px 14px; font-size:13px; }
+@media (max-width:600px) {
+  .dashboard-body #techFormArea .step { padding:18px 14px; }
+  .dashboard-body #techFormArea .step h4 { font-size:17px; }
+  .dashboard-body #techFormArea input:not([type=file]), .dashboard-body #techFormArea select, .dashboard-body #techFormArea textarea { font-size:16px; }
+  .dashboard-body #techFormArea .btn-step-group { display:grid; grid-template-columns:auto 1fr; }
+  .dashboard-body #techFormArea .btn-step-group .btn-sec-sm { order:0; width:auto; }
+  .dashboard-body #techFormArea .btn-step-group .btn-primary { order:1; width:100%; min-height:46px; }
+  .dashboard-body #techFormArea .box-evidence { padding:14px; }
+  .dashboard-body #techFormArea .tech-flow-header { flex-direction:row; flex-wrap:wrap; align-items:center; }
+}
