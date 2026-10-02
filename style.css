@@ -889,3 +889,34 @@ input:focus, textarea:focus, select:focus {
  #techFormFlow .photo-gallery img { height:95px; }
  #techFormFlow .photo-gallery .btn-sec-sm { font-size:11px; padding:8px 5px; width:100%; }
 }
+
+/* Diretoria: recorte único, hierarquia executiva e ações sem sobreposição. */
+.executive-filterbar { padding:20px; margin:24px 0; border:1px solid var(--border-color); border-radius:18px; background:var(--card-bg); }
+.executive-filterbar .report-filters { margin:0 0 16px; }
+.executive-actions { display:flex; justify-content:flex-end; align-items:center; gap:10px; flex-wrap:wrap; }
+.dashboard-body .executive-actions .btn-export { margin:0; gap:8px; }
+.executive-actions .btn-export span { margin:0; }
+.report-scope-note { margin-top:14px; color:var(--text-muted); font-size:12px; line-height:1.6; }
+#avisoRelatorio { margin-top:8px; color:var(--zaaz-blue); font-size:13px; }
+.executive-kpis { grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.executive-kpis .kpi-card { min-height:150px; }
+.executive-kpis .kpi-card:nth-child(2)::before { background:#13877a; }
+.executive-kpis .kpi-card:nth-child(3)::before { background:#c64255; }
+.executive-kpis .kpi-card:nth-child(4)::before, .executive-kpis .kpi-card:nth-child(6)::before { background:#bd7d1d; }
+.success-text { color:#13877a; }
+.executive-summary { display:grid; grid-template-columns:1fr 1.3fr; gap:28px; padding:24px; margin-bottom:28px; border-radius:18px; }
+.executive-summary p { font-size:17px; line-height:1.6; margin-top:10px; font-weight:600; }
+.executive-summary ul { padding-left:18px; margin:0; font-size:13px; line-height:1.65; }
+.executive-summary li+li { margin-top:8px; }
+.supervisor-chart { min-height:300px; }
+.supervisor-chart canvas { max-height:245px; }
+#viewGerente .chart-card { border-radius:18px; padding:24px; }
+#viewGerente .chart-card h5 { margin-bottom:20px; }
+#viewGerente .report-toolbar .btn-export { margin:0; }
+@media(max-width:900px){.executive-summary { grid-template-columns:1fr; gap:16px; }.executive-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }}
+@media(max-width:520px){.executive-filterbar { padding:16px; }.executive-kpis { gap:10px; }.executive-kpis .kpi-card { min-height:138px; padding:15px; }.executive-summary { padding:18px; }.executive-actions { align-items:stretch; }.executive-actions button { flex:1; }#viewGerente .chart-card { padding:18px; }}
+.executive-filterbar .report-filters { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
+.executive-filterbar .report-filters label { min-width:0; }
+.executive-filterbar .report-filters input, .executive-filterbar .report-filters select { width:100%; min-width:0; }
+@media(max-width:900px){.executive-filterbar .report-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }}
+@media(max-width:520px){.executive-filterbar .report-filters { grid-template-columns:1fr; }}

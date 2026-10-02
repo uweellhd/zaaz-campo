@@ -110,58 +110,46 @@
         <div>
           <p class="section-eyebrow"><span class="live-dot"></span> NEXTFLOW · INTELIGÊNCIA OPERACIONAL</p>
           <h3 class="panel-title">Visão executiva da rede</h3>
-          <p class="panel-desc">Situação dos incidentes, impacto nos clientes e evidências das equipes em um só lugar.</p>
+          <p class="panel-desc">Prioridades da operação, impacto informado e evolução dos atendimentos.</p>
         </div>
         <div class="hero-meta"><span id="painelAtualizado">Aguardando dados</span><span id="painelEscopo">Todos os estados</span></div>
       </div>
-      <div class="executive-section-label"><span>01 / RESUMO</span><strong>O que precisa de atenção agora</strong></div>
-      <div class="executive-summary" aria-live="polite">
-        <p id="resumoExecutivo">Carregando os indicadores da operação...</p>
+      <div class="executive-filterbar">
+        <div class="report-filters" aria-label="Filtros da visão executiva">
+          <label>Abertos de <input type="date" id="relatorioInicio" onchange="atualizarRecorteDiretoria()"></label>
+          <label>Até <input type="date" id="relatorioFim" onchange="atualizarRecorteDiretoria()"></label>
+          <label>Estado <select id="relatorioEstado" onchange="filtrarPainelPorEstado(this.value)"><option value="TODOS">Todos</option></select></label>
+          <label>Supervisor <input type="search" id="relatorioSupervisor" placeholder="Nome ou sobrenome" oninput="atualizarRecorteDiretoria()"></label>
+        </div>
+        <div class="executive-actions"><button type="button" class="btn-sec-sm" onclick="limparRecorteDiretoria()">Limpar filtros</button><button type="button" id="btnRelatorioPDF" class="btn-export" onclick="exportarRelatorioPDF()"><span aria-hidden="true">↓</span> Relatório PDF</button></div>
+        <p class="report-scope-note" id="recorteDiretoria">Sem limite de período · todas as situações. Datas filtram a abertura dos chamados.</p>
+        <p id="avisoRelatorio" role="status" aria-live="polite"></p>
       </div>
+      <div class="executive-section-label"><span>01 / PANORAMA</span><strong>Volume, impacto e prioridades</strong></div>
       <div class="kpi-grid executive-kpis">
-        <div class="kpi-card kpi-card-primary" onclick="filtrarPainelPorEstado('TODOS')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filtrarPainelPorEstado('TODOS')}">
-          <span class="kpi-title">Incidentes ativos</span>
-          <h2 id="kpiTotalIncidentes" class="kpi-value">0</h2>
-          <span class="kpi-foot">Chamados em andamento</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-title">Clientes afetados · GPON</span>
-          <h2 id="kpiTotalGpon" class="kpi-value alert-text">0</h2>
-          <span class="kpi-foot">Soma informada nos chamados ativos</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-title">Paradas de backbone</span>
-          <h2 id="kpiTotalBackbone" class="kpi-value warning-text">0</h2>
-          <span class="kpi-foot">Ocorrências em andamento</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-title">Evidências finais pendentes</span>
-          <h2 id="kpiEvidenciasPendentes" class="kpi-value evidence-text">0</h2>
-          <span class="kpi-foot">IDs ativos sem registro completo</span>
-        </div>
+        <div class="kpi-card kpi-card-primary"><span class="kpi-title">Incidentes ativos</span><h2 id="kpiTotalIncidentes" class="kpi-value">0</h2><span class="kpi-foot">Em andamento no recorte</span></div>
+        <div class="kpi-card"><span class="kpi-title">Chamados resolvidos</span><h2 id="kpiResolvidos" class="kpi-value success-text">0</h2><span class="kpi-foot">Concluídos no recorte de abertura</span></div>
+        <div class="kpi-card"><span class="kpi-title">Clientes afetados · GPON</span><h2 id="kpiTotalGpon" class="kpi-value alert-text">0</h2><span class="kpi-foot">Soma informada nos chamados ativos</span></div>
+        <div class="kpi-card"><span class="kpi-title">Paradas de backbone</span><h2 id="kpiTotalBackbone" class="kpi-value warning-text">0</h2><span class="kpi-foot">Ocorrências em andamento</span></div>
+        <div class="kpi-card"><span class="kpi-title">Aguardando técnico</span><h2 id="kpiSemTecnico" class="kpi-value">0</h2><span class="kpi-foot">Ativos sem responsável definido</span></div>
+        <div class="kpi-card"><span class="kpi-title">Previsões vencidas</span><h2 id="kpiPrevisoesVencidas" class="kpi-value warning-text">0</h2><span class="kpi-foot">Prazo informado ultrapassado · não é SLA</span></div>
       </div>
-
+      <div class="executive-summary" aria-live="polite"><div><span class="section-eyebrow">LEITURA DA OPERAÇÃO</span><p id="resumoExecutivo">Carregando os indicadores...</p></div><ul id="prioridadesExecutivas"></ul></div>
       <div class="executive-section-label"><span>02 / REGIÕES</span><strong>Distribuição dos chamados ativos</strong></div>
       <div class="section-heading"><h4 class="section-subtitle">Operação por estado</h4><span>Selecione uma região para filtrar os chamados abaixo</span></div>
       <div id="stateGrid" class="kpi-grid state-grid"></div>
 
       <div class="executive-section-label"><span>03 / ANÁLISE</span><strong>Composição e acompanhamento</strong></div>
-      <div class="charts-grid-three">
+      <div class="charts-grid-two">
         <div class="chart-card"><h5>Incidentes ativos por rede</h5><canvas id="chartTipoIncidente"></canvas></div>
         <div class="chart-card"><h5>Incidentes ativos por estado</h5><canvas id="chartEstados"></canvas></div>
-        <div class="chart-card"><h5>Ativos e resolvidos por supervisor</h5><canvas id="chartSupervisores"></canvas></div>
       </div>
 
+      <div class="chart-card supervisor-chart"><h5>Carteira por supervisor · até 6 maiores volumes ativos</h5><canvas id="chartSupervisores"></canvas></div>
       <div class="charts-grid-two"><div class="chart-card"><h5>Progresso dos atendimentos ativos</h5><canvas id="chartEtapas"></canvas></div><div class="chart-card"><h5>Conclusões por dia · últimos 7 dias</h5><canvas id="chartConclusoes"></canvas></div></div>
 
       <div class="executive-section-label"><span>04 / DETALHES</span><strong>Chamados e relatório para reunião</strong></div>
-      <div class="report-toolbar"><div><h4 class="section-subtitle" id="tituloListaConsolidada">Chamados da operação</h4><p>Selecione um chamado para consultar o histórico.</p></div><button class="btn-export" onclick="exportarRelatorioCSV()">Exportar CSV <span aria-hidden="true">↗</span></button></div>
-      <div class="report-filters" aria-label="Filtros do relatório">
-        <label>De <input type="date" id="relatorioInicio"></label>
-        <label>Até <input type="date" id="relatorioFim"></label>
-        <label>Estado <select id="relatorioEstado"><option value="TODOS">Todos</option></select></label>
-        <label>Supervisor <input type="search" id="relatorioSupervisor" placeholder="Nome ou sobrenome"></label>
-      </div>
+      <div class="report-toolbar"><div><h4 class="section-subtitle" id="tituloListaConsolidada">Chamados da operação</h4><p>Selecione um chamado para consultar o histórico. PDF e CSV incluem ativos e resolvidos do recorte.</p></div><button class="btn-export" onclick="exportarRelatorioCSV()">Exportar CSV <span aria-hidden="true">↗</span></button></div>
       <div class="status-tabs" id="diretoriaFiltros" aria-label="Situação dos chamados"><button type="button" class="btn-sec-sm active" data-status="ativos" onclick="filtrarSituacaoDiretoria('ativos')">Em andamento</button><button type="button" class="btn-sec-sm" data-status="resolvidos" onclick="filtrarSituacaoDiretoria('resolvidos')">Resolvidos</button></div>
       <div id="gerenteIncidentesList" class="incidents-grid-list"></div><button type="button" id="diretoriaMais" class="btn-sec-sm" onclick="maisDiretoria()">Carregar mais IDs</button>
     </section>
