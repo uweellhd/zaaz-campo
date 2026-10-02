@@ -5,8 +5,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, updateDoc, runTransaction, query, where, documentId, startAfter, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut, verifyBeforeUpdateEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { avaliarFinalizacao, avaliarEtapa, categoriasEtapa, listaFotos, LIMITE_FOTOS, etapaConcluida, exigirProximaEtapa, modeloDescricao, separarDescricao } from '../lib/field-flow.mjs';
+import { avaliarFinalizacao, avaliarEtapa, categoriasEtapa, listaFotos, LIMITE_FOTOS, etapaConcluida, exigirProximaEtapa, modeloDescricao, separarDescricao, formatarPrevisao, resolvido } from '../lib/field-flow.mjs';
 import { renderizarGaleria } from '../lib/photo-gallery.mjs';
+import { montarGaleria, abrirFotos, fecharFotos, fotoAberta } from '../lib/photo-viewer.mjs';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
@@ -30,8 +31,8 @@ const ouvintes = new Map();
 let saindo = false;
 const abasPermitidas = {
   admin: ['viewGerente', 'viewNoc', 'viewSac', 'viewTech', 'viewSupervisor', 'viewProjetos', 'viewConta', 'viewAcessos'],
-  gerente: ['viewGerente', 'viewSac'],
-  diretor: ['viewGerente', 'viewSac'],
+  gerente: ['viewGerente'],
+  diretor: ['viewGerente'],
   noc: ['viewNoc', 'viewSac'],
   sac: ['viewSac'],
   suporte: ['viewSac'],
@@ -59,88 +60,110 @@ let tecnicosDisponiveis = [];
 let supervisoresDisponiveis = [];
 const estadosBrasil = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
-async function carregarTecnicosDisponiveis() {
-  if (!['admin', 'noc'].includes(perfilSalvo)) return;
-  const resultado = await getDocs(query(collection(db, 'usuarios'), where('perfil', '==', 'tecnico')));
-  tecnicosDisponiveis = resultado.docs
-    .map(documento => ({ uid: documento.id, ...documento.data() }))
-    .filter(tecnico => tecnico.ativo === true);
-  const supervisores = await getDocs(query(collection(db, 'usuarios'), where('perfil', '==', 'supervisor')));
-  supervisoresDisponiveis = supervisores.docs
-    .map(documento => ({ uid: documento.id, ...documento.data() }))
-    .filter(supervisor => supervisor.ativo === true);
+const el = id => document.getElementById(id);
+let cadastrosEquipe = [], vinculosEquipe = [], chamadosSupervisor = [], filtroSupervisor = 'ativos';
+let paginaSupervisor = 1, paginaDiretoria = 1, filtroDiretoria = 'ativos';
+const TAMANHO_PAGINA = 24;
+function elemento(tag, texto, classe) { const e = document.createElement(tag); if (texto) e.textContent=texto; if (classe) e.className=classe; return e; }
+function supervisorSelecionado() { return perfilSalvo === 'admin' ? el('equipeSupervisor').value : usuarioUid; }
+function membrosAtivos(uid) { return vinculosEquipe.filter(v => v.supervisorUid===uid && v.ativo).map(v=>cadastrosEquipe.find(p=>p.uid===v.tecnicoUid && p.ativo && p.perfil==='tecnico')).filter(Boolean); }
+function criarControlesSupervisao() {
+  if (el('equipeSupervisor')) return;
+  const bloco=elemento('details','', 'team-panel'); bloco.open=false;
+  bloco.append(elemento('summary','👥 Gerenciar equipe de técnicos'));
+  const corpo=elemento('div','', 'team-panel-body');
+  const seletor=elemento('select'); seletor.id='equipeSupervisor'; seletor.setAttribute('aria-label','Supervisor da equipe'); seletor.hidden=perfilSalvo!=='admin';
+  seletor.onchange=renderizarEquipe;
+  const lista=elemento('div','', 'team-roster'); lista.id='equipeTecnicos';
+  const form=elemento('form','', 'assignment-search');
+  const pessoas=elemento('select'); pessoas.id='equipeAdicionar'; pessoas.setAttribute('aria-label','Técnico cadastrado para adicionar');
+  const botao=elemento('button','＋ Adicionar à equipe','btn-primary'); botao.type='submit';
+  form.append(pessoas,botao); form.onsubmit=async e=>{
+    e.preventDefault(); const uid=supervisorSelecionado(), pessoa=cadastrosEquipe.find(p=>p.uid===pessoas.value);
+    if(!uid || !pessoa || pessoa.perfil!=='tecnico' || !pessoa.ativo){alert('Escolha um supervisor e um técnico ativo.');return}
+    botao.disabled=true;
+    try { await runTransaction(db,async tx=>{
+      const ref=doc(db,'equipesTecnicas',pessoa.uid); const atual=await tx.get(ref);
+      if(atual.exists() && atual.data().supervisorUid!==uid && perfilSalvo!=='admin')throw new Error('Este técnico já pertence a outra equipe. Solicite a transferência ao administrador.');
+      tx.set(ref,{tecnicoUid:pessoa.uid,supervisorUid:uid,ativo:true,atualizadoEm:serverTimestamp(),atualizadoPorUid:usuarioUid});
+    }); } catch(erro){alert(erro.message || 'Não foi possível adicionar o técnico.')} finally{botao.disabled=false}
+  };
+  corpo.append(elemento('p','Selecione profissionais já aprovados. Cada técnico tem uma equipe principal; o administrador pode transferi-lo.','search-hint'),seletor,lista,form); bloco.append(corpo);
+  el('supervisorResultados').before(bloco);
+  const filtros=elemento('div','', 'status-tabs'); filtros.setAttribute('aria-label','Situação dos IDs da supervisão');
+  for(const [valor,nome] of [['ativos','Em andamento'],['resolvidos','Resolvidos']]) {const b=elemento('button',nome,'btn-sec-sm');b.type='button';b.dataset.status=valor;b.onclick=()=>{filtroSupervisor=valor;paginaSupervisor=1;renderizarSupervisor()};filtros.append(b)}
+  filtros.id='supervisorFiltros';el('supervisorResultados').before(filtros);
+  const mais=elemento('button','Carregar mais IDs','btn-sec-sm');mais.id='supervisorMais';mais.onclick=()=>{paginaSupervisor++;renderizarSupervisor()};el('supervisorResultados').after(mais);
+  ouvirUmaVez('cadastros-tecnicos',query(collection(db,'usuarios'),where('perfil','==','tecnico')),snapshot=>{cadastrosEquipe=snapshot.docs.map(d=>({...d.data(),uid:d.id}));renderizarEquipe();renderizarSupervisor()});
+  ouvirUmaVez('vinculos-equipes',collection(db,'equipesTecnicas'),snapshot=>{vinculosEquipe=snapshot.docs.map(d=>({...d.data(),tecnicoUid:d.id}));renderizarEquipe();renderizarSupervisor()});
+  if(perfilSalvo==='admin')ouvirUmaVez('supervisores-equipe',query(collection(db,'usuarios'),where('perfil','==','supervisor')),snapshot=>{
+    supervisoresDisponiveis=snapshot.docs.map(d=>({...d.data(),uid:d.id})).filter(p=>p.ativo);const anterior=seletor.value;
+    seletor.replaceChildren(new Option('Selecione um supervisor',''),...supervisoresDisponiveis.map(p=>new Option(p.nome,p.uid)));seletor.value=anterior;renderizarEquipe();
+  });
 }
-
-document.getElementById('formBuscarAtribuicao')?.addEventListener('submit', async evento => {
-  evento.preventDefault();
-  if (!['admin', 'noc'].includes(perfilSalvo)) return;
-  const id = document.getElementById('buscaAtribuicao').value.trim();
-  const resultados = document.getElementById('resultadosAtribuicao');
-  resultados.textContent = 'Buscando...';
-  try {
-    await carregarTecnicosDisponiveis();
-    const consulta = await getDocs(query(collection(db, 'incidentes'), where('idIncidente', '==', id), limit(10)));
-    resultados.replaceChildren();
-    if (consulta.empty) { resultados.textContent = 'Nenhum ID encontrado.'; return; }
-    consulta.forEach(documento => {
-      const chamado = documento.data();
-      const card = document.createElement('div');
-      card.className = 'approval-card';
-      const nome = document.createElement('strong');
-      nome.textContent = `ID ${chamado.idIncidente} · ${chamado.cidades || ''}`;
-      const atual = document.createElement('small');
-      atual.textContent = chamado.tecnicoAtribuido ? `Atual: ${chamado.tecnicoAtribuido}` : 'Sem técnico atribuído';
-      const seletor = document.createElement('select');
-      seletor.setAttribute('aria-label', `Técnico do ID ${chamado.idIncidente}`);
-      seletor.add(new Option('Sem técnico atribuído', ''));
-      for (const tecnico of tecnicosDisponiveis.filter(pessoa => pessoa.estado === chamado.estado)) {
-        seletor.add(new Option(`${tecnico.nome} (${tecnico.estado})`, tecnico.uid));
-      }
-      if (chamado.tecnicoUid) seletor.value = chamado.tecnicoUid;
-      const salvar = document.createElement('button');
-      salvar.type = 'button';
-      salvar.className = 'btn-sec-sm';
-      salvar.textContent = 'Salvar atribuição';
-      salvar.addEventListener('click', async () => {
-        const escolhido = tecnicosDisponiveis.find(pessoa => pessoa.uid === seletor.value && pessoa.estado === chamado.estado);
-        if (seletor.value && !escolhido) { alert('Selecione um técnico ativo do mesmo estado.'); return; }
-        if (!escolhido && !confirm('Remover a atribuição? O técnico deixará de ver esse ID.')) return;
-        salvar.disabled = true;
-        try {
-          await updateDoc(doc(db, 'incidentes', documento.id), {
-            tecnicoUid: escolhido?.uid || '', tecnicoAtribuido: escolhido?.nome || ''
-          });
-          atual.textContent = escolhido ? `Atual: ${escolhido.nome}` : 'Sem técnico atribuído';
-        } catch (erro) { alert('Não foi possível atribuir esse ID.'); }
-        finally { salvar.disabled = false; }
-      });
-      card.append(nome, atual, seletor, salvar);
-      const supervisorSelect = document.createElement('select');
-      supervisorSelect.setAttribute('aria-label', `Supervisor do ID ${chamado.idIncidente}`);
-      supervisorSelect.add(new Option('Selecione supervisor', ''));
-      for (const pessoa of supervisoresDisponiveis) supervisorSelect.add(new Option(pessoa.nome, pessoa.uid));
-      if (chamado.supervisorUid) supervisorSelect.value = chamado.supervisorUid;
-      const salvarSupervisor = document.createElement('button');
-      salvarSupervisor.type = 'button';
-      salvarSupervisor.className = 'btn-sec-sm';
-      salvarSupervisor.textContent = 'Vincular supervisor';
-      salvarSupervisor.addEventListener('click', async () => {
-        const escolhido = supervisoresDisponiveis.find(pessoa => pessoa.uid === supervisorSelect.value);
-        if (!escolhido) { alert('Selecione um supervisor ativo.'); return; }
-        salvarSupervisor.disabled = true;
-        try {
-          await updateDoc(doc(db, 'incidentes', documento.id), { supervisorUid: escolhido.uid });
-          alert('Supervisor vinculado ao ID.');
-        } catch (erro) { alert('Não foi possível vincular o supervisor.'); }
-        finally { salvarSupervisor.disabled = false; }
-      });
-      card.append(supervisorSelect, salvarSupervisor);
-      resultados.append(card);
-    });
-  } catch (erro) {
-    resultados.textContent = 'Não foi possível buscar. Confira seu perfil e tente novamente.';
+function renderizarEquipe(){
+  if(!el('equipeTecnicos'))return; const uid=supervisorSelecionado(),lista=el('equipeTecnicos');lista.replaceChildren();
+  for(const pessoa of membrosAtivos(uid)){
+    const linha=elemento('div','', 'team-member');linha.append(elemento('strong',pessoa.nome));const b=elemento('button','Remover da equipe','btn-sec-sm');b.type='button';
+    b.onclick=async()=>{if(!confirm('Remover da equipe? Os IDs já atribuídos permanecem com o técnico até você redistribuí-los.'))return;b.disabled=true;try{await updateDoc(doc(db,'equipesTecnicas',pessoa.uid),{ativo:false,atualizadoEm:serverTimestamp(),atualizadoPorUid:usuarioUid})}catch{alert('Não foi possível remover.')}finally{b.disabled=false}};linha.append(b);lista.append(linha);
   }
+  if(!lista.children.length)lista.append(elemento('p',uid?'Nenhum técnico ativo nesta equipe.':'Selecione um supervisor para montar a equipe.','empty-state'));
+  const disponiveis=cadastrosEquipe.filter(p=>p.ativo && !vinculosEquipe.some(v=>v.tecnicoUid===p.uid && (v.ativo || v.supervisorUid!==uid) && !(perfilSalvo==='admin' && v.supervisorUid!==uid)));
+  el('equipeAdicionar').replaceChildren(new Option('Selecione um técnico cadastrado',''),...disponiveis.map(p=>new Option(p.nome+(vinculosEquipe.some(v=>v.tecnicoUid===p.uid&&v.supervisorUid!==uid)?' · transferir equipe':''),p.uid)));
+}
+function renderizarSupervisor(){
+  const lista=el('supervisorResultados');if(!lista)return;lista.replaceChildren();
+  const vinculados=chamadosSupervisor.filter(i=>i.supervisorUid), encerrados=vinculados.filter(resolvido), abertos=vinculados.filter(i=>!resolvido(i));
+  el('supervisorTotal').textContent=String(vinculados.length);el('supervisorPendente').textContent=String(abertos.length);el('supervisorCompleto').textContent=String(encerrados.length);
+  el('supervisorFotosFaltantes').textContent=String(abertos.filter(i=>!i.tecnicoUid).length);
+  const sem=chamadosSupervisor.filter(i=>!i.supervisorUid).length;el('supervisorAviso').hidden=perfilSalvo!=='admin'||!sem;
+  el('supervisorAviso').textContent=`${sem} ID(s) antigos aguardam identificação do supervisor. Use NOC → Conferir responsável para vinculá-los sem modificar o comunicado.`;
+  el('supervisorFiltros')?.querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.dataset.status===filtroSupervisor);b.setAttribute('aria-pressed',String(b.dataset.status===filtroSupervisor))});
+  const filtrados=chamadosSupervisor.filter(i=>resolvido(i)===(filtroSupervisor==='resolvidos')).sort((a,b)=>(b.dataTimestamp||0)-(a.dataTimestamp||0));
+  for(const item of filtrados.slice(0,paginaSupervisor*TAMANHO_PAGINA)){
+    const card=elemento('article','', 'incidente-card supervisor-card'); const abrir=elemento('button','', 'incident-open');abrir.type='button';
+    abrir.append(elemento('strong',`ID ${item.idIncidente} · OS ${item.os||'—'}`),elemento('small',`${item.cidades||''} · ${item.statusAtual||'Aguardando atendimento'}`),elemento('span',`Técnico: ${item.tecnicoAtribuido||'A distribuir'}`,item.tecnicoUid?'evidence-complete':'evidence-pending'));abrir.onclick=()=>abrirModalDetalhes(item);card.append(abrir);
+    if(!resolvido(item) && item.supervisorUid){
+      const form=elemento('form','', 'assignment-search');const seletor=elemento('select');seletor.setAttribute('aria-label',`Técnico da equipe para ID ${item.idIncidente}`);
+      seletor.add(new Option('Selecione o técnico da equipe',''));for(const p of membrosAtivos(item.supervisorUid))seletor.add(new Option(p.nome,p.uid));seletor.value=item.tecnicoUid||'';
+      const b=elemento('button',item.tecnicoUid?'Redistribuir':'Acionar técnico','btn-primary');b.type='submit';
+      form.append(seletor,b);form.onsubmit=async e=>{e.preventDefault();const destino=membrosAtivos(item.supervisorUid).find(p=>p.uid===seletor.value);if(!destino){alert('Escolha um técnico ativo desta equipe.');return}b.disabled=true;
+        try{await runTransaction(db,async tx=>{const ref=doc(db,'incidentes',item.docId);const atual=await tx.get(ref);const vinculo=await tx.get(doc(db,'equipesTecnicas',destino.uid));const pessoa=await tx.get(doc(db,'usuarios',destino.uid));if(!atual.exists()||resolvido(atual.data())||atual.data().supervisorUid!==item.supervisorUid||!vinculo.exists()||!vinculo.data().ativo||vinculo.data().supervisorUid!==item.supervisorUid||!pessoa.exists()||!pessoa.data().ativo||pessoa.data().perfil!=='tecnico')throw new Error('O ID ou a equipe mudou. Confira novamente.');tx.update(ref,{tecnicoUid:destino.uid,tecnicoAtribuido:pessoa.data().nome,atribuidoEm:serverTimestamp(),atribuidoPorUid:usuarioUid,atribuidoPorNome:usuarioSalvo})});}catch(erro){alert(erro.message||'Não foi possível distribuir o ID.')}finally{b.disabled=false}
+      };card.append(form);
+    }lista.append(card);
+  }
+  if(!filtrados.length)lista.append(elemento('p',filtroSupervisor==='resolvidos'?'Nenhum ID resolvido neste acompanhamento.':'Nenhum ID em andamento. Confira o vínculo do supervisor e a equipe.','empty-state'));
+  if(el('supervisorMais'))el('supervisorMais').hidden=filtrados.length<=paginaSupervisor*TAMANHO_PAGINA;
+}
+async function carregarTecnicosDisponiveis(){
+  if(!['admin','noc'].includes(perfilSalvo))return;
+  const resultado=await getDocs(query(collection(db,'usuarios'),where('perfil','==','supervisor')));
+  supervisoresDisponiveis=resultado.docs.map(d=>({...d.data(),uid:d.id})).filter(p=>p.ativo);
+}
+el('formBuscarAtribuicao')?.addEventListener('submit',async evento=>{
+  evento.preventDefault();if(!['admin','noc'].includes(perfilSalvo))return;const resultados=el('resultadosAtribuicao');resultados.textContent='Buscando...';
+  try{await carregarTecnicosDisponiveis();const consulta=await getDocs(query(collection(db,'incidentes'),where('idIncidente','==',el('buscaAtribuicao').value.trim()),limit(10)));resultados.replaceChildren();
+    for(const documento of consulta.docs){const item=documento.data(),card=elemento('div','', 'approval-card');card.append(elemento('strong',`ID ${item.idIncidente} · Responsável no comunicado: ${item.responsavel||'Não informado'}`));
+      const seletor=elemento('select');seletor.setAttribute('aria-label','Conta do supervisor responsável');seletor.replaceChildren(new Option('Selecione o supervisor identificado',''),...supervisoresDisponiveis.map(p=>new Option(p.nome,p.uid)));seletor.value=item.supervisorUid||'';
+      const b=elemento('button','Confirmar responsável','btn-sec-sm');b.type='button';b.onclick=async()=>{const escolhido=supervisoresDisponiveis.find(p=>p.uid===seletor.value);if(!escolhido)return;
+        if(item.supervisorUid!==escolhido.uid && item.tecnicoUid && !resolvido(item) && !confirm('A mudança de supervisor retirará a atribuição atual para o novo supervisor redistribuir. Continuar?'))return;
+        b.disabled=true;try{await runTransaction(db,async tx=>{const ref=doc(db,'incidentes',documento.id),atual=await tx.get(ref);if(!atual.exists())throw new Error('ID não encontrado.');const data=atual.data();const patch={supervisorUid:escolhido.uid,supervisorNome:escolhido.nome,supervisorVinculoOrigem:'CONFIRMACAO_MANUAL'};if(data.supervisorUid!==escolhido.uid&&!resolvido(data)){patch.tecnicoUid='';patch.tecnicoAtribuido=''}tx.update(ref,patch)});alert('Responsável confirmado. O supervisor já pode distribuir o atendimento.')}catch{alert('Não foi possível confirmar o responsável.')}finally{b.disabled=false}
+      };card.append(seletor,b);resultados.append(card);
+    }if(consulta.empty)resultados.textContent='Nenhum ID encontrado.';
+  }catch{resultados.textContent='Não foi possível buscar. Confira a conexão e tente novamente.'}
 });
+function prepararIdentidadesIxc(){
+  if(perfilSalvo!=='admin'||el('formIdentidadeIxc'))return;
+  const secao=elemento('details','', 'team-panel');secao.append(elemento('summary','🔗 Identificadores únicos do IXC'));
+  const corpo=elemento('div','', 'team-panel-body');corpo.append(elemento('p','Cadastre o ID exato do usuário supervisor no IXC. Novos comunicados com o campo ID USUÁRIO IXC ou ID SUPERVISOR IXC serão vinculados à conta correspondente. Não usamos semelhança de nomes.','search-hint'));
+  const form=elemento('form','', 'assignment-search');form.id='formIdentidadeIxc';const id=elemento('input');id.required=true;id.pattern='[0-9]{1,20}';id.inputMode='numeric';id.placeholder='ID do usuário no IXC';id.setAttribute('aria-label','ID do usuário supervisor no IXC');const supervisor=elemento('select');supervisor.required=true;supervisor.setAttribute('aria-label','Supervisor correspondente no NEXTFLOW');
+  carregarTecnicosDisponiveis().then(()=>supervisor.replaceChildren(new Option('Selecione o supervisor',''),...supervisoresDisponiveis.map(p=>new Option(p.nome,p.uid)))).catch(()=>{});
+  const salvar=elemento('button','Salvar identificação','btn-primary');salvar.type='submit';form.append(id,supervisor,salvar);const lista=elemento('div','', 'team-roster');
+  form.onsubmit=async e=>{e.preventDefault();if(!/^[0-9]{1,20}$/.test(id.value))return;const pessoa=supervisoresDisponiveis.find(p=>p.uid===supervisor.value);if(!pessoa)return;salvar.disabled=true;
+    try{await runTransaction(db,async tx=>{const ref=doc(db,'identidadesIxc',id.value),atual=await tx.get(ref);if(atual.exists()&&atual.data().supervisorUid!==pessoa.uid)throw new Error('Este ID IXC já está vinculado a outra conta. Revise o cadastro antes de alterar.');tx.set(ref,{supervisorUid:pessoa.uid,supervisorNome:pessoa.nome,atualizadoEm:serverTimestamp(),atualizadoPorUid:usuarioUid})});id.value='';}catch(erro){alert(erro.message||'Não foi possível salvar.')}finally{salvar.disabled=false}
+  };corpo.append(form,lista);secao.append(corpo);el('listaEquipe').before(secao);
+  ouvirUmaVez('identidades-ixc',collection(db,'identidadesIxc'),snapshot=>{lista.replaceChildren();for(const d of snapshot.docs)lista.append(elemento('p',`IXC ${d.id} → ${d.data().supervisorNome}`));if(snapshot.empty)lista.append(elemento('p','Nenhuma identificação cadastrada.','empty-state'))});
+}
 
 // LÓGICA DE VISIBILIDADE DAS ABAS BASEADA EM PERMISSÕES DINÂMICAS (RBAC)
 function configurarTelasPorPerfil() {
@@ -166,7 +189,7 @@ function configurarTelasPorPerfil() {
     carregarSolicitacoes();
     alternarAba('viewGerente');
   } else if (perfilSalvo === 'gerente' || perfilSalvo === 'diretor') {
-    [btnGerente, btnSac].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
+    [btnGerente].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
     alternarAba('viewGerente');
   } else if (perfilSalvo === 'noc') {
     [btnNoc, btnSac].forEach(btn => { if (btn) btn.style.display = 'inline-block'; });
@@ -190,7 +213,7 @@ function configurarTelasPorPerfil() {
 }
 
 window.alternarAba = (idAba) => {
-  if (!(abasPermitidas[perfilSalvo] || []).includes(idAba)) return;
+  if (idAba !== 'viewConta' && !(abasPermitidas[perfilSalvo] || []).includes(idAba)) return;
   const conta = document.getElementById('accountMenu');
   if (conta) conta.open = false;
   document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
@@ -286,12 +309,9 @@ function abrirModalProjeto(id, registro) {
     const linha = document.createElement('div'); linha.className = 'project-box';
     const info = document.createElement('strong'); info.textContent = `Caixa ${caixa.numero} · GPS ${caixa.gps}`;
     linha.append(info);
-    const fotosCaixa = (registro.fotoIds || []).slice(caixa.indiceFoto, caixa.indiceFoto + (caixa.quantidadeFotos || 1));
-    for (const fotoId of fotosCaixa) getDoc(doc(db, 'fotos', fotoId)).then(fotoDoc => {
-      if (geracao !== geracaoModalProjeto) return;
-      if (fotoDoc.exists()) adicionarMiniatura(linha, fotoDoc.data().dadosBase64);
-      else linha.append('Foto expirada (15 dias)');
-    }).catch(() => { if (geracao === geracaoModalProjeto) linha.append('Foto indisponível'); });
+    const galeria=elemento('div','', 'evidence-gallery');linha.append(galeria);
+    const fotosCaixa=(registro.fotoIds||[]).slice(caixa.indiceFoto,caixa.indiceFoto+(caixa.quantidadeFotos||1));
+    carregarGaleriaRegistrada(galeria,fotosCaixa,fotosCaixa.map((_,n)=>`Caixa ${caixa.numero} · Foto ${n+1}`),()=>geracao===geracaoModalProjeto);
     conteudo.append(linha);
   }
   const tratamento = document.createElement('form'); tratamento.className = 'project-treatment field-card';
@@ -329,54 +349,14 @@ document.getElementById('modalProjetos')?.addEventListener('click', event => {
 });
 
 function carregarSupervisor() {
-  const descricao = document.getElementById('supervisorDescricao');
-  if (descricao && perfilSalvo === 'admin') descricao.textContent = 'Visão administrativa dos IDs. Para liberar a visão individual do supervisor, vincule o UID dele ao chamado na aba NOC.';
-  const consulta = perfilSalvo === 'admin' ? collection(db, 'incidentes')
-    : query(collection(db, 'incidentes'), where('supervisorUid', '==', usuarioUid));
-  ouvirUmaVez('supervisor', consulta, snapshot => {
-    const container = document.getElementById('supervisorResultados');
-    container.replaceChildren();
-    let total = 0, completos = 0, semVinculo = 0, fotosFaltantes = 0;
-    snapshot.forEach(documento => {
-      const item = documento.data();
-      if (perfilSalvo !== 'admin' && item.supervisorUid !== usuarioUid) return;
-      const vinculado = Boolean(item.supervisorUid);
-      if (vinculado) total++;
-      else semVinculo++;
-      const ok = evidenciaFinalRegistrada(item);
-      if (vinculado) fotosFaltantes += fotosPendentesEtapas(item);
-      if (ok && vinculado) completos++;
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'incidente-card supervisor-card';
-      const titulo = document.createElement('strong');
-      titulo.textContent = `ID ${item.idIncidente} · OS ${item.os || 'Não informada'}`;
-      const detalhes = document.createElement('small');
-      detalhes.textContent = `${item.cidades || ''} · ${item.statusAtual || ''} · Técnico: ${nomeCurto(item.tecnicoAtribuido) || 'Não atribuído'}`;
-      const situacao = document.createElement('span');
-      situacao.className = ok ? 'evidence-complete' : 'evidence-pending';
-      situacao.textContent = !vinculado && perfilSalvo === 'admin' ? 'Supervisor ainda não vinculado' : `${ok ? 'Etapa final registrada' : 'Etapa final pendente'} · ${fotosPendentesEtapas(item)} foto(s) aguardando das etapas 1–3`;
-      card.append(titulo, detalhes, situacao);
-      card.addEventListener('click', () => abrirModalDetalhes({ ...item, docId: documento.id }));
-      container.append(card);
-    });
-    document.getElementById('supervisorTotal').textContent = String(total);
-    document.getElementById('supervisorPendente').textContent = String(total - completos);
-    document.getElementById('supervisorCompleto').textContent = String(completos);
-    document.getElementById('supervisorFotosFaltantes').textContent = String(fotosFaltantes);
-    const aviso = document.getElementById('supervisorAviso');
-    if (aviso) {
-      aviso.hidden = perfilSalvo !== 'admin' || semVinculo === 0;
-      aviso.textContent = `${semVinculo} ID${semVinculo === 1 ? '' : 's'} sem supervisor vinculado. Use NOC → Atribuir atendimento para associar os registros antigos ao UID correto.`;
-    }
-    if (!snapshot.size) container.textContent = perfilSalvo === 'admin'
-      ? 'Nenhum ID encontrado. Confira os dados do Firestore.'
-      : 'Ainda não há IDs vinculados ao seu usuário. O NOC ou administrador pode vincular os IDs antigos na aba NOC.';
-  });
+  criarControlesSupervisao();
+  const consulta=perfilSalvo==='admin'?collection(db,'incidentes'):query(collection(db,'incidentes'),where('supervisorUid','==',usuarioUid));
+  ouvirUmaVez('supervisor',consulta,snapshot=>{chamadosSupervisor=snapshot.docs.map(d=>({...d.data(),docId:d.id}));renderizarSupervisor()});
 }
 
 function carregarSolicitacoes() {
   if (perfilSalvo !== 'admin') return;
+  prepararIdentidadesIxc();
   ouvirUmaVez('equipe', collection(db, 'usuarios'), snapshot => {
     const lista = document.getElementById('listaEquipe');
     lista.replaceChildren();
@@ -407,7 +387,7 @@ function carregarSolicitacoes() {
       salvar.textContent = 'Salvar acesso';
       salvar.addEventListener('click', async () => {
         if (!perfil.value || !estado.value) { alert('Escolha função e estado válidos.'); return; }
-        if (perfil.value === 'tecnico' && estado.value === 'TODOS') { alert('Escolha um estado para o técnico.'); return; }
+
         salvar.disabled = true;
         try {
           await updateDoc(doc(db, 'usuarios', documento.id), { perfil: perfil.value, estado: estado.value, ativo: ativo.checked });
@@ -453,7 +433,7 @@ function carregarSolicitacoes() {
       aprovar.className = 'btn-primary';
       aprovar.textContent = 'Aprovar';
       aprovar.addEventListener('click', async () => {
-        if (perfil.value === 'tecnico' && estado.value === 'TODOS') { alert('Escolha um estado para o técnico.'); return; }
+
         aprovar.disabled = true;
         try {
           await runTransaction(db, async transacao => {
@@ -542,25 +522,18 @@ function comprimirEMarcarDagua(file, textoMarca) {
       img.onerror = () => reject(new Error('Arquivo de imagem inválido.'));
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        if (width > 900) {
-          height = Math.round((height * 900) / width);
-          width = 900;
+        const escala = Math.min(1, 900 / Math.max(img.width,img.height));
+        const width=Math.max(1,Math.round(img.width*escala)),height=Math.max(1,Math.round(img.height*escala));
+        canvas.width=width;canvas.height=height;
+        const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,width,height);
+        const fonte=Math.max(10,Math.min(16,Math.round(width/36))), margem=Math.min(12,width/10), linhas=[];
+        ctx.font=`bold ${fonte}px Inter, sans-serif`;
+        for(const parte of textoMarca.split('|')){
+          let linha='';for(const palavra of parte.trim().split(/\s+/)){const tentativa=linha?linha+' '+palavra:palavra;if(linha&&ctx.measureText(tentativa).width>width-2*margem){linhas.push(linha);linha=palavra}else linha=tentativa}if(linha)linhas.push(linha);
         }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-        ctx.fillRect(0, height - 40, width, 40);
-
-        ctx.fillStyle = "#FFFFFF";
-        ctx.font = "bold 16px Inter, sans-serif";
-        ctx.fillText(textoMarca, 15, height - 15);
+        const altura=linhas.length*(fonte+5)+12;
+        ctx.fillStyle='rgba(0,0,0,.68)';ctx.fillRect(0,height-altura,width,altura);
+        ctx.fillStyle='#FFFFFF';linhas.forEach((linha,n)=>ctx.fillText(linha,margem,height-altura+fonte+6+n*(fonte+5),width-2*margem));
 
         let qualidade = 0.7;
         let foto = canvas.toDataURL('image/jpeg', qualidade);
@@ -626,13 +599,19 @@ if (formNoc) {
     btn.disabled = true;
 
     try {
-      let idIncidenteExt = extrairCampo(textoBruto, "ID");
+      let idIncidenteExt = extrairCampo(textoBruto, "ID INCIDENTE") || extrairCampo(textoBruto, "ID");
       if (!idIncidenteExt) idIncidenteExt = gerarIdAutomatico();
 
       const cidadesExt = extrairCampo(textoBruto, "CIDADES AFETADAS") || "Geral / SP";
       const estadoExt = detectarEstado(cidadesExt);
       const tipoRedeExt = detectarTipoRede(textoBruto);
 
+      const ixcUsuarioId=extrairCampo(textoBruto,'ID USUÁRIO IXC')||extrairCampo(textoBruto,'ID USUARIO IXC')||extrairCampo(textoBruto,'ID SUPERVISOR IXC')||'';
+      let identidade=null;
+      if(/^[0-9]{1,20}$/.test(ixcUsuarioId)){
+        const registro=await getDoc(doc(db,'identidadesIxc',ixcUsuarioId));
+        if(registro.exists()) { const pessoa=await getDoc(doc(db,'usuarios',registro.data().supervisorUid)); if(pessoa.exists()&&pessoa.data().ativo&&pessoa.data().perfil==='supervisor')identidade={uid:pessoa.id,nome:pessoa.data().nome}; }
+      }
       await addDoc(collection(db, "incidentes"), {
         idIncidente: idIncidenteExt,
         os: extrairCampo(textoBruto, "ORDEM DE SERVIÇO") || "Não informada",
@@ -644,6 +623,7 @@ if (formNoc) {
         incidenteTipo: extrairCampo(textoBruto, "INCIDENTE") || "REDE",
         clientesCount: parseInt(extrairCampo(textoBruto, "CLIENTES AFETADOS") || "0", 10) || 0,
         responsavel: extrairCampo(textoBruto, "RESPONSÁVEL") || usuarioSalvo,
+        ixcUsuarioId, supervisorUid:identidade?.uid||'', supervisorNome:identidade?.nome||'', supervisorVinculoOrigem:identidade?'IXC_ID':'PENDENTE',
         previsao: extrairCampo(textoBruto, "PREVISÃO") || "A definir",
         statusAtual: extrairCampo(textoBruto, "STATUS ATUAL") || "AGUARDANDO TÉCNICO",
         descricao: extrairCampo(textoBruto, "DESCRIÇÃO") || textoBruto,
@@ -655,7 +635,7 @@ if (formNoc) {
         dataCriacao: new Date().toLocaleString("pt-BR")
       });
 
-      alert(`⚡ Comunicado publicado com sucesso!\nID: ${idIncidenteExt}`);
+      alert(`⚡ Comunicado publicado com sucesso!\nID: ${idIncidenteExt}${identidade?"\nSupervisor identificado pelo ID IXC.":"\nResponsável ainda precisa de confirmação em Conferir responsável."}`);
       formNoc.reset();
       btn.textContent = "⚡ Processar e Publicar Comunicado";
       btn.disabled = false;
@@ -672,7 +652,9 @@ let todosIncidentesCache = [];
 let estadoFiltroAtivo = "TODOS";
 let chartTipoInstance = null;
 let chartEstadosInstance = null;
-let chartSupervisoresInstance = null;
+let chartSupervisoresInstance = null, chartEtapasInstance=null, chartConclusoesInstance=null;
+window.filtrarSituacaoDiretoria = valor => { filtroDiretoria=valor==='resolvidos'?'resolvidos':'ativos';paginaDiretoria=1;renderizarPainelGerenteFiltrado(); };
+window.maisDiretoria = () => {paginaDiretoria++;renderizarPainelGerenteFiltrado()};
 
 function carregarDashboardGerente() {
   ouvirUmaVez('gerente', collection(db, "incidentes"), (snapshot) => {
@@ -690,7 +672,7 @@ function carregarDashboardGerente() {
 }
 
 window.filtrarPainelPorEstado = (estado) => {
-  estadoFiltroAtivo = estado;
+  estadoFiltroAtivo = estado; paginaDiretoria=1;
   document.querySelectorAll('.state-card').forEach(c => c.classList.remove('active-filter'));
   document.querySelectorAll('.state-card').forEach(c => {
     if (c.dataset.estado === estado) c.classList.add('active-filter');
@@ -717,23 +699,20 @@ function renderizarPainelGerenteFiltrado() {
 
   const filtrados = todosIncidentesCache.filter(item => {
     const est = item.estado || detectarEstado(item.cidades || "");
-    const encerrado = /FINALIZAD|CONCLU[IÍ]D|RESOLVID/i.test(item.statusAtual || '');
+    const encerrado = resolvido(item);
     if (!encerrado) {
       estadosContagem.set(est || 'Não informado', (estadosContagem.get(est || 'Não informado') || 0) + 1);
     }
 
     if (estadoFiltroAtivo !== 'TODOS' && est !== estadoFiltroAtivo) return false;
-    if (!encerrado) {
-      const resp = nomeCurto(item.responsavel) || 'Sem supervisor';
-      if (!supervisoresMap[resp]) supervisoresMap[resp] = { total: 0, compliance: 0 };
-      supervisoresMap[resp].total++;
-      if (evidenciaFinalRegistrada(item)) supervisoresMap[resp].compliance++;
-    }
+    const resp=item.supervisorUid||item.supervisorNome||item.responsavel||'Sem supervisor';
+    if(!supervisoresMap[resp])supervisoresMap[resp]={nome:item.supervisorNome||item.responsavel||'Sem supervisor',total:0,compliance:0};
+    if(encerrado)supervisoresMap[resp].compliance++;else supervisoresMap[resp].total++;
     return true;
   });
 
     filtrados.forEach(item => {
-    const encerrado = /FINALIZAD|CONCLU[IÍ]D|RESOLVID/i.test(item.statusAtual || '');
+    const encerrado = resolvido(item);
     if (!encerrado) {
       totalIncidentes++;
       if (item.tipoRede === "BACKBONE") totalBackbone++;
@@ -741,7 +720,9 @@ function renderizarPainelGerenteFiltrado() {
       if (!evidenciaFinalRegistrada(item)) pendentes++;
     }
 
-    const est = item.estado || "SP";
+    if(encerrado!==(filtroDiretoria==='resolvidos'))return;
+    if(container.children.length>=paginaDiretoria*TAMANHO_PAGINA)return;
+    const est = item.estado || 'Não informado';
     const card = document.createElement('div');
     card.className = 'incidente-card';
     card.onclick = () => abrirModalDetalhes(item);
@@ -753,7 +734,7 @@ function renderizarPainelGerenteFiltrado() {
       <p style="margin: 8px 0; font-size: 13px;"><strong>Cidades:</strong> ${escaparHtml(item.cidades)} (${escaparHtml(est)}) | <strong>Rede:</strong> ${escaparHtml(item.tipoRede || 'GPON')}</p>
       <p style="font-size: 13px; color: var(--text-muted);">${escaparHtml(item.descricao)}</p>
       <div style="margin-top: 8px; font-size: 12px; color: var(--danger); font-weight:700;">
-        👥 Clientes GPON: ${escaparHtml(item.clientesCount)} | Previsão: ${escaparHtml(item.previsao)}
+        👥 Clientes GPON: ${escaparHtml(item.clientesCount)} | Previsão: ${escaparHtml(formatarPrevisao(item.previsao))}
       </div>
     `;
     container.appendChild(card);
@@ -764,8 +745,8 @@ function renderizarPainelGerenteFiltrado() {
   document.getElementById('kpiTotalBackbone').textContent = totalBackbone;
   document.getElementById('kpiEvidenciasPendentes').textContent = pendentes;
   document.getElementById('resumoExecutivo').textContent = totalIncidentes
-    ? `${totalIncidentes} incidente${totalIncidentes === 1 ? '' : 's'} em andamento · ${totalGpon.toLocaleString('pt-BR')} cliente${totalGpon === 1 ? '' : 's'} GPON informado${totalGpon === 1 ? '' : 's'} · ${pendentes} registro${pendentes === 1 ? '' : 's'} sem evidência final completa.`
-    : 'Nenhum incidente ativo no recorte selecionado. Consulte os registros abaixo para acompanhar o histórico.';
+    ? `${filtrados.filter(resolvido).length} ID(s) resolvidos no histórico · ${totalIncidentes} incidente${totalIncidentes === 1 ? '' : 's'} em andamento · ${totalGpon.toLocaleString('pt-BR')} cliente${totalGpon === 1 ? '' : 's'} GPON informado${totalGpon === 1 ? '' : 's'} · ${pendentes} registro${pendentes === 1 ? '' : 's'} sem evidência final completa.`
+    : `${filtrados.filter(resolvido).length} ID(s) resolvidos no histórico. Nenhum incidente ativo no recorte selecionado.`;
   document.getElementById('painelAtualizado').textContent = `Dados atualizados às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
   const siglas = [...new Set(['SP', 'MG', 'PR', ...estadosContagem.keys(), ...todosIncidentesCache.map(item => item.estado).filter(Boolean)])].sort();
   const grid = document.getElementById('stateGrid');
@@ -786,14 +767,18 @@ function renderizarPainelGerenteFiltrado() {
   relatorioEstado.replaceChildren(new Option('Todos', 'TODOS'), ...siglas.map(sigla => new Option(sigla, sigla)));
   relatorioEstado.value = siglas.includes(selecionado) ? selecionado : 'TODOS';
 
-  if (!filtrados.length) {
-    container.innerHTML = '<p class="empty-state">Nenhum chamado encontrado nesta região.</p>';
+  if (!container.children.length) {
+    container.innerHTML = '<p class="empty-state">Nenhum chamado nesta situação e região.</p>';
   }
 
+  document.getElementById('diretoriaMais').hidden=filtrados.filter(i=>resolvido(i)===(filtroDiretoria==='resolvidos')).length<=paginaDiretoria*TAMANHO_PAGINA;
+  document.getElementById('diretoriaFiltros').querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.dataset.status===filtroDiretoria);b.setAttribute('aria-pressed',String(b.dataset.status===filtroDiretoria))});
+  renderizarEvolucao(filtrados);
   renderizarGraficosGerenciais(totalIncidentes - totalBackbone, totalBackbone, estadosContagem, supervisoresMap);
 }
 
 function renderizarGraficosGerenciais(gpon, backbone, estadosContagem, supervisoresMap) {
+  if(typeof Chart === 'undefined')return;
   const ctxTipo = document.getElementById('chartTipoIncidente');
   const ctxEst = document.getElementById('chartEstados');
   const ctxSup = document.getElementById('chartSupervisores');
@@ -818,8 +803,8 @@ function renderizarGraficosGerenciais(gpon, backbone, estadosContagem, superviso
 
   if (ctxSup) {
     if (chartSupervisoresInstance) chartSupervisoresInstance.destroy();
-    const principais = Object.entries(supervisoresMap).sort((a, b) => b[1].total - a[1].total).slice(0, 6);
-    const supNomes = principais.map(([nome]) => nome);
+    const principais = Object.entries(supervisoresMap).sort((a, b) => (b[1].total+b[1].compliance) - (a[1].total+a[1].compliance)).slice(0, 6);
+    const supNomes = principais.map(([,dados]) => dados.nome);
     const supTotals = principais.map(([, dados]) => dados.total);
     const supCompls = principais.map(([, dados]) => dados.compliance);
 
@@ -829,12 +814,27 @@ function renderizarGraficosGerenciais(gpon, backbone, estadosContagem, superviso
         labels: supNomes,
         datasets: [
           { label: 'Ativos', data: supTotals, backgroundColor: '#AAB9D6' },
-          { label: 'Evidência final', data: supCompls, backgroundColor: '#4D86B7' }
+          { label: 'Resolvidos', data: supCompls, backgroundColor: '#4D86B7' }
         ]
       },
       options: { responsive: true, indexAxis: 'y', plugins: { legend: { position: 'bottom' } } }
     });
   }
+}
+
+function renderizarEvolucao(itens){
+  if(typeof Chart === 'undefined')return;
+  const etapas=[0,0,0,0];for(const i of itens.filter(i=>!resolvido(i)))etapas[Math.min(3,etapaConcluida(i))]++;
+  if(chartEtapasInstance)chartEtapasInstance.destroy();
+  chartEtapasInstance=new Chart(document.getElementById('chartEtapas'),{type:'bar',data:{labels:['Aguardando / distribuição','Deslocamento enviado','No local','Atuação'],datasets:[{label:'Atendimentos ativos',data:etapas,backgroundColor:['#aab9d6','#6a91df','#315db9','#11a892']}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+  const dias=Array.from({length:7},(_,n)=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-6+n);return d}),contagens=dias.map(()=>0);
+  for(const item of itens.filter(resolvido)){
+    const evento=[...(item.timelineEtapas||[])].reverse().find(e=>e.numeroEtapa===4||/^ETAPA 4/.test(e.etapa||''));
+    const partes=String(evento?.dataHora||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if(!partes)continue;const d=new Date(Number(partes[3]),Number(partes[2])-1,Number(partes[1]));const n=dias.findIndex(dia=>dia.getTime()===d.getTime());if(n>=0)contagens[n]++;
+  }
+  if(chartConclusoesInstance)chartConclusoesInstance.destroy();
+  chartConclusoesInstance=new Chart(document.getElementById('chartConclusoes'),{type:'line',data:{labels:dias.map(d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})),datasets:[{label:'IDs finalizados com etapa 4',data:contagens,borderColor:'#11a892',backgroundColor:'rgba(17,168,146,.1)',fill:true,tension:.25}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
 }
 
 // 4. MÓDULO TÉCNICO DE CAMPO
@@ -911,10 +911,7 @@ async function restaurarRascunhoTecnico() {
 
 function carregarListaTecnico() {
   const idAtivoSalvo = localStorage.getItem(`tech_active_doc_${usuarioUid}`);
-  if (perfilSalvo === 'tecnico' && !/^[A-Z]{2}$/.test(estadoSalvo)) {
-    alert('Seu perfil precisa de uma sigla de estado válida. Solicite ao administrador.');
-    return;
-  }
+
   const consulta = perfilSalvo === 'admin'
     ? collection(db, 'incidentes')
     : query(collection(db, 'incidentes'), where('tecnicoUid', '==', usuarioUid));
@@ -931,7 +928,7 @@ function carregarListaTecnico() {
 
       // Trava rigorosa por estado do técnico
       const estItem = item.estado || detectarEstado(item.cidades || "");
-      if (perfilSalvo !== 'admin' && (estItem !== estadoSalvo || item.tecnicoUid !== usuarioUid)) return;
+      if (perfilSalvo !== 'admin' && item.tecnicoUid !== usuarioUid) return;
 
       if (item.statusAtual && item.statusAtual.includes("FINALIZADO")) return;
       if (item.tecnicoUid && item.tecnicoUid !== usuarioUid) return;
@@ -989,7 +986,7 @@ async function iniciarAtendimentoTecnico(item, novoAtendimento = true) {
   if (!document.getElementById('caixasTecnico').children.length) {
     adicionarCaixaTecnico(); adicionarCaixaTecnico();
   }
-  await carregarColegasTecnicos(item.estado).catch(() => atualizarEstadoLocal('Lista de técnicos indisponível sem conexão. Tente novamente online.'));
+  await carregarColegasTecnicos(item.supervisorUid).catch(() => atualizarEstadoLocal('Lista de técnicos indisponível sem conexão. Tente novamente online.'));
   await restaurarRascunhoTecnico();
 
   document.getElementById('techSelectArea').style.display = 'none';
@@ -999,7 +996,7 @@ async function iniciarAtendimentoTecnico(item, novoAtendimento = true) {
   const concluida = etapaConcluida(item);
   document.querySelectorAll('.step-number').forEach((elemento, indice) => elemento.classList.toggle('step-sent', indice < concluida));
   avancarEtapaVisual(Math.min(4, concluida + 1));
-  document.getElementById('techPrevisaoAtual').textContent = `Previsão atual: ${item.previsao || 'A definir'}. Deixe os campos abaixo vazios para manter.`;
+  document.getElementById('techPrevisaoAtual').textContent = `Previsão atual: ${formatarPrevisao(item.previsao)}. Deixe os campos abaixo vazios para manter.`;
   const campoFinal = document.getElementById('tobs');
   const causaAnterior = document.getElementById('techCausaRompimento').value || (item.timelineEtapas || []).find(e => e.causaRompimento)?.causaRompimento || '';
   if (!campoFinal.value.trim()) campoFinal.value = modeloDescricao(causaAnterior);
@@ -1088,20 +1085,22 @@ window.voltarEtapaTecnica = () => {
   atualizarEstadoLocal('As etapas enviadas estão bloqueadas para edição. Consulte o histórico na área de acompanhamento.');
 };
 
-async function carregarColegasTecnicos(estado) {
-  const resultado = await getDocs(query(collection(db, 'usuarios'), where('perfil', '==', 'tecnico')));
-  const pessoas = resultado.docs.map(item => ({ uid: item.id, ...item.data() })).filter(item => item.ativo === true && item.estado === estado && item.uid !== usuarioUid);
-  const ajudantes = document.getElementById('techAjudantes');
-  const transferir = document.getElementById('techTransferir');
-  ajudantes.replaceChildren(...pessoas.map(item => new Option(item.nome, item.uid)));
-  transferir.replaceChildren(new Option('Manter comigo', ''), ...pessoas.map(item => new Option(item.nome, item.uid)));
-  tecnicosDisponiveis = pessoas;
+async function carregarColegasTecnicos(supervisorUid) {
+  const pessoas=[];
+  if(supervisorUid){
+    const vinculos=await getDocs(query(collection(db,'equipesTecnicas'),where('supervisorUid','==',supervisorUid)));
+    const cadastros=await Promise.all(vinculos.docs.filter(d=>d.data().ativo && d.id!==usuarioUid).map(d=>getDoc(doc(db,'usuarios',d.id))));
+    for(const d of cadastros)if(d.exists()&&d.data().ativo&&d.data().perfil==='tecnico')pessoas.push({...d.data(),uid:d.id});
+  }
+  document.getElementById('techAjudantes').replaceChildren(...pessoas.map(p=>new Option(p.nome,p.uid)));
+  document.getElementById('techTransferir').replaceChildren(new Option('Manter comigo',''),...pessoas.map(p=>new Option(p.nome,p.uid)));
+  tecnicosDisponiveis=pessoas;
 }
 
 window.transferirAtendimentoTecnico = async () => {
   const uid = document.getElementById('techTransferir').value;
-  const destino = tecnicosDisponiveis.find(item => item.uid === uid && item.estado === chamadoAtivoTecnico?.estado);
-  if (!destino) { alert('Selecione outro técnico cadastrado e ativo no mesmo estado.'); return; }
+  const destino = tecnicosDisponiveis.find(item => item.uid === uid);
+  if (!destino) { alert('Selecione outro técnico ativo da equipe deste supervisor.'); return; }
   if (!confirm(`Transferir o ID ${chamadoAtivoTecnico.idIncidente} para ${destino.nome}?`)) return;
   try {
     await updateDoc(doc(db, 'incidentes', chamadoAtivoTecnico.docId), { tecnicoUid: destino.uid, tecnicoAtribuido: destino.nome });
@@ -1234,8 +1233,8 @@ window.salvarEtapa2 = async () => {
   const previsao = document.getElementById('techPrevisaoInput').value.trim(), causa = document.getElementById('techCausaRompimento').value.trim();
   await enviarEtapaTecnica(2, { causa, previsao }, async () => {
     const { fotos, ...evidencias } = evidenciasEtapa(2);
-    await registrarEventoTimeline('ETAPA 2: NO LOCAL / ROMPIMENTO', fotos, `Causa: ${causa}. Previsão: ${previsao}`, previsao, { causaRompimento:causa, previsaoInformada:previsao, ...evidencias });
-    document.getElementById('techPrevisaoAtual').textContent = `Previsão atual: ${previsao}. Deixe os campos abaixo vazios para manter.`;
+    await registrarEventoTimeline('ETAPA 2: NO LOCAL / ROMPIMENTO', fotos, `Causa: ${causa}. Previsão: ${formatarPrevisao(previsao)}`, previsao, { causaRompimento:causa, previsaoInformada:previsao, ...evidencias });
+    document.getElementById('techPrevisaoAtual').textContent = `Previsão atual: ${formatarPrevisao(previsao)}. Deixe os campos abaixo vazios para manter.`;
     const campoFinal = document.getElementById('tobs');
     const final = separarDescricao(campoFinal.value);
     if (!final) campoFinal.value = modeloDescricao(causa);
@@ -1243,12 +1242,12 @@ window.salvarEtapa2 = async () => {
   });
 };
 window.salvarEtapa3 = async () => {
-  const observacao = document.getElementById('techObservacaoEtapa3').value.trim(), novaPrevisao = document.getElementById('techNovaPrevisao').value, motivoPrevisao = document.getElementById('techMotivoPrevisao').value.trim();
+  const observacao = document.getElementById('techObservacaoEtapa3').value.trim(), novaPrevisao = document.getElementById('techNovaPrevisao').value, motivoPrevisao = observacao.slice(0,1000);
   await enviarEtapaTecnica(3, { observacao, novaPrevisao, motivoPrevisao }, async () => {
     const { fotos, ...evidencias } = evidenciasEtapa(3);
-    const revisada = novaPrevisao ? new Date(novaPrevisao).toLocaleString('pt-BR') : '';
+    const revisada = novaPrevisao || '';
     const anterior = chamadoAtivoTecnico.previsao || 'A definir';
-    await registrarEventoTimeline('ETAPA 3: EXECUTANDO / FUSIONANDO', fotos, `${observacao}${revisada ? `\nPrevisão alterada de ${anterior} para ${revisada}. Motivo: ${motivoPrevisao}` : ''}`, revisada || null, { observacaoAtuacao:observacao, previsaoAnterior:anterior, previsaoRevisada:revisada, motivoRevisao:revisada ? motivoPrevisao : '', ...evidencias });
+    await registrarEventoTimeline('ETAPA 3: EXECUTANDO / FUSIONANDO', fotos, `${observacao}${revisada ? `\nPrevisão alterada de ${formatarPrevisao(anterior)} para ${formatarPrevisao(revisada)}. Motivo: ${motivoPrevisao}` : ''}`, revisada || null, { observacaoAtuacao:observacao, previsaoAnterior:anterior, previsaoRevisada:revisada, motivoRevisao:revisada ? motivoPrevisao : '', ...evidencias });
   });
 };
 window.salvarEtapa4Final = async () => {
@@ -1426,16 +1425,25 @@ function dataLegadaDentroDoPrazo(dataHora) {
   return idade >= 0 && idade < 15 * 24 * 60 * 60 * 1000;
 }
 
-function adicionarMiniatura(galeria, dados) {
-  if (typeof dados !== 'string' || !dados.startsWith('data:image/jpeg;base64,')) return;
-  const imagem = document.createElement('img');
-  imagem.src = dados;
-  imagem.alt = 'Foto do atendimento';
-  imagem.addEventListener('click', () => ampliarFoto(dados));
-  galeria.appendChild(imagem);
+const nomesCategorias = {fotoDeslocamento:'Deslocamento',fotoChegada:'Local do atendimento',fotoRompimento:'Rompimento localizado',fotoPanoramica:'Técnico atuando',fotoEquipe:'Fusão'};
+function rotulosFotos(evento) {
+  const rotulos=(evento.fotoIds||evento.fotos||[]).map((_,i)=>`Foto ${i+1}`);
+  for(const [chave,grupo]of Object.entries(evento.gruposFotos||{}))for(let i=0;i<grupo.quantidadeFotos;i++)rotulos[grupo.indiceFoto+i]=`${nomesCategorias[chave]||chave} · ${i+1}`;
+  for(const caixa of evento.caixas||[])for(let i=0;i<(caixa.quantidadeFotos||1);i++)rotulos[caixa.indiceFoto+i]=`Caixa ${caixa.numero} · ${i+1}`;
+  return rotulos;
+}
+async function carregarGaleriaRegistrada(container, ids, rotulos, aindaAberta=()=>true, legadas=[]) {
+  container.classList.add('evidence-gallery'); container.textContent='Carregando fotos...';
+  const resultados=await Promise.all(ids.map(async(id,n)=>{try{const foto=await getDoc(doc(db,'fotos',id));return foto.exists()?{src:foto.data().dadosBase64,label:rotulos[n]||`Foto ${n+1}`}:null}catch{return null}}));
+  if(!aindaAberta())return;
+  montarGaleria(container,[...legadas.map((src,n)=>({src,label:rotulos[n]||`Foto ${n+1}`})),...resultados.filter(Boolean)]);
+  const faltantes=resultados.filter(r=>!r).length;
+  if(faltantes)container.append(elemento('p',`${faltantes} foto(s) indisponíveis ou removidas após 15 dias.`,'photo-retention-note'));
 }
 
+let geracaoDetalhes=0;
 window.abrirModalDetalhes = (item, atualizacaoAoVivo = false) => {
+  const geracao=++geracaoDetalhes;
   if (!atualizacaoAoVivo) {
     ouvintes.get('modal-incidente')?.(); ouvintes.delete('modal-incidente');
     if (item.docId) ouvirUmaVez('modal-incidente', doc(db, 'incidentes', item.docId), snapshot => {
@@ -1463,7 +1471,7 @@ window.abrirModalDetalhes = (item, atualizacaoAoVivo = false) => {
     document.getElementById('editarResponsavel').value = item.responsavel || '';
     document.getElementById('editarDescricao').value = item.descricao || '';
   }
-  
+
   const infoBox = document.getElementById('modalInfoBox');
   infoBox.innerHTML = `
     <span class="live-status">● Acompanhamento ao vivo · etapas recebidas automaticamente</span>
@@ -1472,7 +1480,7 @@ window.abrirModalDetalhes = (item, atualizacaoAoVivo = false) => {
     <strong>Rede:</strong> ${escaparHtml(item.tipoRede || 'GPON')} | <strong>OLT:</strong> ${escaparHtml(item.olt)}<br>
     <strong>Status:</strong> <span style="color:var(--zaaz-blue); font-weight:700;">${escaparHtml(item.statusAtual)}</span><br>
     <strong>Clientes:</strong> ${escaparHtml(item.clientesCount)}<br>
-    <strong>Previsão:</strong> ${escaparHtml(item.previsao)}<br>
+    <strong>Previsão:</strong> ${escaparHtml(formatarPrevisao(item.previsao))}<br>
     <strong>Supervisor:</strong> ${escaparHtml(item.responsavel)}<br>
     <hr style="margin:6px 0; border:none; border-top:1px solid var(--border-color);">
     <strong>Descrição:</strong> ${escaparHtml(item.descricao)}
@@ -1503,17 +1511,7 @@ window.abrirModalDetalhes = (item, atualizacaoAoVivo = false) => {
       if ((Array.isArray(t.fotos) && t.fotos.length) || (Array.isArray(t.fotoIds) && t.fotoIds.length)) {
         const galeria = document.createElement('div');
         galeria.className = 'timeline-photos';
-        if (dataLegadaDentroDoPrazo(t.dataHora)) {
-          (t.fotos || []).forEach(url => adicionarMiniatura(galeria, url));
-        }
-        (t.fotoIds || []).forEach(async fotoId => {
-          try {
-            const foto = await getDoc(doc(db, 'fotos', fotoId));
-            if (foto.exists()) adicionarMiniatura(galeria, foto.data().dadosBase64);
-          } catch (erro) {
-            // A regra bloqueia leitura depois de 15 dias, mesmo antes da limpeza diária.
-          }
-        });
+        carregarGaleriaRegistrada(galeria,t.fotoIds||[],rotulosFotos(t),()=>geracao===geracaoDetalhes,dataLegadaDentroDoPrazo(t.dataHora)?t.fotos||[]:[]);
         itemDiv.appendChild(galeria);
         const nota = document.createElement('p');
         nota.className = 'photo-retention-note';
@@ -1563,7 +1561,7 @@ document.getElementById('formAdminEdicao')?.addEventListener('submit', async eve
       responsavel: responsavelNovo,
       descricao: document.getElementById('editarDescricao').value.trim()
     };
-    if (responsavelNovo !== formulario.dataset.responsavelOriginal) alteracoes.supervisorUid = '';
+    // O nome do comunicado não altera a identidade única do supervisor.
     await updateDoc(doc(db, 'incidentes', id), alteracoes);
     alert('Correção salva. Reabra o ID para conferir os dados atualizados.');
     window.fecharModal();
@@ -1571,18 +1569,11 @@ document.getElementById('formAdminEdicao')?.addEventListener('submit', async eve
   finally { botao.disabled = false; }
 });
 
-window.ampliarFoto = (url) => {
-  const lb = document.getElementById('lightboxOverlay');
-  const img = document.getElementById('lightboxImage');
-  img.src = url;
-  lb.style.display = 'flex';
-};
-
-window.fecharZoomFoto = () => {
-  document.getElementById('lightboxOverlay').style.display = 'none';
-};
+window.ampliarFoto = url => abrirFotos([{src:url,label:'Foto do atendimento'}]);
+window.fecharZoomFoto = fecharFotos;
 
 window.fecharModal = () => {
+  geracaoDetalhes++;
   ouvintes.get('modal-incidente')?.(); ouvintes.delete('modal-incidente');
   document.getElementById('modalDetalhesIncidente').style.display = 'none';
 };
@@ -1590,7 +1581,7 @@ document.getElementById('modalDetalhesIncidente')?.addEventListener('click', eve
   if (event.target === event.currentTarget) fecharModal();
 });
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape') {
+  if (event.key === 'Escape' && !event.defaultPrevented) {
     if (document.getElementById('lightboxOverlay')?.style.display === 'flex') fecharZoomFoto();
     else if (document.getElementById('modalProjetos')?.style.display === 'flex') fecharModalProjeto();
     else fecharModal();
@@ -1608,7 +1599,7 @@ window.exportarRelatorioCSV = () => {
   const supervisor = document.getElementById('relatorioSupervisor').value.trim().toLocaleLowerCase('pt-BR');
   const filtrados = todosIncidentesCache.filter(item => {
     if (estado !== 'TODOS' && (item.estado || detectarEstado(item.cidades || '')) !== estado) return false;
-    if (supervisor && !String(item.responsavel || '').toLocaleLowerCase('pt-BR').includes(supervisor)) return false;
+    if (supervisor && !String(item.supervisorNome || item.responsavel || '').toLocaleLowerCase('pt-BR').includes(supervisor)) return false;
     const data = Number(item.dataTimestamp || 0);
     if ((inicio || fim) && !data) return false;
     const dataLocal = data ? new Date(data).toLocaleDateString('sv-SE') : '';
@@ -1629,12 +1620,12 @@ window.exportarRelatorioCSV = () => {
     [`Gerado em ${new Date().toLocaleString('pt-BR')}`, `Período: ${inicio || 'início'} a ${fim || 'hoje'}`, `Estado: ${estado}`, `Supervisor: ${supervisor || 'todos'}`],
     [`Total de IDs: ${filtrados.length}`, `Evidência final pendente: ${filtrados.filter(item => !evidenciaFinalRegistrada(item)).length}`],
     [],
-    ['ID', 'OS', 'Cidades', 'Estado', 'Rede', 'Clientes', 'Status', 'Supervisor', 'Técnico', 'Evidência final', 'Data de criação']
+    ['ID', 'OS', 'Cidades', 'Estado', 'Rede', 'Clientes', 'Status', 'Supervisor', 'Técnico', 'Evidência final', 'Data de criação', 'Previsão', 'Conclusão', 'ID usuário IXC']
   ];
   filtrados.forEach(i => linhas.push([
     i.idIncidente, i.os, i.cidades, i.estado, i.tipoRede,
     i.clientesCount, i.statusAtual, i.responsavel, i.tecnicoAtribuido,
-    evidenciaFinalRegistrada(i) ? 'Registrada' : 'Pendente', i.dataCriacao
+    evidenciaFinalRegistrada(i) ? 'Registrada' : 'Pendente', i.dataCriacao, formatarPrevisao(i.previsao), [...(i.timelineEtapas||[])].reverse().find(e=>e.numeroEtapa===4||/^ETAPA 4/.test(e.etapa||''))?.dataHora||'', i.ixcUsuarioId||''
   ]));
   const arquivo = new Blob(['\uFEFF', linhas.map(linha => linha.map(celula).join(';')).join('\r\n')],
     { type: 'text/csv;charset=utf-8' });
