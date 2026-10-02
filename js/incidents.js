@@ -8,6 +8,8 @@ import { getAuth, onAuthStateChanged, signOut, verifyBeforeUpdateEmail } from "h
 import { avaliarFinalizacao, avaliarEtapa, categoriasEtapa, listaFotos, LIMITE_FOTOS, etapaConcluida, exigirProximaEtapa, modeloDescricao, separarDescricao, formatarPrevisao, resolvido } from '../lib/field-flow.mjs';
 import { renderizarGaleria } from '../lib/photo-gallery.mjs';
 import { montarGaleria, abrirFotos, fecharFotos, fotoAberta } from '../lib/photo-viewer.mjs';
+import { selecionarIncidentes, analisarOperacao, leituraExecutiva, dataConclusao, horarioBrasil, diaBrasil } from '../lib/executive-metrics.mjs';
+import { criarRelatorioPDF } from '../lib/executive-report.mjs';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
@@ -254,13 +256,6 @@ function nomeCurto(nome) {
   return String(nome || '').trim().split(/\s+/).slice(0, 2).join(' ');
 }
 
-function evidenciaFinalRegistrada(incidente) {
-  return (incidente.timelineEtapas || []).some(evento =>
-    String(evento.etapa || '').startsWith('ETAPA 4')
-    && ((evento.fotoIds || []).length >= 2 || (evento.fotos || []).length >= 2 || Number(evento.fotosRemovidas || 0) >= 2)
-    && ((evento.caixas || []).length >= 2 || /GPS C1: .+\| GPS C2: .+/.test(evento.observacao || ''))
-  );
-}
 function fotosPendentesEtapas(incidente) {
   const etapas = new Map();
   for (const evento of incidente.timelineEtapas || []) {
@@ -671,55 +666,27 @@ function carregarDashboardGerente() {
   });
 }
 
-window.filtrarPainelPorEstado = (estado) => {
-  estadoFiltroAtivo = estado; paginaDiretoria=1;
-  document.querySelectorAll('.state-card').forEach(c => c.classList.remove('active-filter'));
-  document.querySelectorAll('.state-card').forEach(c => {
-    if (c.dataset.estado === estado) c.classList.add('active-filter');
-  });
-
-  const tituloList = document.getElementById('tituloListaConsolidada');
-  if (tituloList) {
-    tituloList.textContent = estado === "TODOS" ? "Chamados da operação" : `Chamados em ${estado}`;
-  }
-  const escopo = document.getElementById('painelEscopo');
-  if (escopo) escopo.textContent = estado === 'TODOS' ? 'Todos os estados' : `Estado: ${estado}`;
-
-  renderizarPainelGerenteFiltrado();
-};
+function filtrosDiretoria(){return {inicio:document.getElementById('relatorioInicio').value,fim:document.getElementById('relatorioFim').value,estado:estadoFiltroAtivo,supervisor:document.getElementById('relatorioSupervisor').value.trim()};}
+window.atualizarRecorteDiretoria = () => {paginaDiretoria=1;renderizarPainelGerenteFiltrado()};
+window.limparRecorteDiretoria = () => {for(const id of ['relatorioInicio','relatorioFim','relatorioSupervisor'])document.getElementById(id).value='';filtrarPainelPorEstado('TODOS')};
+window.filtrarPainelPorEstado = estado => {estadoFiltroAtivo=estado;document.getElementById('relatorioEstado').value=estado;atualizarRecorteDiretoria()};
+function recorteValido(){const f=filtrosDiretoria();const valido=!f.inicio||!f.fim||f.inicio<=f.fim;document.getElementById('avisoRelatorio').textContent=valido?'':'A data inicial deve ser anterior ou igual à data final.';document.getElementById('btnRelatorioPDF').disabled=!valido;return valido;}
 
 function renderizarPainelGerenteFiltrado() {
-  let totalIncidentes = 0, totalGpon = 0, totalBackbone = 0, pendentes = 0;
-  const estadosContagem = new Map();
-  let supervisoresMap = {};
-
-  const container = document.getElementById('gerenteIncidentesList');
-  if (!container) return;
-  container.innerHTML = "";
-
-  const filtrados = todosIncidentesCache.filter(item => {
-    const est = item.estado || detectarEstado(item.cidades || "");
-    const encerrado = resolvido(item);
-    if (!encerrado) {
-      estadosContagem.set(est || 'Não informado', (estadosContagem.get(est || 'Não informado') || 0) + 1);
-    }
-
-    if (estadoFiltroAtivo !== 'TODOS' && est !== estadoFiltroAtivo) return false;
-    const resp=item.supervisorUid||item.supervisorNome||item.responsavel||'Sem supervisor';
-    if(!supervisoresMap[resp])supervisoresMap[resp]={nome:item.supervisorNome||item.responsavel||'Sem supervisor',total:0,compliance:0};
-    if(encerrado)supervisoresMap[resp].compliance++;else supervisoresMap[resp].total++;
-    return true;
-  });
+  if(!recorteValido())return;
+  const filtros=filtrosDiretoria(),filtrados=selecionarIncidentes(todosIncidentesCache,filtros,detectarEstado);
+  const metricas=analisarOperacao(filtrados,detectarEstado);
+  const global=analisarOperacao(selecionarIncidentes(todosIncidentesCache,filtros,detectarEstado,true),detectarEstado);
+  const estadosContagem=new Map(metricas.estados.map(e=>[e.nome,e.ativos]));
+  const contagemRegioes=new Map(global.estados.map(e=>[e.nome,e.ativos]));
+  const supervisoresMap=Object.fromEntries(metricas.supervisores.map((e,n)=>[n,{nome:e.nome,total:e.ativos,compliance:e.resolvidos}]));
+  const container=document.getElementById('gerenteIncidentesList');if(!container)return;container.innerHTML='';
+  document.getElementById('tituloListaConsolidada').textContent=estadoFiltroAtivo==='TODOS'?'Chamados da operação':`Chamados em ${estadoFiltroAtivo}`;
+  document.getElementById('painelEscopo').textContent=estadoFiltroAtivo==='TODOS'?'Todos os estados':`Estado: ${estadoFiltroAtivo}`;
+  document.getElementById('recorteDiretoria').textContent=`Abertos: ${filtros.inicio||'sem limite inicial'} a ${filtros.fim||'sem limite final'} · ${filtros.supervisor?'Supervisor: '+filtros.supervisor:'Todos os supervisores'} · ${filtrados.length} registros. Indicadores, PDF e CSV incluem as duas situações.`;
 
     filtrados.forEach(item => {
     const encerrado = resolvido(item);
-    if (!encerrado) {
-      totalIncidentes++;
-      if (item.tipoRede === "BACKBONE") totalBackbone++;
-      else totalGpon += Number(item.clientesCount || 0);
-      if (!evidenciaFinalRegistrada(item)) pendentes++;
-    }
-
     if(encerrado!==(filtroDiretoria==='resolvidos'))return;
     if(container.children.length>=paginaDiretoria*TAMANHO_PAGINA)return;
     const est = item.estado || 'Não informado';
@@ -740,15 +707,11 @@ function renderizarPainelGerenteFiltrado() {
     container.appendChild(card);
   });
 
-  document.getElementById('kpiTotalIncidentes').textContent = totalIncidentes;
-  document.getElementById('kpiTotalGpon').textContent = totalGpon;
-  document.getElementById('kpiTotalBackbone').textContent = totalBackbone;
-  document.getElementById('kpiEvidenciasPendentes').textContent = pendentes;
-  document.getElementById('resumoExecutivo').textContent = totalIncidentes
-    ? `${filtrados.filter(resolvido).length} ID(s) resolvidos no histórico · ${totalIncidentes} incidente${totalIncidentes === 1 ? '' : 's'} em andamento · ${totalGpon.toLocaleString('pt-BR')} cliente${totalGpon === 1 ? '' : 's'} GPON informado${totalGpon === 1 ? '' : 's'} · ${pendentes} registro${pendentes === 1 ? '' : 's'} sem evidência final completa.`
-    : `${filtrados.filter(resolvido).length} ID(s) resolvidos no histórico. Nenhum incidente ativo no recorte selecionado.`;
-  document.getElementById('painelAtualizado').textContent = `Dados atualizados às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-  const siglas = [...new Set(['SP', 'MG', 'PR', ...estadosContagem.keys(), ...todosIncidentesCache.map(item => item.estado).filter(Boolean)])].sort();
+  for(const [id,valor] of Object.entries({kpiTotalIncidentes:metricas.ativos,kpiTotalGpon:metricas.gpon,kpiTotalBackbone:metricas.backbone,kpiResolvidos:metricas.resolvidos,kpiSemTecnico:metricas.semTecnico,kpiPrevisoesVencidas:metricas.vencidos}))document.getElementById(id).textContent=valor.toLocaleString('pt-BR');
+  const leitura=leituraExecutiva(metricas);document.getElementById('resumoExecutivo').textContent=leitura[0];
+  const prioridades=document.getElementById('prioridadesExecutivas');prioridades.replaceChildren(...leitura.slice(1).map(frase=>elemento('li',frase)));
+  document.getElementById('painelAtualizado').textContent=`Posição em ${horarioBrasil(new Date())} · Brasília`;
+  const siglas = [...new Set(['SP', 'MG', 'PR', ...contagemRegioes.keys(), ...todosIncidentesCache.map(item => item.estado).filter(Boolean)])].sort();
   const grid = document.getElementById('stateGrid');
   grid.replaceChildren();
   for (const estado of ['TODOS', ...siglas]) {
@@ -757,13 +720,13 @@ function renderizarPainelGerenteFiltrado() {
     cartao.className = 'kpi-card state-card' + (estadoFiltroAtivo === estado ? ' active-filter' : '');
     cartao.dataset.estado = estado;
     const nome = document.createElement('span'); nome.className = 'kpi-title'; nome.textContent = estado === 'TODOS' ? 'Todos os estados' : estado;
-    const total = document.createElement('strong'); total.className = 'kpi-value'; total.textContent = estado === 'TODOS' ? [...estadosContagem.values()].reduce((soma, valor) => soma + valor, 0) : estadosContagem.get(estado) || 0;
+    const total = document.createElement('strong'); total.className = 'kpi-value'; total.textContent = estado === 'TODOS' ? [...contagemRegioes.values()].reduce((soma, valor) => soma + valor, 0) : contagemRegioes.get(estado) || 0;
     cartao.append(nome, total);
     cartao.onclick = () => filtrarPainelPorEstado(estado);
     grid.append(cartao);
   }
   const relatorioEstado = document.getElementById('relatorioEstado');
-  const selecionado = relatorioEstado.value;
+  const selecionado = estadoFiltroAtivo;
   relatorioEstado.replaceChildren(new Option('Todos', 'TODOS'), ...siglas.map(sigla => new Option(sigla, sigla)));
   relatorioEstado.value = siglas.includes(selecionado) ? selecionado : 'TODOS';
 
@@ -774,7 +737,7 @@ function renderizarPainelGerenteFiltrado() {
   document.getElementById('diretoriaMais').hidden=filtrados.filter(i=>resolvido(i)===(filtroDiretoria==='resolvidos')).length<=paginaDiretoria*TAMANHO_PAGINA;
   document.getElementById('diretoriaFiltros').querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.dataset.status===filtroDiretoria);b.setAttribute('aria-pressed',String(b.dataset.status===filtroDiretoria))});
   renderizarEvolucao(filtrados);
-  renderizarGraficosGerenciais(totalIncidentes - totalBackbone, totalBackbone, estadosContagem, supervisoresMap);
+  renderizarGraficosGerenciais(metricas.ativos - metricas.backbone, metricas.backbone, estadosContagem, supervisoresMap);
 }
 
 function renderizarGraficosGerenciais(gpon, backbone, estadosContagem, supervisoresMap) {
@@ -803,7 +766,7 @@ function renderizarGraficosGerenciais(gpon, backbone, estadosContagem, superviso
 
   if (ctxSup) {
     if (chartSupervisoresInstance) chartSupervisoresInstance.destroy();
-    const principais = Object.entries(supervisoresMap).sort((a, b) => (b[1].total+b[1].compliance) - (a[1].total+a[1].compliance)).slice(0, 6);
+    const principais = Object.entries(supervisoresMap).sort((a, b) => b[1].total-a[1].total||b[1].compliance-a[1].compliance).slice(0, 6);
     const supNomes = principais.map(([,dados]) => dados.nome);
     const supTotals = principais.map(([, dados]) => dados.total);
     const supCompls = principais.map(([, dados]) => dados.compliance);
@@ -827,14 +790,9 @@ function renderizarEvolucao(itens){
   const etapas=[0,0,0,0];for(const i of itens.filter(i=>!resolvido(i)))etapas[Math.min(3,etapaConcluida(i))]++;
   if(chartEtapasInstance)chartEtapasInstance.destroy();
   chartEtapasInstance=new Chart(document.getElementById('chartEtapas'),{type:'bar',data:{labels:['Aguardando / distribuição','Deslocamento enviado','No local','Atuação'],datasets:[{label:'Atendimentos ativos',data:etapas,backgroundColor:['#aab9d6','#6a91df','#315db9','#11a892']}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
-  const dias=Array.from({length:7},(_,n)=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-6+n);return d}),contagens=dias.map(()=>0);
-  for(const item of itens.filter(resolvido)){
-    const evento=[...(item.timelineEtapas||[])].reverse().find(e=>e.numeroEtapa===4||/^ETAPA 4/.test(e.etapa||''));
-    const partes=String(evento?.dataHora||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    if(!partes)continue;const d=new Date(Number(partes[3]),Number(partes[2])-1,Number(partes[1]));const n=dias.findIndex(dia=>dia.getTime()===d.getTime());if(n>=0)contagens[n]++;
-  }
+  const serie=analisarOperacao(itens,detectarEstado).dias;
   if(chartConclusoesInstance)chartConclusoesInstance.destroy();
-  chartConclusoesInstance=new Chart(document.getElementById('chartConclusoes'),{type:'line',data:{labels:dias.map(d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})),datasets:[{label:'IDs finalizados com etapa 4',data:contagens,borderColor:'#11a892',backgroundColor:'rgba(17,168,146,.1)',fill:true,tension:.25}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+  chartConclusoesInstance=new Chart(document.getElementById('chartConclusoes'),{type:'line',data:{labels:serie.map(d=>d.nome),datasets:[{label:'IDs finalizados com etapa 4',data:serie.map(d=>d.total),borderColor:'#11a892',backgroundColor:'rgba(17,168,146,.1)',fill:true,tension:.25}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
 }
 
 // 4. MÓDULO TÉCNICO DE CAMPO
@@ -1588,28 +1546,20 @@ document.addEventListener('keydown', event => {
   }
 });
 
+window.exportarRelatorioPDF = async () => {
+  if(!['admin','gerente','diretor'].includes(perfilSalvo)||!recorteValido())return;
+  const filtros=filtrosDiretoria(),itens=selecionarIncidentes(todosIncidentesCache,filtros,detectarEstado);
+  if(!itens.length){document.getElementById('avisoRelatorio').textContent='Nenhum chamado no recorte selecionado.';return}
+  const botao=document.getElementById('btnRelatorioPDF'),aviso=document.getElementById('avisoRelatorio');botao.disabled=true;aviso.textContent='Preparando o relatório executivo...';
+  try{const {pdf,nome}=await criarRelatorioPDF(itens,filtros,detectarEstado);pdf.save(nome);aviso.textContent='PDF gerado. Verifique os downloads do navegador.'}
+  catch(erro){aviso.textContent=erro.message||'Não foi possível gerar o PDF. Tente novamente.'}
+  finally{botao.disabled=false}
+};
 window.exportarRelatorioCSV = () => {
-  const inicio = document.getElementById('relatorioInicio').value;
-  const fim = document.getElementById('relatorioFim').value;
-  if (inicio && fim && inicio > fim) {
-    alert('A data inicial deve ser anterior à data final.');
-    return;
-  }
-  const estado = document.getElementById('relatorioEstado').value;
-  const supervisor = document.getElementById('relatorioSupervisor').value.trim().toLocaleLowerCase('pt-BR');
-  const filtrados = todosIncidentesCache.filter(item => {
-    if (estado !== 'TODOS' && (item.estado || detectarEstado(item.cidades || '')) !== estado) return false;
-    if (supervisor && !String(item.supervisorNome || item.responsavel || '').toLocaleLowerCase('pt-BR').includes(supervisor)) return false;
-    const data = Number(item.dataTimestamp || 0);
-    if ((inicio || fim) && !data) return false;
-    const dataLocal = data ? new Date(data).toLocaleDateString('sv-SE') : '';
-    return (!inicio || dataLocal >= inicio) && (!fim || dataLocal <= fim);
-  });
-  if (filtrados.length === 0) {
-    alert("Nenhum dado para exportar.");
-    return;
-  }
-
+  if(!['admin','gerente','diretor'].includes(perfilSalvo)||!recorteValido())return;
+  const {inicio,fim,estado,supervisor}=filtrosDiretoria();
+  const filtrados=selecionarIncidentes(todosIncidentesCache,filtrosDiretoria(),detectarEstado);
+  if(!filtrados.length){alert('Nenhum dado para exportar.');return}
   const celula = valor => {
     let texto = String(valor ?? '');
     if (/^[\s\r\n]*[=+\-@]/.test(texto)) texto = `'${texto}`;
@@ -1617,22 +1567,22 @@ window.exportarRelatorioCSV = () => {
   };
   const linhas = [
     ['NEXTFLOW | ZAAZ TELECOM · Relatório de incidentes'],
-    [`Gerado em ${new Date().toLocaleString('pt-BR')}`, `Período: ${inicio || 'início'} a ${fim || 'hoje'}`, `Estado: ${estado}`, `Supervisor: ${supervisor || 'todos'}`],
-    [`Total de IDs: ${filtrados.length}`, `Evidência final pendente: ${filtrados.filter(item => !evidenciaFinalRegistrada(item)).length}`],
+    [`Gerado em ${horarioBrasil(new Date())} (Brasília)`, `Abertura: ${inicio || 'sem limite inicial'} a ${fim || 'sem limite final'}`, `Estado: ${estado}`, `Supervisor: ${supervisor || 'todos'}`],
+    [`Total de IDs: ${filtrados.length}`, `Ativos: ${filtrados.filter(i=>!resolvido(i)).length}`, `Resolvidos: ${filtrados.filter(resolvido).length}`],
     [],
-    ['ID', 'OS', 'Cidades', 'Estado', 'Rede', 'Clientes', 'Status', 'Supervisor', 'Técnico', 'Evidência final', 'Data de criação', 'Previsão', 'Conclusão', 'ID usuário IXC']
+    ['ID', 'OS', 'Cidades', 'Estado', 'Rede', 'Clientes', 'Status', 'Supervisor', 'Técnico', 'Data de criação', 'Previsão', 'Conclusão', 'ID usuário IXC']
   ];
   filtrados.forEach(i => linhas.push([
     i.idIncidente, i.os, i.cidades, i.estado, i.tipoRede,
-    i.clientesCount, i.statusAtual, i.responsavel, i.tecnicoAtribuido,
-    evidenciaFinalRegistrada(i) ? 'Registrada' : 'Pendente', i.dataCriacao, formatarPrevisao(i.previsao), [...(i.timelineEtapas||[])].reverse().find(e=>e.numeroEtapa===4||/^ETAPA 4/.test(e.etapa||''))?.dataHora||'', i.ixcUsuarioId||''
+    i.clientesCount, i.statusAtual, i.supervisorNome||i.responsavel, i.tecnicoAtribuido,
+    i.dataCriacao, formatarPrevisao(i.previsao), dataConclusao(i), i.ixcUsuarioId||''
   ]));
   const arquivo = new Blob(['\uFEFF', linhas.map(linha => linha.map(celula).join(';')).join('\r\n')],
     { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(arquivo);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `Relatorio_ZAAZ_${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `Relatorio_ZAAZ_${diaBrasil(new Date())}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
