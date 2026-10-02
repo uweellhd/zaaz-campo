@@ -6,18 +6,18 @@
 <p id="simAcesso" role="status">Verificando seu acesso de administrador...</p>
 <div id="simLaboratorio" hidden>
 <div class="sim-banner"><strong>🧪 SIMULAÇÃO · DADOS FICTÍCIOS</strong><p>As ações abaixo acontecem só neste laboratório. Nenhum chamado, foto, usuário ou permissão será alterado no sistema real. Atualizar a página reinicia o teste.</p></div>
-<div class="sim-toolbar"><label for="simPerfil">Testar como<select id="simPerfil"><option value="noc">🚨 NOC</option><option value="tecnicoA">👷 Técnico A · SP</option><option value="tecnicoB">👷 Técnico B · SP</option><option value="sac">📞 SAC / Suporte</option><option value="supervisorA">👥 Supervisor A</option><option value="projetos">📐 Projetos</option><option value="diretor">📊 Diretor</option></select></label><button id="simReiniciar" class="btn-sec-sm" type="button">Reiniciar teste</button></div>
+<div class="sim-toolbar"><label for="simPerfil">Testar como<select id="simPerfil"><option value="noc">🚨 NOC</option><option value="tecnicoA">👷 Técnico A</option><option value="tecnicoB">👷 Técnico B</option><option value="sac">📞 SAC / Suporte</option><option value="supervisorA">👥 Supervisor A</option><option value="projetos">📐 Projetos</option><option value="diretor">📊 Diretor</option></select></label><button id="simReiniciar" class="btn-sec-sm" type="button">Reiniciar teste</button></div>
 <p id="simOrientacao" class="sim-help" role="status"></p>
 <details class="sim-checklist" open><summary>Roteiro para testar sozinho</summary><ol id="simRoteiro"></ol></details>
 <div id="simAviso" class="sim-feedback" role="status" aria-live="polite"></div>
-<section id="simNoc" class="view-panel"><h3 class="panel-title">🚨 NOC · laboratório</h3><form id="simNocForm"><div class="form-group"><label for="simNovoId">ID fictício</label><input id="simNovoId" value="TESTE-1004" required maxlength="40"></div><div class="form-group"><label for="simCidade">Cidade</label><input id="simCidade" value="Cidade de teste / SP" required maxlength="100"></div><button class="btn-primary" type="submit">Criar ID fictício</button></form><h4 class="section-subtitle">Atribuir e acompanhar</h4><div id="simNocLista" class="incidents-grid-list"></div></section>
+<section id="simNoc" class="view-panel"><h3 class="panel-title">🚨 NOC · laboratório</h3><form id="simNocForm"><div class="form-group"><label for="simNovoId">ID fictício</label><input id="simNovoId" value="TESTE-1004" required maxlength="40"></div><div class="form-group"><label for="simCidade">Cidade</label><input id="simCidade" value="Cidade de teste / SP" required maxlength="100"></div><button class="btn-primary" type="submit">Criar ID fictício</button></form><h4 class="section-subtitle">Identificar supervisor e acompanhar</h4><div id="simNocLista" class="incidents-grid-list"></div></section>
 <section id="simConsulta" class="view-panel" hidden><h3 id="simConsultaTitulo" class="panel-title"></h3><div id="simConsultaLista" class="incidents-grid-list"></div></section>
 <section id="simDiretor" class="view-panel" hidden><h3 class="panel-title">📊 Visão executiva · teste</h3><div id="simKpis" class="kpi-grid executive-kpis"></div><button type="button" id="simExportar" class="btn-export">Exportar relatório fictício</button><div id="simDiretorLista" class="incidents-grid-list"></div></section>
     <section id="viewTech" class="view-panel" style="display:none;">
       <h3 class="panel-title">👷 Atendimento Técnico de Rua</h3>
 
       <div id="techSelectArea">
-        <p class="panel-desc">Chamados abertos na sua região de atendimento:</p>
+        <p class="panel-desc">Chamados que seu supervisor atribuiu à sua conta:</p>
         <div id="techIncidentsList" class="incidents-grid-list"></div>
       </div>
 
@@ -78,7 +78,7 @@
 
             <div class="form-group" style="background:#E0F2FE; padding:14px; border-radius:12px; border:1px solid #7DD3FC;">
               <label style="color:#0369A1; font-weight:700;">⏱️ Previsão Aproximada de Restauração:</label>
-              <input type="text" id="techPrevisaoInput" maxlength="120" placeholder="Ex: 17:30 28-09-2026" style="border-color:#38BDF8; font-weight:600;" required>
+              <input type="datetime-local" id="techPrevisaoInput" min="2020-01-01T00:00" max="2100-12-31T23:59" required>
             </div>
 
             <div class="btn-step-group">
@@ -100,8 +100,8 @@
               <input type="file" id="tf5" accept="image/*" multiple capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp5', 'fotoEquipe')">
               <div id="tp5" class="photo-gallery" aria-live="polite"></div>
             </div>
-            <div class="form-group"><label for="techObservacaoEtapa3">Observação da atuação (obrigatória)</label><textarea id="techObservacaoEtapa3" rows="3" maxlength="1500" placeholder="Informe o andamento, dificuldades ou outros detalhes. Se não houver, escreva Sem observações adicionais." required></textarea></div>
-            <div class="field-card"><h5>Imprevisto / revisão da previsão</h5><p id="techPrevisaoAtual" class="search-hint"></p><label for="techNovaPrevisao">Nova previsão de conclusão (somente se precisar alterar)</label><input type="datetime-local" id="techNovaPrevisao"><label for="techMotivoPrevisao">Motivo da alteração</label><textarea id="techMotivoPrevisao" rows="2" maxlength="1000" placeholder="Explique o imprevisto quando mudar a previsão."></textarea></div>
+            <div class="form-group"><label for="techObservacaoEtapa3">Observação da atuação (obrigatória)</label><textarea id="techObservacaoEtapa3" rows="3" maxlength="1500" placeholder="Informe o andamento e, se alterar o horário, explique o imprevisto aqui. Se não houver, escreva Sem observações adicionais." required></textarea></div>
+            <div class="field-card"><h5>Imprevisto / revisão da previsão</h5><p id="techPrevisaoAtual" class="search-hint"></p><label for="techNovaPrevisao">Nova previsão de conclusão (somente se precisar alterar)</label><input type="datetime-local" id="techNovaPrevisao" min="2020-01-01T00:00" max="2100-12-31T23:59"><p class="search-hint">Se alterar a previsão, descreva o imprevisto na observação da atuação acima.</p></div>
             <div class="btn-step-group">
               <button type="button" class="btn-primary" onclick="salvarEtapa3()">Avançar e Enviar Etapa 3</button>
             </div>

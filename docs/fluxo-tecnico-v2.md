@@ -7,8 +7,8 @@ Esta atualização substitui a decisão anterior de fotos opcionais nas etapas 1
 | Etapa | Informações e evidências necessárias |
 |---|---|
 | 1 — Deslocamento | Pelo menos uma foto/print do deslocamento, tipo de área e condição de risco. Ajudantes são opcionais e escolhidos entre cadastrados. Transferência continua disponível antes do envio. |
-| 2 — Chegada | Pelo menos uma foto do local, uma do rompimento, causa do rompimento e previsão de restauração. Causa ainda desconhecida pode ser registrada como “Em apuração”. |
-| 3 — Atuação | Pelo menos uma foto do técnico atuando, uma da fusão e observação da atuação. Se não houver informação adicional, preencher “Sem observações adicionais”. Nova previsão é opcional; quando preenchida, exige motivo e preserva a anterior. |
+| 2 — Chegada | Pelo menos uma foto do local, uma do rompimento, causa do rompimento e previsão de restauração com data e hora. Causa ainda desconhecida pode ser registrada como “Em apuração”. |
+| 3 — Atuação | Pelo menos uma foto do técnico atuando, uma da fusão e observação da atuação. Se não houver informação adicional, preencher “Sem observações adicionais”. Nova previsão é opcional; quando preenchida, o motivo é descrito na própria observação da atuação e a previsão anterior é preservada. |
 | 4 — Finalização | Pelo menos duas caixas, cada uma com GPS e uma foto; até 12 caixas. Preencher CAUSA, SOLUÇÃO e OBSERVAÇÃO no roteiro que aparece dentro do campo final. Nenhum dos três títulos pode ficar vazio. |
 
 Roteiro do campo final:
@@ -95,3 +95,7 @@ Estados previstos da fila: PENDENTE, ENVIANDO, CONFIRMADO e ERRO. Exibir horári
 6. Ativar gradualmente e acompanhar pendências, custos e retenção.
 
 Não contratar serviços nem inserir chaves no navegador. As duas integrações permanecem FUTURAS e serão ativadas somente após configuração e teste.
+
+## Complemento de 02/10/2026
+
+A distribuição passou a ser supervisor → técnico da equipe, sem bloqueio por UF. A previsão técnica agora usa data/hora estruturadas. A etapa 3 tem uma única observação; ela também fornece o motivo da revisão de prazo, quando houver. A galeria e a ampliação são compartilhadas com o laboratório. Ver [equipes, fotos e resolvidos](equipes-fotos-e-resolvidos.md).
