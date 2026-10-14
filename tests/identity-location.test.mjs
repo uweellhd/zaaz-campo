@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {reconhecerSupervisor,coordenadasValidas,lerLocalizacao} from '../lib/incident-identity.mjs';
+import {avaliarEtapa} from '../lib/field-flow.mjs';
+const a={uid:'a',nome:'Ana Souza',perfil:'supervisor',ativo:true};
+test('somente nome completo exato e único de supervisor ativo reconhece responsável',()=>{assert.equal(reconhecerSupervisor(' ana  SOUZA ',[a]).uid,'a');assert.equal(reconhecerSupervisor('Ana',[a]),null);assert.equal(reconhecerSupervisor('Ana Souza',[a,{...a,uid:'b'}]),null);assert.equal(reconhecerSupervisor('Ana Souza',[{...a,ativo:false}]),null);assert.equal(reconhecerSupervisor('Ana Souza',[{...a,perfil:'tecnico'}]),null)});
+test('coordenadas obrigatórias na etapa 2 respeitam limites geográficos',()=>{for(const gps of ['', '90.1, 2','1, -180.1','São Paulo'])assert.equal(coordenadasValidas(gps),false);assert.deepEqual(lerLocalizacao('-23.100000, -48.200000'),{latitude:-23.1,longitude:-48.2});const foto='data:image/jpeg;base64,eA==';const dados={causa:'Obra',previsao:'2026-10-14T20:00',fotos:{fotoChegada:[foto],fotoRompimento:[foto]}};assert.equal(avaliarEtapa(2,dados).valido,false);assert.equal(avaliarEtapa(2,{...dados,gpsRompimento:'-23.1, -48.2'}).valido,true)});

@@ -67,6 +67,16 @@
       <div id="listaSolicitacoes" class="approval-list"><p>Carregando solicitações...</p></div>
       <div class="section-heading"><h4 class="section-subtitle">Equipe cadastrada</h4><span>Função, estado de referência e acesso podem ser revistos aqui</span></div>
       <div id="listaEquipe" class="approval-list"><p>Carregando equipe...</p></div>
+      <div class="assignment-box">
+        <h4>Correção de responsável · administrador</h4>
+        <p class="panel-desc">Use somente para exceções sem correspondência automática. Confirme a conta do supervisor indicado no comunicado. A distribuição para os técnicos acontece na Supervisão.</p>
+        <form id="formBuscarAtribuicao" class="assignment-search">
+          <input id="buscaAtribuicao" placeholder="Digite o ID exato" aria-label="ID do chamado" required>
+          <button type="submit" class="btn-sec-sm">Encontrar ID</button>
+        </form>
+        <div id="resultadosAtribuicao" class="approval-list"></div>
+        <p class="search-hint">O nome original do comunicado permanece no histórico. Identificadores IXC podem ser vinculados em Gerenciar acessos.</p>
+      </div>
     </section>
 
     <section id="viewSupervisor" class="view-panel" style="display:none;">
@@ -169,16 +179,7 @@
 
         <button type="submit" id="btnSalvarNoc" class="btn-primary">⚡ Processar e Publicar Comunicado</button>
       </form>
-      <div class="assignment-box">
-        <h4>Conferir responsável</h4>
-        <p class="panel-desc">Confirme a conta do supervisor indicado no comunicado. A distribuição para os técnicos acontece na Supervisão.</p>
-        <form id="formBuscarAtribuicao" class="assignment-search">
-          <input id="buscaAtribuicao" placeholder="Digite o ID exato" aria-label="ID do chamado" required>
-          <button type="submit" class="btn-sec-sm">Encontrar ID</button>
-        </form>
-        <div id="resultadosAtribuicao" class="approval-list"></div>
-        <p class="search-hint">O nome original do comunicado permanece no histórico. Identificadores IXC podem ser vinculados em Gerenciar acessos.</p>
-      </div>
+      <p class="search-hint">O supervisor é reconhecido pelo ID IXC cadastrado ou pelo nome completo exato e único entre as contas ativas. Integração NOC VIEWER prevista para uma próxima fase.</p>
     </section>
 
     <!-- 3. PAINEL DE CONSULTA (SAC / SUPORTE / NOC) -->
@@ -244,6 +245,7 @@
           <!-- ETAPA 2 -->
           <div class="step" id="step-2">
             <h4>Etapa 2: Chegada, Rompimento e Previsão</h4>
+            <div class="field-card rupture-field"><label for="techGpsRompimento">Localização do rompimento (obrigatória)</label><input id="techGpsRompimento" type="text" readonly placeholder="Capture no ponto do rompimento"><button type="button" class="btn-sec-sm" onclick="capturarGPSTecnico('techGpsRompimento')">📍 Capturar local do rompimento</button><p class="field-hint">Capture aqui no ponto do rompimento. A localização será enviada com a etapa 2 e poderá ser aberta no mapa pelos setores.</p></div>
             <div class="form-group">
               <label>Foto do Local de Chegada:</label>
               <input type="file" id="tf2" accept="image/*" multiple capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp2', 'fotoChegada')">

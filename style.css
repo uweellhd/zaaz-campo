@@ -920,3 +920,10 @@ input:focus, textarea:focus, select:focus {
 .executive-filterbar .report-filters input, .executive-filterbar .report-filters select { width:100%; min-width:0; }
 @media(max-width:900px){.executive-filterbar .report-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }}
 @media(max-width:520px){.executive-filterbar .report-filters { grid-template-columns:1fr; }}
+/* Consulta ampliada e GPS legível no atendimento. */
+#modalDetalhesIncidente.consultation-wide .modal-content { max-width:1440px !important; width:96vw; max-height:94dvh; }
+#modalDetalhesIncidente.consultation-wide .modal-grid-sidebar { grid-template-columns:minmax(260px,340px) minmax(0,1fr); }
+.rupture-location { display:inline-block; margin:10px 0; color:var(--zaaz-blue); font-weight:700; overflow-wrap:anywhere; }
+.rupture-field input { width:100%; margin:10px 0; font-variant-numeric:tabular-nums; }
+.field-hint { margin-top:10px; color:var(--text-muted); font-size:12px; line-height:1.6; }
+@media(max-width:760px){#modalDetalhesIncidente.consultation-wide .modal-content { width:96vw; padding:18px; }#modalDetalhesIncidente.consultation-wide .modal-grid-sidebar { grid-template-columns:1fr; }}
