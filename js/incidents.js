@@ -9,6 +9,7 @@ import { avaliarFinalizacao, avaliarEtapa, categoriasEtapa, listaFotos, LIMITE_F
 import { renderizarGaleria } from '../lib/photo-gallery.mjs';
 import { montarGaleria, abrirFotos, fecharFotos, fotoAberta } from '../lib/photo-viewer.mjs';
 import { selecionarIncidentes, analisarOperacao, leituraExecutiva, dataConclusao, horarioBrasil, diaBrasil } from '../lib/executive-metrics.mjs';
+import { reconhecerSupervisor, coordenadasValidas, lerLocalizacao } from '../lib/incident-identity.mjs';
 import { criarRelatorioPDF } from '../lib/executive-report.mjs';
 
 const firebaseConfig = {
@@ -119,7 +120,7 @@ function renderizarSupervisor(){
   el('supervisorTotal').textContent=String(vinculados.length);el('supervisorPendente').textContent=String(abertos.length);el('supervisorCompleto').textContent=String(encerrados.length);
   el('supervisorFotosFaltantes').textContent=String(abertos.filter(i=>!i.tecnicoUid).length);
   const sem=chamadosSupervisor.filter(i=>!i.supervisorUid).length;el('supervisorAviso').hidden=perfilSalvo!=='admin'||!sem;
-  el('supervisorAviso').textContent=`${sem} ID(s) antigos aguardam identificação do supervisor. Use NOC → Conferir responsável para vinculá-los sem modificar o comunicado.`;
+  el('supervisorAviso').textContent=`${sem} ID(s) antigos aguardam identificação do supervisor. Use Gerenciar acessos → Correção de responsável para vinculá-los sem modificar o comunicado.`;
   el('supervisorFiltros')?.querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.dataset.status===filtroSupervisor);b.setAttribute('aria-pressed',String(b.dataset.status===filtroSupervisor))});
   const filtrados=chamadosSupervisor.filter(i=>resolvido(i)===(filtroSupervisor==='resolvidos')).sort((a,b)=>(b.dataTimestamp||0)-(a.dataTimestamp||0));
   for(const item of filtrados.slice(0,paginaSupervisor*TAMANHO_PAGINA)){
@@ -143,7 +144,7 @@ async function carregarTecnicosDisponiveis(){
   supervisoresDisponiveis=resultado.docs.map(d=>({...d.data(),uid:d.id})).filter(p=>p.ativo);
 }
 el('formBuscarAtribuicao')?.addEventListener('submit',async evento=>{
-  evento.preventDefault();if(!['admin','noc'].includes(perfilSalvo))return;const resultados=el('resultadosAtribuicao');resultados.textContent='Buscando...';
+  evento.preventDefault();if(perfilSalvo!=='admin')return;const resultados=el('resultadosAtribuicao');resultados.textContent='Buscando...';
   try{await carregarTecnicosDisponiveis();const consulta=await getDocs(query(collection(db,'incidentes'),where('idIncidente','==',el('buscaAtribuicao').value.trim()),limit(10)));resultados.replaceChildren();
     for(const documento of consulta.docs){const item=documento.data(),card=elemento('div','', 'approval-card');card.append(elemento('strong',`ID ${item.idIncidente} · Responsável no comunicado: ${item.responsavel||'Não informado'}`));
       const seletor=elemento('select');seletor.setAttribute('aria-label','Conta do supervisor responsável');seletor.replaceChildren(new Option('Selecione o supervisor identificado',''),...supervisoresDisponiveis.map(p=>new Option(p.nome,p.uid)));seletor.value=item.supervisorUid||'';
@@ -508,7 +509,7 @@ mudarTemaSistema(temaSalvo);
 const selectTema = document.getElementById('themeSelector');
 if (selectTema) selectTema.value = temaSalvo;
 
-function comprimirEMarcarDagua(file, textoMarca) {
+function comprimirEMarcarDagua(file, textoMarca, gpsMarca = null) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Não foi possível ler a foto.'));
@@ -521,14 +522,16 @@ function comprimirEMarcarDagua(file, textoMarca) {
         const width=Math.max(1,Math.round(img.width*escala)),height=Math.max(1,Math.round(img.height*escala));
         canvas.width=width;canvas.height=height;
         const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,width,height);
-        const fonte=Math.max(10,Math.min(16,Math.round(width/36))), margem=Math.min(12,width/10), linhas=[];
+        const fonte=Math.max(8,Math.min(16,Math.round(width/45))), margem=Math.min(12,width/10), linhas=[],larguraTexto=gpsMarca?width*.57:width;
         ctx.font=`bold ${fonte}px Inter, sans-serif`;
         for(const parte of textoMarca.split('|')){
-          let linha='';for(const palavra of parte.trim().split(/\s+/)){const tentativa=linha?linha+' '+palavra:palavra;if(linha&&ctx.measureText(tentativa).width>width-2*margem){linhas.push(linha);linha=palavra}else linha=tentativa}if(linha)linhas.push(linha);
+          let linha='';for(const palavra of parte.trim().split(/\s+/)){const tentativa=linha?linha+' '+palavra:palavra;if(linha&&ctx.measureText(tentativa).width>larguraTexto-2*margem){linhas.push(linha);linha=palavra}else linha=tentativa}if(linha)linhas.push(linha);
         }
-        const altura=linhas.length*(fonte+5)+12;
+        const gpsLinhas=gpsMarca?[gpsMarca.disponivel?'GPS do registro':'GPS indisponível',...(gpsMarca.disponivel?[`Lat: ${gpsMarca.latitude.toFixed(6)}`,`Lon: ${gpsMarca.longitude.toFixed(6)}`,`Precisão: ${Math.round(gpsMarca.precisao)} m`]:['Autorize a localização'])]:[];
+        const altura=Math.min(height,Math.max(linhas.length,gpsLinhas.length)*(fonte+5)+12);
         ctx.fillStyle='rgba(0,0,0,.68)';ctx.fillRect(0,height-altura,width,altura);
-        ctx.fillStyle='#FFFFFF';linhas.forEach((linha,n)=>ctx.fillText(linha,margem,height-altura+fonte+6+n*(fonte+5),width-2*margem));
+        ctx.fillStyle='#FFFFFF';linhas.forEach((linha,n)=>ctx.fillText(linha,margem,height-altura+fonte+6+n*(fonte+5),larguraTexto-2*margem));
+        ctx.textAlign='right';gpsLinhas.forEach((linha,n)=>ctx.fillText(linha,width-margem,height-altura+fonte+6+n*(fonte+5),width-larguraTexto-2*margem));ctx.textAlign='left';
 
         let qualidade = 0.7;
         let foto = canvas.toDataURL('image/jpeg', qualidade);
@@ -602,11 +605,12 @@ if (formNoc) {
       const tipoRedeExt = detectarTipoRede(textoBruto);
 
       const ixcUsuarioId=extrairCampo(textoBruto,'ID USUÁRIO IXC')||extrairCampo(textoBruto,'ID USUARIO IXC')||extrairCampo(textoBruto,'ID SUPERVISOR IXC')||'';
-      let identidade=null;
+      let identidade=null, origemVinculo='PENDENTE';
       if(/^[0-9]{1,20}$/.test(ixcUsuarioId)){
         const registro=await getDoc(doc(db,'identidadesIxc',ixcUsuarioId));
-        if(registro.exists()) { const pessoa=await getDoc(doc(db,'usuarios',registro.data().supervisorUid)); if(pessoa.exists()&&pessoa.data().ativo&&pessoa.data().perfil==='supervisor')identidade={uid:pessoa.id,nome:pessoa.data().nome}; }
+        if(registro.exists()) { const pessoa=await getDoc(doc(db,'usuarios',registro.data().supervisorUid)); if(pessoa.exists()&&pessoa.data().ativo&&pessoa.data().perfil==='supervisor'){identidade={uid:pessoa.id,nome:pessoa.data().nome};origemVinculo='IXC_ID';} }
       }
+      if(!identidade){await carregarTecnicosDisponiveis();identidade=reconhecerSupervisor(extrairCampo(textoBruto,'RESPONSÁVEL'),supervisoresDisponiveis);if(identidade)origemVinculo='NOME_EXATO_UNICO';}
       await addDoc(collection(db, "incidentes"), {
         idIncidente: idIncidenteExt,
         os: extrairCampo(textoBruto, "ORDEM DE SERVIÇO") || "Não informada",
@@ -618,7 +622,7 @@ if (formNoc) {
         incidenteTipo: extrairCampo(textoBruto, "INCIDENTE") || "REDE",
         clientesCount: parseInt(extrairCampo(textoBruto, "CLIENTES AFETADOS") || "0", 10) || 0,
         responsavel: extrairCampo(textoBruto, "RESPONSÁVEL") || usuarioSalvo,
-        ixcUsuarioId, supervisorUid:identidade?.uid||'', supervisorNome:identidade?.nome||'', supervisorVinculoOrigem:identidade?'IXC_ID':'PENDENTE',
+        ixcUsuarioId, supervisorUid:identidade?.uid||'', supervisorNome:identidade?.nome||'', supervisorVinculoOrigem:origemVinculo,
         previsao: extrairCampo(textoBruto, "PREVISÃO") || "A definir",
         statusAtual: extrairCampo(textoBruto, "STATUS ATUAL") || "AGUARDANDO TÉCNICO",
         descricao: extrairCampo(textoBruto, "DESCRIÇÃO") || textoBruto,
@@ -630,7 +634,7 @@ if (formNoc) {
         dataCriacao: new Date().toLocaleString("pt-BR")
       });
 
-      alert(`⚡ Comunicado publicado com sucesso!\nID: ${idIncidenteExt}${identidade?"\nSupervisor identificado pelo ID IXC.":"\nResponsável ainda precisa de confirmação em Conferir responsável."}`);
+      alert(`⚡ Comunicado publicado com sucesso!\nID: ${idIncidenteExt}${identidade?"\nSupervisor reconhecido automaticamente e ID entregue à sua fila.":"\nNão houve identificação única do supervisor. O ID foi preservado; o administrador deve conferir em Gerenciar acessos. Não foi entregue a outro time."}`);
       formNoc.reset();
       btn.textContent = "⚡ Processar e Publicar Comunicado";
       btn.disabled = false;
@@ -990,10 +994,12 @@ window.processarFotoComMarcaDagua = async (input, idPreview, chaveFoto) => {
   if (anteriores.length + files.length > LIMITE_FOTOS) { input.value = ''; alert(`Limite de ${LIMITE_FOTOS} fotos por categoria. Remova uma foto antes de adicionar outras.`); return; }
   processandoFotos = true; bloquearFormulario(true);
   try {
+    if(chaveFoto!=='fotoDeslocamento')atualizarEstadoLocal('Obtendo a localização para registrar nas fotos. Aguarde…');
+    const gpsMarca=chaveFoto==='fotoDeslocamento'?null:await obterGPSFoto();
     const novas = [];
     for (const file of files) {
       if (!file.type.startsWith('image/') || file.size > 20 * 1024 * 1024) throw new Error('Selecione imagens de até 20 MB cada.');
-      novas.push(await comprimirEMarcarDagua(file, `ZAAZ TELECOM | ${new Date().toLocaleString('pt-BR')} | ${usuarioSalvo}`));
+      novas.push(await comprimirEMarcarDagua(file, `NEXTFLOW / ZAAZ | Registro: ${new Date().toLocaleString('pt-BR')} | ${usuarioSalvo}`, gpsMarca));
     }
     mapaFotosBase64[chaveFoto] = [...anteriores, ...novas];
     atualizarGaleriaTecnica(chaveFoto);
@@ -1002,12 +1008,16 @@ window.processarFotoComMarcaDagua = async (input, idPreview, chaveFoto) => {
   finally { input.value = ''; processandoFotos = false; bloquearFormulario(false); }
 };
 
+async function obterGPSFoto(){
+  if(!navigator.geolocation)return {disponivel:false};
+  return new Promise(resolve=>navigator.geolocation.getCurrentPosition(pos=>resolve({disponivel:true,latitude:pos.coords.latitude,longitude:pos.coords.longitude,precisao:pos.coords.accuracy}),()=>resolve({disponivel:false}),{enableHighAccuracy:true,timeout:10000,maximumAge:0}));
+}
 window.capturarGPSTecnico = (idInput) => {
   if (!navigator.geolocation) { alert('Seu navegador não oferece localização.'); return; }
   navigator.geolocation.getCurrentPosition(pos => {
     document.getElementById(idInput).value = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
     salvarRascunhoTecnico();
-  }, () => alert('Autorize o acesso à localização e tente novamente.'), { enableHighAccuracy: true, timeout: 15000 });
+  }, () => alert('Autorize o acesso à localização e tente novamente.'), { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 };
 
 let numeroCaixa = 0;
@@ -1163,6 +1173,8 @@ async function enviarEtapaTecnica(numero, dados, executar) {
   const validacao = avaliarEtapa(numero, { ...dados, fotos:mapaFotosBase64 });
   if (!validacao.valido) { alert(validacao.mensagem); return; }
   if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
+  const quantidade=categoriasEtapa[numero].reduce((n,chave)=>n+listaFotos(mapaFotosBase64[chave]).length,0);
+  if(!confirm(`Etapa ${numero}: confira as ${quantidade} foto(s) e todas as informações. Está tudo correto? Depois do envio, não será possível voltar ou trocar as fotos desta etapa.`))return;
   enviandoEtapa = true; bloquearFormulario(true);
   atualizarEstadoLocal(`Enviando etapa ${numero} e suas fotos. Aguarde a confirmação para avançar.`);
   try { await executar(); avancarEtapaVisual(numero + 1); confirmarEnvioEtapa(numero); }
@@ -1188,10 +1200,10 @@ window.salvarEtapa1 = async () => {
   });
 };
 window.salvarEtapa2 = async () => {
-  const previsao = document.getElementById('techPrevisaoInput').value.trim(), causa = document.getElementById('techCausaRompimento').value.trim();
-  await enviarEtapaTecnica(2, { causa, previsao }, async () => {
+  const previsao = document.getElementById('techPrevisaoInput').value.trim(), causa = document.getElementById('techCausaRompimento').value.trim(), gpsRompimento=document.getElementById('techGpsRompimento').value.trim();
+  await enviarEtapaTecnica(2, { causa, previsao, gpsRompimento }, async () => {
     const { fotos, ...evidencias } = evidenciasEtapa(2);
-    await registrarEventoTimeline('ETAPA 2: NO LOCAL / ROMPIMENTO', fotos, `Causa: ${causa}. Previsão: ${formatarPrevisao(previsao)}`, previsao, { causaRompimento:causa, previsaoInformada:previsao, ...evidencias });
+    await registrarEventoTimeline('ETAPA 2: NO LOCAL / ROMPIMENTO', fotos, `Causa: ${causa}. Local do rompimento: ${gpsRompimento}. Previsão: ${formatarPrevisao(previsao)}`, previsao, { causaRompimento:causa, gpsRompimento, localizacaoRompimento:lerLocalizacao(gpsRompimento), previsaoInformada:previsao, ...evidencias });
     document.getElementById('techPrevisaoAtual').textContent = `Previsão atual: ${formatarPrevisao(previsao)}. Deixe os campos abaixo vazios para manter.`;
     const campoFinal = document.getElementById('tobs');
     const final = separarDescricao(campoFinal.value);
@@ -1225,6 +1237,7 @@ window.salvarEtapa4Final = async () => {
     mensagem.textContent = avaliacao.mensagem; mensagem.hidden = false; elemento.scrollIntoView({ behavior:'smooth', block:'center' }); return;
   }
   if (!navigator.onLine) { await salvarRascunhoTecnico(); return; }
+  if(!confirm(`Etapa 4: confira as ${caixas.reduce((n,c)=>n+c.fotos.length,0)} foto(s), as localizações de ${caixas.length} caixas e CAUSA, SOLUÇÃO e OBSERVAÇÃO. Está tudo correto para finalizar? Depois do envio, não será possível editar esta etapa.`))return;
   const btn = document.getElementById('btnSalvarTecnicoFinal');
   enviandoEtapa = true; bloquearFormulario(true); btn.textContent = 'Enviando fotos e finalizando…';
   try {
@@ -1430,6 +1443,7 @@ window.abrirModalDetalhes = (item, atualizacaoAoVivo = false) => {
     document.getElementById('editarDescricao').value = item.descricao || '';
   }
 
+  document.getElementById('modalDetalhesIncidente').classList.toggle('consultation-wide',['sac','suporte'].includes(perfilSalvo));
   const infoBox = document.getElementById('modalInfoBox');
   infoBox.innerHTML = `
     <span class="live-status">● Acompanhamento ao vivo · etapas recebidas automaticamente</span>
@@ -1466,6 +1480,7 @@ window.abrirModalDetalhes = (item, atualizacaoAoVivo = false) => {
         </div>
         <p style="font-size:13px;">${escaparHtml(t.observacao)}</p>
       `;
+      if(coordenadasValidas(t.gpsRompimento)){const ponto=lerLocalizacao(t.gpsRompimento);const link=elemento('a',`📍 Rompimento: ${t.gpsRompimento}`,'rupture-location');link.href=`https://www.google.com/maps?q=${ponto.latitude},${ponto.longitude}`;link.target='_blank';link.rel='noopener noreferrer';itemDiv.append(link);}
       if ((Array.isArray(t.fotos) && t.fotos.length) || (Array.isArray(t.fotoIds) && t.fotoIds.length)) {
         const galeria = document.createElement('div');
         galeria.className = 'timeline-photos';

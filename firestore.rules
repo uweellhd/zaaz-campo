@@ -111,6 +111,10 @@ service cloud.firestore {
         && event.gruposFotos.fotoDeslocamento.indiceFoto == 0
         && event.fotoIds.size() == event.gruposFotos.fotoDeslocamento.quantidadeFotos)
       : event.numeroEtapa == 2 ? ( text(event.causaRompimento, 1000) && validForecast(event.previsaoInformada)
+        && event.gpsRompimento is string && event.gpsRompimento.matches('^-?([0-8]?[0-9]([.][0-9]+)?|90([.]0+)?),[ ]*-?(1[0-7][0-9]([.][0-9]+)?|[0-9]{1,2}([.][0-9]+)?|180([.]0+)?)$')
+        && event.localizacaoRompimento.latitude is number && event.localizacaoRompimento.longitude is number
+        && event.localizacaoRompimento.latitude >= -90 && event.localizacaoRompimento.latitude <= 90
+        && event.localizacaoRompimento.longitude >= -180 && event.localizacaoRompimento.longitude <= 180
         && request.resource.data.previsao == event.previsaoInformada
         && photoGroup(event, 'fotoChegada', incidentId) && photoGroup(event, 'fotoRompimento', incidentId)
         && event.gruposFotos.fotoChegada.indiceFoto == 0

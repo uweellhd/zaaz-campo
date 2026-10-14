@@ -61,6 +61,7 @@
           <!-- ETAPA 2 -->
           <div class="step" id="step-2">
             <h4>Etapa 2: Chegada, Rompimento e Previsão</h4>
+            <div class="field-card"><label for="techGpsRompimento">Localização fictícia do rompimento</label><input id="techGpsRompimento" readonly placeholder="Capture para testar"><button type="button" class="btn-sec-sm" onclick="capturarGPSTecnico('techGpsRompimento')">📍 Usar GPS fictício</button></div>
             <div class="form-group">
               <label>Foto do Local de Chegada:</label>
               <input type="file" id="tf2" accept="image/*" multiple capture="environment" onchange="processarFotoComMarcaDagua(this, 'tp2', 'fotoChegada')">

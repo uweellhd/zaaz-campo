@@ -14,7 +14,7 @@ test('roteiro com títulos vazios ou solução ausente impede finalizar',()=>{
  for(const texto of ['',modeloDescricao('Obra'),'CAUSA: Obra\nSOLUÇÃO:\nOBSERVAÇÃO: Nada','Reparo']) assert.equal(avaliarFinalizacao(duas,texto).valido,false);
 });
 test('uma foto de chegada não substitui a obrigatória de rompimento',()=>{
- const dados={fotos:{fotoChegada:[foto,foto]},causa:'Obra',previsao:'2026-10-02T18:00'};
+ const dados={fotos:{fotoChegada:[foto,foto]},causa:'Obra',gpsRompimento:'-23.1, -48.2',previsao:'2026-10-02T18:00'};
  assert.match(avaliarEtapa(2,dados).mensagem,/rompimento/);
  assert.equal(avaliarEtapa(2,{...dados,fotos:{...dados.fotos,fotoRompimento:[foto]}}).valido,true);
 });

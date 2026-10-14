@@ -18,7 +18,7 @@ const entrega = (uid = 'tecnicoA') => ({ incidenteId:'a', idIncidente:'TESTE-100
 function evento(numero) {
   const base = {etapa:titulos[numero],numeroEtapa:numero,fluxoVersao:2,tecnicoUid:'tecnicoA',tecnico:'tecnicoA',fotosPendentes:0,observacao:'Envio obrigatório'};
   if(numero===1)return {...base,fotoIds:['partida'],gruposFotos:{fotoDeslocamento:{indiceFoto:0,quantidadeFotos:1}},tipoArea:'URBANA',condicaoRisco:'NAO_INFORMADO'};
-  if(numero===2)return {...base,fotoIds:['chegada','rompimento'],gruposFotos:{fotoChegada:{indiceFoto:0,quantidadeFotos:1},fotoRompimento:{indiceFoto:1,quantidadeFotos:1}},causaRompimento:'Obra',previsaoInformada:'2026-10-02T18:00'};
+  if(numero===2)return {...base,fotoIds:['chegada','rompimento'],gruposFotos:{fotoChegada:{indiceFoto:0,quantidadeFotos:1},fotoRompimento:{indiceFoto:1,quantidadeFotos:1}},causaRompimento:'Obra',gpsRompimento:'-23.1, -48.2',localizacaoRompimento:{latitude:-23.1,longitude:-48.2},previsaoInformada:'2026-10-02T18:00'};
   if(numero===3)return {...base,fotoIds:['atuacao','fusao'],gruposFotos:{fotoPanoramica:{indiceFoto:0,quantidadeFotos:1},fotoEquipe:{indiceFoto:1,quantidadeFotos:1}},observacaoAtuacao:'Atuando',previsaoAnterior:'2026-10-02T18:00',previsaoRevisada:'',motivoRevisao:''};
   return {...base,fotoIds:['final1','final2'],caixas:entrega().caixas,registroFinal,descricaoServico:descricaoFinal};
 }
@@ -240,4 +240,11 @@ test('NOC identifica supervisor e publica sem distribuir técnico nem forjar eta
  await assertSucceeds(updateDoc(doc(db,'incidentes','a'),{supervisorUid:'supervisorB',supervisorNome:'supervisorB',supervisorVinculoOrigem:'CONFIRMACAO_MANUAL',tecnicoUid:'',tecnicoAtribuido:''}));
  await assertFails(setDoc(doc(db,'incidentes','indevido'),incident('tecnicoB')));
  await assertSucceeds(setDoc(doc(db,'incidentes','novo'),incident('','supervisorA')));
+});
+
+test('etapa 2 exige GPS e bloqueia coordenadas fora do mapa',async()=>{
+ const db=ctx('tecnicoA');await enviar(db,1);
+ await assertFails(enviar(db,2,{gpsRompimento:'',localizacaoRompimento:{latitude:-23,longitude:-48}}));
+ await assertFails(enviar(db,2,{gpsRompimento:'91, -48',localizacaoRompimento:{latitude:91,longitude:-48}}));
+ await assertSucceeds(enviar(db,2));
 });
