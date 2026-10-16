@@ -55,6 +55,10 @@ function ouvirUmaVez(chave, consulta, aoReceber) {
 }
 
 const badgeElem = document.getElementById('userBadge');
+document.addEventListener('keydown', event => {
+  const menu=document.getElementById('accountMenu');
+  if(event.key==='Escape'&&menu?.open){menu.open=false;menu.querySelector('summary').focus();event.preventDefault();}
+});
 document.addEventListener('click', event => {
   const menu = document.getElementById('accountMenu');
   if (menu?.open && !menu.contains(event.target)) menu.open = false;
@@ -170,6 +174,11 @@ function prepararIdentidadesIxc(){
 
 // LÓGICA DE VISIBILIDADE DAS ABAS BASEADA EM PERMISSÕES DINÂMICAS (RBAC)
 function configurarTelasPorPerfil() {
+  const partesNome=String(usuarioSalvo||'').trim().split(/\s+/).filter(Boolean);
+  const iniciais=partesNome.length>1?partesNome[0][0]+partesNome.at(-1)[0]:(partesNome[0]||'·').slice(0,2);
+  document.getElementById('accountInitials').textContent=iniciais.toLocaleUpperCase('pt-BR');
+  document.getElementById('accountRole').textContent=({admin:'Administração',diretor:'Diretoria',gerente:'Gerência',noc:'NOC',sac:'SAC',suporte:'Suporte',tecnico:'Técnico',supervisor:'Supervisão',projetos:'Projetos'})[perfilSalvo]||'Minha conta';
+
   const btnGerente = document.getElementById('btnTabGerente');
   const btnNoc = document.getElementById('btnTabNoc');
   const btnSac = document.getElementById('btnTabSac');
