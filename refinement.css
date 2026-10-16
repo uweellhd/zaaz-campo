@@ -1,0 +1,73 @@
+/* Ajustes de identidade: hierarquia discreta e leitura de aplicação operacional.
+   A estrutura, os temas, os estados e os tamanhos mínimos de toque são preservados. */
+:root { --interface-font: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+*, input, select, textarea, button { font-family:var(--interface-font); }
+body { -webkit-font-smoothing:antialiased; }
+.dashboard-body { font-size:14px; line-height:1.5; }
+.ui-icon { width:18px; height:18px; flex:0 0 18px; vertical-align:-3px; }
+.nav-btn, .account-dropdown button { display:inline-flex; align-items:center; gap:8px; }
+.account-dropdown label { display:flex; align-items:center; gap:8px; }
+.dashboard-body .top-nav { box-shadow:none; }
+.dashboard-body .nav-btn { font-size:13px; font-weight:600; border-radius:6px; padding:10px 13px; }
+.dashboard-body .nextflow-highlight { letter-spacing:0; font-weight:500; font-size:11px; }
+.dashboard-body .view-panel { border-radius:13px; box-shadow:none; }
+.dashboard-body .panel-title { font-size:26px; font-weight:600; letter-spacing:-.025em; line-height:1.25; }
+.dashboard-body .executive-hero .panel-title { font-size:30px; }
+.dashboard-body .section-subtitle { font-size:19px; font-weight:600; letter-spacing:-.015em; }
+.dashboard-body .section-eyebrow, .dashboard-body .executive-section-label span { text-transform:none; letter-spacing:.015em; font-size:12px; font-weight:600; }
+.dashboard-body .executive-section-label { margin-top:26px; }
+.dashboard-body .executive-section-label strong { font-weight:400; }
+.dashboard-body .executive-hero { padding-bottom:22px; margin-bottom:22px; }
+.dashboard-body .hero-meta { font-size:12px; }
+.dashboard-body .hero-meta span:last-child { font-weight:600; }
+.dashboard-body :is(.kpi-card,.chart-card,.field-card,.incidente-card,.approval-card,.info-details-box,.team-panel,.executive-filterbar) { border-radius:10px; box-shadow:none; }
+.dashboard-body .executive-kpis .kpi-card { padding:20px; min-height:142px; }
+.dashboard-body .executive-kpis .kpi-card::before { height:2px; width:22px; margin-bottom:10px; }
+.dashboard-body .kpi-title { text-transform:none; letter-spacing:0; font-size:12px; font-weight:600; }
+.dashboard-body .executive-kpis .kpi-value { font-size:36px; font-weight:600; letter-spacing:-.025em; font-variant-numeric:tabular-nums; }
+.dashboard-body .kpi-foot { font-size:12px; line-height:1.45; }
+.dashboard-body .executive-summary { border-radius:10px; gap:24px; }
+.dashboard-body .executive-summary p { font-size:16px; font-weight:500; }
+.dashboard-body .chart-card h5 { font-size:14px; font-weight:600; letter-spacing:0; }
+.dashboard-body .state-card .kpi-value { font-weight:600; font-variant-numeric:tabular-nums; }
+.dashboard-body .incidente-card { padding:18px; }
+.dashboard-body .incidente-card:hover { box-shadow:none; border-color:var(--zaaz-blue); }
+.dashboard-body :is(.btn-primary,.btn-sec,.btn-sec-sm,.btn-export) { border-radius:7px; font-weight:600; box-shadow:none; }
+.dashboard-body :is(.report-filters,.assignment-box,.search-box) { border-radius:9px; box-shadow:none; }
+.dashboard-body :is(input,select,textarea) { font-size:14px; border-radius:7px; letter-spacing:normal; }
+.dashboard-body :is(label,.report-filters label,.timeline-header,.step-number) { font-weight:600; }
+.dashboard-body .modal-content { border-radius:13px; }
+.dashboard-body .timeline-item { border-radius:9px; }
+.dashboard-body .account-menu summary, .dashboard-body .clock-box-inline { border-radius:7px; box-shadow:none; }
+.dashboard-body .account-dropdown { border-radius:10px; box-shadow:0 8px 24px rgba(12,25,47,.12); }
+.login-body { background:#101f3e; }
+.login-body::before { opacity:.25; }
+.login-body .login-intro h1 { letter-spacing:-.045em; }
+.login-body .login-eyebrow,.login-body .card-eyebrow { letter-spacing:.025em; font-size:12px; font-weight:600; }
+.login-body .login-card { border-radius:14px; box-shadow:0 16px 40px rgba(0,0,0,.16); }
+.login-body .login-card h2 { font-size:27px; font-weight:600; letter-spacing:-.025em; }
+.login-body .login-card input { border-radius:7px; font-size:15px; }
+.login-body .btn-primary { border-radius:7px; font-weight:600; box-shadow:none; }
+.login-body .internal-tag { border-radius:6px; font-weight:500; }
+.login-body .login-helper { font-size:14px; }
+:is(button,a,input,select,textarea,summary):focus-visible { outline:2px solid var(--zaaz-blue,#1256c6); outline-offset:3px; }
+@media(max-width:760px){
+ .dashboard-body .panel-title,.dashboard-body .executive-hero .panel-title { font-size:24px; }
+ .dashboard-body .nav-btn { font-size:13px; min-height:44px; }
+ .dashboard-body .executive-kpis .kpi-card { padding:15px; min-height:138px; }
+ .dashboard-body .executive-kpis .kpi-value { font-size:32px; }
+ .dashboard-body .executive-section-label { flex-wrap:wrap; gap:5px 12px; }
+ .dashboard-body .incidente-card { padding:15px; }
+ .login-body .login-card { padding:26px 22px; }
+}
+@media(min-width:761px){.login-layout { grid-template-columns:minmax(0,1fr) minmax(300px,430px); }.login-footer { left:0; }}
+/* Contraste do tema escuro: azul claro para leitura, azul sólido para ações. */
+.theme-dark { --zaaz-blue:#8bbaff; --zaaz-blue-hover:#b2d0ff; }
+.theme-dark :is(.btn-primary,.btn-export,.nav-btn.active,.status-tabs .active) { background:#155eb2; border-color:#155eb2; color:#fff; }
+.theme-dark :is(.btn-primary:hover,.btn-export:hover,.nav-btn:hover) { background:#125397; color:#fff; }
+.theme-dark :is(.btn-sec,.btn-sec-sm) { background:#27384d; border:1px solid #44546a; color:#e5edf7; }
+.theme-dark .status-tabs .active { background:#155eb2; border-color:#155eb2; color:#fff; }
+.theme-dark :is(input,select,textarea) { background:var(--input-bg); color:var(--text-main); border-color:#44546a; color-scheme:dark; }
+.theme-dark input::placeholder,.theme-dark textarea::placeholder { color:#a0aec0; }
+.theme-dark .success-text { color:#4cc5ad; }
+.theme-dark #techFormArea input[type=file]::file-selector-button { background:#155eb2; color:#fff; }

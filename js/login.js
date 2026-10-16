@@ -141,7 +141,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
       ? erro.message : 'Não foi possível entrar. Confira e-mail e senha.';
     aviso.style.display = 'block';
     btn.disabled = false;
-    btn.textContent = 'Entrar no sistema';
+    btn.textContent = 'Entrar';
   } finally {
     processando = false;
   }
