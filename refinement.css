@@ -71,3 +71,24 @@ body { -webkit-font-smoothing:antialiased; }
 .theme-dark input::placeholder,.theme-dark textarea::placeholder { color:#a0aec0; }
 .theme-dark .success-text { color:#4cc5ad; }
 .theme-dark #techFormArea input[type=file]::file-selector-button { background:#155eb2; color:#fff; }
+/* Conta e cabeçalho alinhados à linguagem do NEXTFLOW B2B. */
+.dashboard-body .nav-right-group { gap:22px; min-width:0; }
+.dashboard-body .account-menu { width:auto; min-width:0; max-width:320px; flex:0 1 auto; }
+.dashboard-body .account-menu summary { display:flex; justify-content:flex-start; align-items:center; gap:10px; min-height:48px; padding:5px 0 5px 4px; border:0; border-radius:6px; background:transparent; box-shadow:none; font-size:13px; font-weight:600; }
+.dashboard-body .account-menu summary:hover,.dashboard-body .account-menu[open] summary,.dashboard-body .account-menu summary:active { background:transparent; }
+.dashboard-body .account-avatar { display:grid; place-items:center; flex:0 0 34px; width:34px; height:34px; border-radius:50%; background:var(--input-bg); color:var(--zaaz-blue); font-size:11px; font-weight:700; letter-spacing:.02em; }
+.dashboard-body .account-identity { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.dashboard-body #userBadge { display:block; color:var(--text-main); font-weight:600; line-height:1.4; overflow-wrap:anywhere; }
+.dashboard-body #accountRole { display:block; color:var(--text-muted); font-size:11px; line-height:1.4; font-weight:400; }
+.dashboard-body .account-chevron { width:18px; height:18px; margin-left:2px; color:var(--text-main); }
+.dashboard-body .account-chevron svg { display:block; width:15px; height:15px; }
+.dashboard-body .account-dropdown { width:285px; max-width:calc(100vw - 32px); padding:8px; border-radius:10px; }
+.dashboard-body .account-dropdown button { line-height:1.4; }
+.dashboard-body .clock-box-inline { padding:10px 13px; border-radius:9px; background:var(--input-bg); }
+.dashboard-body .clock-date { font-weight:400; }
+@media(max-width:700px){
+ .dashboard-body .nav-right-group { gap:12px; justify-content:flex-start; }
+ .dashboard-body .account-menu { max-width:100%; }
+ .dashboard-body .account-menu summary { padding-left:0; }
+ .dashboard-body .account-dropdown { left:0; right:auto; width:min(285px,calc(100vw - 32px)); }
+}
