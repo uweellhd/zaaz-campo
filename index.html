@@ -5,28 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#101b3f">
   <title>Acesso interno • NEXTFLOW</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="refinement.css">
 </head>
 <body class="login-body">
   <main class="login-layout">
     <section class="login-intro" aria-label="Sobre o sistema">
       <canvas id="fiberCanvas" class="fiber-art" aria-hidden="true"></canvas>
       <div class="login-intro-content">
-        <p class="login-eyebrow">PLATAFORMA DE OPERAÇÕES</p>
+        <p class="login-eyebrow">Gestão de campo</p>
         <h1>NEXTFLOW</h1>
-        <p class="login-lead">Acompanhe incidentes, equipes e devolutivas em um só lugar.</p>
-        <div class="internal-tag"><span class="tag-dot"></span> Ambiente interno ZAAZ Telecom</div>
+        <p class="login-lead">Incidentes de rede e atendimento em campo.</p>
+        <div class="internal-tag"><span class="tag-dot"></span> ZAAZ Telecom</div>
       </div>
     </section>
 
     <section class="login-card" aria-labelledby="loginTitle">
       <div id="loginSection">
-        <p class="card-eyebrow">ACESSO CORPORATIVO</p>
-        <h2 id="loginTitle">Entre na sua área</h2>
-        <p class="login-helper">Acesse com seu e-mail corporativo. Novas contas precisam de aprovação.</p>
+        <p class="card-eyebrow">Acesso</p>
+        <h2 id="loginTitle">Acesse sua conta</h2>
+        <p class="login-helper">Use seu e-mail ZAAZ. Novas contas passam pela aprovação do administrador.</p>
         <form id="loginForm">
           <div class="form-group">
             <label for="usuario">E-mail corporativo</label>
@@ -39,13 +37,13 @@
               <button type="button" id="toggleSenha" class="password-toggle" aria-label="Mostrar senha" aria-pressed="false">Mostrar</button>
             </div>
           </div>
-          <button type="submit" id="btnLogin" class="btn-primary">Entrar no sistema</button>
+          <button type="submit" id="btnLogin" class="btn-primary">Entrar</button>
           <p id="errorMsg" class="error-box" role="alert" aria-live="polite">Não foi possível entrar.</p>
         </form>
         <button type="button" id="abrirCadastro" class="login-switch">Primeiro acesso? Solicite sua conta</button>
       </div>
       <div id="cadastroSection" class="registration-section" hidden>
-        <p class="card-eyebrow">ACESSO CORPORATIVO</p>
+        <p class="card-eyebrow">Acesso</p>
         <h2>Solicitar acesso</h2>
         <p class="login-helper">Confirme seu e-mail ZAAZ. Depois, o administrador escolherá sua função e região.</p>
         <form id="cadastroForm">
@@ -64,7 +62,7 @@
       </div>
     </section>
   </main>
-  <footer class="login-footer">NEXTFLOW <span>·</span> Ambiente de desenvolvimento interno ZAAZ Telecom</footer>
+  <footer class="login-footer">NEXTFLOW <span>·</span> ZAAZ Telecom</footer>
   <script type="module" src="js/login.js"></script>
   <script src="js/fiber.js" defer></script>
 </body>

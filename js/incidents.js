@@ -593,7 +593,7 @@ if (formNoc) {
     const btn = document.getElementById('btnSalvarNoc');
     const textoBruto = document.getElementById('nocTextoComunicado').value.trim();
 
-    btn.textContent = "⏳ Lendo e registrando...";
+    btn.textContent = "Registrando comunicado…";
     btn.disabled = true;
 
     try {
@@ -636,11 +636,11 @@ if (formNoc) {
 
       alert(`⚡ Comunicado publicado com sucesso!\nID: ${idIncidenteExt}${identidade?"\nSupervisor reconhecido automaticamente e ID entregue à sua fila.":"\nNão houve identificação única do supervisor. O ID foi preservado; o administrador deve conferir em Gerenciar acessos. Não foi entregue a outro time."}`);
       formNoc.reset();
-      btn.textContent = "⚡ Processar e Publicar Comunicado";
+      btn.textContent = "Registrar comunicado";
       btn.disabled = false;
     } catch (err) {
       alert("Erro ao registrar: " + err.message);
-      btn.textContent = "⚡ Processar e Publicar Comunicado";
+      btn.textContent = "Registrar comunicado";
       btn.disabled = false;
     }
   });
