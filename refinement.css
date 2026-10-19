@@ -92,3 +92,10 @@ body { -webkit-font-smoothing:antialiased; }
  .dashboard-body .account-menu summary { padding-left:0; }
  .dashboard-body .account-dropdown { left:0; right:auto; width:min(285px,calc(100vw - 32px)); }
 }
+
+.dashboard-body #viewConta .account-form { padding:22px 0; margin:0; }
+.dashboard-body #viewConta .account-form h4 { margin-bottom:20px; }
+.dashboard-body #viewConta .account-form .btn-primary { min-height:44px; font-size:14px; line-height:1.4; }
+.dashboard-body #viewConta #contaEmail { border-top:1px solid var(--border-color); padding-top:24px; max-width:480px; }
+.dashboard-body #viewConta #contaEmail[hidden] { display:none; }
+.dashboard-body #viewConta #senhaRequisitos { margin-top:6px; }

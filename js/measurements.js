@@ -48,7 +48,15 @@ export function iniciarMedicoes(ctx){
     list.replaceChildren();if(!filtered.length)list.append(e('p',perfil==='tecnico'?'Nenhuma medição em andamento atribuída ao seu acesso.':'Nenhuma medição neste recorte.','measure-empty'));
     for(const r of filtered.slice(0,pageSize)){const card=button('',()=>openDetails(r),'incidente-card supervisor-card project-list-card');card.append(e('strong',r.referencia),e('small',`${r.estado} · ${r.cidade} · ${r.pontoA} → ${r.pontoB}`),e('span',STATUS[r.status],'measure-status'),e('small',`${r.tecnicoNome||'Técnico a definir'} · ${stamp(r.criadoEm)}`),e('small',r.status==='EM_CAMPO'&&r.tecnicoUid===uid?'Continuar coleta →':'Ver fotos, arquivos e conferência →'));list.append(card)}more.hidden=filtered.length<=pageSize;
   }
-  async function technicians(supervisorUid=''){const q=await getDocs(query(collection(db,'usuarios'),where('perfil','==','tecnico')));const all=q.docs.map(s=>({uid:s.id,...s.data()})).filter(p=>p.ativo);const target=supervisorUid||(perfil==='supervisor'?uid:'');if(!target)return all;const teams=await getDocs(query(collection(db,'equipesTecnicas'),where('supervisorUid','==',target)));const ids=teams.docs.filter(d=>d.data().ativo).map(d=>d.id);return all.filter(p=>ids.includes(p.uid))}
+  async function technicians(supervisorUid=''){
+    const q=await getDocs(query(collection(db,'usuarios'),where('perfil','==','tecnico')));
+    let all=q.docs.map(s=>({uid:s.id,...s.data()})).filter(p=>p.ativo);
+    const target=supervisorUid||(perfil==='supervisor'?uid:'');
+    if(target){const teams=await getDocs(query(collection(db,'equipesTecnicas'),where('supervisorUid','==',target)));const ids=teams.docs.filter(d=>d.data().ativo).map(d=>d.id);all=all.filter(p=>ids.includes(p.uid))}
+    // O próprio admin pode executar testes reais sem alterar cargo ou equipe.
+    if(perfil==='admin')all.push({uid,nome:`${nome} · meu acesso admin`});
+    return all;
+  }
   async function newMeasurement(){
     if(busy)return;feedbackTop.textContent='';editArea.replaceChildren();editor=null;active=null;
     const form=e('form','','measure-form field-card'),title=e('h4','Nova demanda de medição');form.append(title);

@@ -354,7 +354,8 @@ service cloud.firestore {
       return resource.data.status == 'AGUARDANDO_TECNICO' && d.status == 'EM_CAMPO'
         && (role() == 'admin' || (role() == 'supervisor' && resource.data.supervisorUid == request.auth.uid))
         && d.diff(resource.data).affectedKeys().hasOnly(['status','tecnicoUid','tecnicoNome','atribuidoEm','atribuidoPorUid','atribuidoPorNome'])
-        && teamMember(d.tecnicoUid,resource.data.supervisorUid) && d.tecnicoNome == person.nome
+        && ((role() == 'admin' && d.tecnicoUid == request.auth.uid && person.perfil == 'admin' && person.ativo == true)
+          || teamMember(d.tecnicoUid,resource.data.supervisorUid)) && d.tecnicoNome == person.nome
         && d.atribuidoEm == request.time && d.atribuidoPorUid == request.auth.uid && d.atribuidoPorNome == profile().nome;
     }
     function measurementProof(id, key, count) {

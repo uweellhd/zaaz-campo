@@ -255,17 +255,17 @@ const medicao = (extra={}) => ({referencia:'OTDR-TESTE',cidade:'São Paulo',pont
 const gpsMedicao={latitude:-23.1,longitude:-46.2,precisao:5};
 const entregarMedicao = (extra={})=>({status:'ENTREGUE',entregueEm:serverTimestamp(),entreguePorUid:'tecnicoA',observacao:'Medição executada.',txGps:gpsMedicao,rxGps:gpsMedicao,txFotos:1,rxFotos:1,txArquivos:1,rxArquivos:1,...extra});
 async function seedMedicao(extra={}){await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'medicoes','m'),medicao(extra)))}
-async function subirProvas(db,{photos=1,files=1,chunks=1}={}){
+async function subirProvas(db,{photos=1,files=1,chunks=1,uid='tecnicoA'}={}){
   for(const side of ['tx','rx']){
-    for(let n=0;n<photos;n++)await assertSucceeds(setDoc(doc(db,'medicoesFotos',`m-${side}-${n}`),{medicaoId:'m',lado:side,indice:n,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp(),dadosBase64:'data:image/jpeg;base64,QUJD'}));
-    await assertSucceeds(setDoc(doc(db,'medicoes','m','comprovantes',`${side}Fotos`),{tipo:'fotos',lado:side,quantidade:photos,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()}));
+    for(let n=0;n<photos;n++)await assertSucceeds(setDoc(doc(db,'medicoesFotos',`m-${side}-${n}`),{medicaoId:'m',lado:side,indice:n,criadoPorUid:uid,criadoEm:serverTimestamp(),dadosBase64:'data:image/jpeg;base64,QUJD'}));
+    await assertSucceeds(setDoc(doc(db,'medicoes','m','comprovantes',`${side}Fotos`),{tipo:'fotos',lado:side,quantidade:photos,criadoPorUid:uid,criadoEm:serverTimestamp()}));
     for(let n=0;n<files;n++){
       const fileId=`${side}-${n}`,ref=doc(db,'medicoes','m','arquivos',fileId);
-      await assertSucceeds(setDoc(ref,{nome:`fibra-${n}.sor`,tamanho:(chunks-1)*524288+3,sha256:'a'.repeat(64),lado:side,indice:n,partes:chunks,completo:false,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()}));
+      await assertSucceeds(setDoc(ref,{nome:`fibra-${n}.sor`,tamanho:(chunks-1)*524288+3,sha256:'a'.repeat(64),lado:side,indice:n,partes:chunks,completo:false,criadoPorUid:uid,criadoEm:serverTimestamp()}));
       for(let part=0;part<chunks;part++)await assertSucceeds(setDoc(doc(db,'medicoes','m','arquivos',fileId,'partes',String(part)),{dados:part===chunks-1?'QUJD':'A'.repeat(699051)+'='}));
       await assertSucceeds(updateDoc(ref,{completo:true}));
     }
-    await assertSucceeds(setDoc(doc(db,'medicoes','m','comprovantes',`${side}Arquivos`),{tipo:'arquivos',lado:side,quantidade:files,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()}));
+    await assertSucceeds(setDoc(doc(db,'medicoes','m','comprovantes',`${side}Arquivos`),{tipo:'arquivos',lado:side,quantidade:files,criadoPorUid:uid,criadoEm:serverTimestamp()}));
   }
 }
 const medicaoAberta = (extra={}) => medicao({status:'AGUARDANDO_TECNICO',tecnicoUid:'',tecnicoNome:'',fibras:'',criadoPorUid:'admin',...extra});
@@ -359,4 +359,30 @@ test('atuação do admin como responsável não permite a outro perfil assumir a
   await assertFails(setDoc(doc(ctx('supervisorA'),'medicoes','m'),medicaoAberta({supervisorUid:'admin',supervisorNome:'admin',criadoPorUid:'supervisorA'})));
   await assertFails(setDoc(doc(ctx('supervisorA'),'equipesTecnicas','tecnicoA'),{tecnicoUid:'tecnicoA',supervisorUid:'admin',ativo:true,atualizadoEm:serverTimestamp(),atualizadoPorUid:'supervisorA'}));
   await assertFails(setDoc(doc(ctx('admin'),'medicoes','externo'),medicaoAberta({supervisorUid:'diretor',supervisorNome:'diretor'})));
+});
+
+
+test('admin pode se alocar como técnico, coletar e conferir sem alterar equipe ou perfil',async()=>{
+  const db=ctx('admin'),ref=doc(db,'medicoes','m');
+  await assertSucceeds(setDoc(ref,medicaoAberta({supervisorUid:'admin',supervisorNome:'admin'})));
+  await assertSucceeds(updateDoc(ref,atribuicaoMedicao({tecnicoUid:'admin',tecnicoNome:'admin',atribuidoPorUid:'admin',atribuidoPorNome:'admin'})));
+  await subirProvas(db,{uid:'admin'});
+  await assertSucceeds(updateDoc(ref,entregarMedicao({entreguePorUid:'admin'})));
+  await assertSucceeds(getDoc(doc(ctx('projetos'),'medicoes','m')));
+  await assertSucceeds(updateDoc(ref,{status:'CONFERIDA',observacaoProjetos:'Conferência do teste individual.',conferidoPorUid:'admin',conferidoPorNome:'admin',conferidoEm:serverTimestamp()}));
+  assert.equal((await getDoc(doc(db,'usuarios','admin'))).data().perfil,'admin');
+  assert.equal((await getDoc(doc(db,'equipesTecnicas','admin'))).exists(),false);
+});
+test('exceção de teste é somente para o próprio admin ativo; supervisor não aloca admin',async()=>{
+  const db=ctx('admin');
+  await env.withSecurityRulesDisabled(async c=>{
+    await setDoc(doc(c.firestore(),'usuarios','outroAdmin'),{perfil:'admin',nome:'Outro admin',ativo:true,estado:'TODOS'});
+    await setDoc(doc(c.firestore(),'usuarios','adminInativo'),{perfil:'admin',nome:'Admin inativo',ativo:false,estado:'TODOS'});
+    await setDoc(doc(c.firestore(),'medicoes','m'),medicaoAberta());
+  });
+  const self=atribuicaoMedicao({tecnicoUid:'admin',tecnicoNome:'admin',atribuidoPorUid:'admin',atribuidoPorNome:'admin'});
+  await assertFails(updateDoc(doc(ctx('supervisorA'),'medicoes','m'),{...self,atribuidoPorUid:'supervisorA',atribuidoPorNome:'supervisorA'}));
+  await assertFails(updateDoc(doc(db,'medicoes','m'),{...self,tecnicoUid:'outroAdmin',tecnicoNome:'Outro admin'}));
+  await assertFails(updateDoc(doc(ctx('adminInativo'),'medicoes','m'),{...self,tecnicoUid:'adminInativo',tecnicoNome:'Admin inativo',atribuidoPorUid:'adminInativo',atribuidoPorNome:'Admin inativo'}));
+  await assertSucceeds(updateDoc(doc(db,'medicoes','m'),self));
 });
