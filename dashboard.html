@@ -230,6 +230,11 @@
     <!-- 4. PAINEL EXCLUSIVO DO TÉCNICO DE CAMPO -->
     <section id="viewTech" class="view-panel" style="display:none;">
       <h3 class="panel-title">Atendimento em campo</h3>
+      <nav class="tech-service-switcher" aria-label="Serviços técnicos">
+        <button type="button" class="selected" aria-pressed="true" onclick="alternarServicoTecnico('rompimentos')" data-tech-service="rompimentos">Rompimentos</button>
+        <button type="button" aria-pressed="false" onclick="alternarServicoTecnico('medicoes')" data-tech-service="medicoes">Medições</button>
+      </nav>
+      <div id="techRompimentosArea">
 
       <div id="techSelectArea">
         <p class="panel-desc">Chamados que seu supervisor atribuiu à sua conta:</p>
@@ -342,6 +347,8 @@
           </div>
         </form>
       </div>
+      </div>
+      <div id="techMedicoesArea" hidden></div>
     </section>
 
   </main>

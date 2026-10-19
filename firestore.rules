@@ -418,7 +418,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['nome','tamanho','sha256','lado','indice','partes','completo','criadoPorUid','criadoEm'])
           && request.resource.data.lado in ['tx','rx'] && request.resource.data.indice in [0,1,2]
           && fileId == request.resource.data.lado + '-' + string(request.resource.data.indice)
-          && text(request.resource.data.nome,180) && request.resource.data.nome.lower().matches('^.+[.](sor|msor|trc|iolm)$')
+          && text(request.resource.data.nome,180) && request.resource.data.nome.lower().matches('^.+[.](pdf|sor|msor|trc|iolm)$')
           && request.resource.data.tamanho is int && request.resource.data.tamanho > 0 && request.resource.data.tamanho <= 2097152
           && request.resource.data.partes in [1,2,3,4]
           && request.resource.data.tamanho > (request.resource.data.partes - 1) * 524288 && request.resource.data.tamanho <= request.resource.data.partes * 524288
