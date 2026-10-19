@@ -248,3 +248,84 @@ test('etapa 2 exige GPS e bloqueia coordenadas fora do mapa',async()=>{
  await assertFails(enviar(db,2,{gpsRompimento:'91, -48',localizacaoRompimento:{latitude:91,longitude:-48}}));
  await assertSucceeds(enviar(db,2));
 });
+
+// Medições OTDR: o piloto não usa buckets pagos. Originais binários são divididos em partes privadas.
+const medicao = (extra={}) => ({referencia:'OTDR-TESTE',cidade:'São Paulo',pontoA:'POP A',pontoB:'POP B',fibras:'01 e 02',estado:'SP',tecnicoUid:'tecnicoA',tecnicoNome:'tecnicoA',supervisorUid:'supervisorA',supervisorNome:'supervisorA',status:'EM_CAMPO',criadoPorUid:'tecnicoA',criadoEm:serverTimestamp(),versao:1,...extra});
+const gpsMedicao={latitude:-23.1,longitude:-46.2,precisao:5};
+const entregarMedicao = (extra={})=>({status:'ENTREGUE',entregueEm:serverTimestamp(),entreguePorUid:'tecnicoA',observacao:'Medição executada.',txGps:gpsMedicao,rxGps:gpsMedicao,txFotos:1,rxFotos:1,txArquivos:1,rxArquivos:1,...extra});
+async function seedMedicao(extra={}){await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'medicoes','m'),medicao(extra)))}
+async function subirProvas(db,{photos=1,files=1,chunks=1}={}){
+  for(const side of ['tx','rx']){
+    for(let n=0;n<photos;n++)await assertSucceeds(setDoc(doc(db,'medicoesFotos',`m-${side}-${n}`),{medicaoId:'m',lado:side,indice:n,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp(),dadosBase64:'data:image/jpeg;base64,QUJD'}));
+    await assertSucceeds(setDoc(doc(db,'medicoes','m','comprovantes',`${side}Fotos`),{tipo:'fotos',lado:side,quantidade:photos,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()}));
+    for(let n=0;n<files;n++){
+      const fileId=`${side}-${n}`,ref=doc(db,'medicoes','m','arquivos',fileId);
+      await assertSucceeds(setDoc(ref,{nome:`fibra-${n}.sor`,tamanho:(chunks-1)*524288+3,sha256:'a'.repeat(64),lado:side,indice:n,partes:chunks,completo:false,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()}));
+      for(let part=0;part<chunks;part++)await assertSucceeds(setDoc(doc(db,'medicoes','m','arquivos',fileId,'partes',String(part)),{dados:part===chunks-1?'QUJD':'A'.repeat(699051)+'='}));
+      await assertSucceeds(updateDoc(ref,{completo:true}));
+    }
+    await assertSucceeds(setDoc(doc(db,'medicoes','m','comprovantes',`${side}Arquivos`),{tipo:'arquivos',lado:side,quantidade:files,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()}));
+  }
+}
+test('medição: técnico e supervisor registram apenas com vínculo real, sem forjar responsável',async()=>{
+  await assertSucceeds(setDoc(doc(ctx('tecnicoA'),'medicoes','m'),medicao()));
+  await assertFails(setDoc(doc(ctx('tecnicoB'),'medicoes','forjada'),medicao({criadoPorUid:'tecnicoB'})));
+  await assertFails(setDoc(doc(ctx('tecnicoA'),'medicoes','nome'),medicao({tecnicoNome:'Outra pessoa'})));
+  await assertSucceeds(setDoc(doc(ctx('supervisorA'),'medicoes','s'),medicao({criadoPorUid:'supervisorA'})));
+  await assertFails(setDoc(doc(ctx('supervisorB'),'medicoes','foraEquipe'),medicao({criadoPorUid:'supervisorB'})));
+  await assertFails(setDoc(doc(ctx('diretor'),'medicoes','edicao'),medicao({criadoPorUid:'diretor'})));
+  await assertSucceeds(getDoc(doc(ctx('tecnicoA'),'usuarios','supervisorA')));
+  await assertFails(getDoc(doc(ctx('tecnicoA'),'usuarios','supervisorB')));
+});
+test('medição: leitores, técnico próprio e supervisão são segregados; Projetos recebe só entregues',async()=>{
+  await seedMedicao();
+  for(const uid of ['admin','gerente','diretor','tecnicoA','supervisorA'])await assertSucceeds(getDoc(doc(ctx(uid),'medicoes','m')));
+  for(const uid of ['tecnicoB','supervisorB','sac','noc','projetos','inativo'])await assertFails(getDoc(doc(ctx(uid),'medicoes','m')));
+  await assertSucceeds(getDocs(query(collection(ctx('tecnicoA'),'medicoes'),where('tecnicoUid','==','tecnicoA'))));
+  await assertFails(getDocs(collection(ctx('tecnicoA'),'medicoes')));
+  await assertSucceeds(getDocs(query(collection(ctx('supervisorA'),'medicoes'),where('supervisorUid','==','supervisorA'))));
+  await assertSucceeds(getDocs(query(collection(ctx('projetos'),'medicoes'),where('status','in',['ENTREGUE','CONFERIDA']))));
+  await assertFails(getDocs(collection(ctx('projetos'),'medicoes')));
+});
+test('medição: sem fotos e arquivos completos TX/RX não entrega, nem fabrica comprovantes',async()=>{
+  await seedMedicao();const db=ctx('tecnicoA');
+  await assertFails(updateDoc(doc(db,'medicoes','m'),entregarMedicao()));
+  for(const [tipo,key] of [['fotos','txFotos'],['arquivos','rxArquivos']])await assertFails(setDoc(doc(db,'medicoes','m','comprovantes',key),{tipo,lado:key.slice(0,2),quantidade:1,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()}));
+  await assertFails(setDoc(doc(ctx('tecnicoB'),'medicoesFotos','m-tx-0'),{medicaoId:'m',lado:'tx',indice:0,criadoPorUid:'tecnicoB',criadoEm:serverTimestamp(),dadosBase64:'data:image/jpeg;base64,QUJD'}));
+});
+test('medição: envio completo libera Projetos e diretor, registra conferência e bloqueia alterações',async()=>{
+  await seedMedicao();const db=ctx('tecnicoA');await assertSucceeds(getDoc(doc(db,'medicoesFotos','m-tx-0')));await subirProvas(db);
+  await assertFails(updateDoc(doc(db,'medicoes','m'),entregarMedicao({txGps:{latitude:91,longitude:0,precisao:0}})));
+  await assertFails(updateDoc(doc(db,'medicoes','m'),entregarMedicao({txFotos:6})));
+  await assertSucceeds(updateDoc(doc(db,'medicoes','m'),entregarMedicao()));
+  for(const uid of ['projetos','diretor','supervisorA']){await assertSucceeds(getDoc(doc(ctx(uid),'medicoesFotos','m-tx-0')));await assertSucceeds(getDoc(doc(ctx(uid),'medicoes','m','arquivos','rx-0','partes','0')))}
+  await assertFails(updateDoc(doc(db,'medicoes','m'),{observacao:'Troca posterior'}));
+  const review={status:'CONFERIDA',observacaoProjetos:'Arquivos conferidos no software do fabricante.',conferidoPorUid:'projetos',conferidoPorNome:'projetos',conferidoEm:serverTimestamp()};
+  await assertFails(updateDoc(doc(ctx('projetos'),'medicoes','m'),{...review,conferidoPorNome:'Admin'}));
+  await assertSucceeds(updateDoc(doc(ctx('projetos'),'medicoes','m'),review));
+  await assertFails(updateDoc(doc(ctx('projetos'),'medicoes','m'),{...review,observacaoProjetos:'Troca posterior'}));
+  await assertFails(deleteDoc(doc(ctx('admin'),'medicoes','m')));
+});
+test('medição: máximo de 12 fotos e 6 arquivos de 4 partes respeita orçamento das regras',async()=>{
+  await seedMedicao();const db=ctx('tecnicoA');await subirProvas(db,{photos:6,files:3,chunks:4});
+  await assertSucceeds(updateDoc(doc(db,'medicoes','m'),entregarMedicao({txFotos:6,rxFotos:6,txArquivos:3,rxArquivos:3})));
+});
+test('medição: originais são limitados e imutáveis, não se marca completo com partes ausentes',async()=>{
+  await seedMedicao();const db=ctx('tecnicoA'),ref=doc(db,'medicoes','m','arquivos','tx-0');
+  const meta={nome:'fibra.sor',tamanho:524289,sha256:'a'.repeat(64),lado:'tx',indice:0,partes:2,completo:false,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()};
+  for(const change of [{nome:'executavel.exe'},{tamanho:2097153},{completo:true},{indice:5}])await assertFails(setDoc(ref,{...meta,...change}));
+  await assertSucceeds(setDoc(ref,meta));await assertFails(updateDoc(ref,{completo:true}));
+  await assertFails(setDoc(doc(db,'medicoes','m','arquivos','tx-0','partes','0'),{dados:'QUJD'}));
+  await assertSucceeds(setDoc(doc(db,'medicoes','m','arquivos','tx-0','partes','0'),{dados:'A'.repeat(699051)+'='}));
+  await assertFails(updateDoc(ref,{completo:true}));
+  await assertFails(updateDoc(doc(db,'medicoes','m','arquivos','tx-0','partes','0'),{dados:'AAAA'}));
+  await assertFails(setDoc(doc(db,'medicoes','m','arquivos','tx-0','partes','2'),{dados:'QUJD'}));
+  await assertFails(getDoc(doc(ctx('tecnicoB'),'medicoes','m','arquivos','tx-0','partes','0')));
+});
+test('medição: fotos expiradas não são expostas; binários e histórico permanecem',async()=>{
+  await seedMedicao({status:'ENTREGUE'});
+  await env.withSecurityRulesDisabled(async c=>{await setDoc(doc(c.firestore(),'medicoesFotos','m-tx-0'),{medicaoId:'m',lado:'tx',indice:0,criadoEm:Timestamp.fromMillis(Date.now()-16*86400000),dadosBase64:'data:image/jpeg;base64,QUJD'});await setDoc(doc(c.firestore(),'medicoes','m','arquivos','tx-0'),{nome:'original.sor',completo:true})});
+  await assertFails(getDoc(doc(ctx('diretor'),'medicoesFotos','m-tx-0')));
+  await assertSucceeds(getDoc(doc(ctx('projetos'),'medicoes','m','arquivos','tx-0')));
+  await assertSucceeds(getDoc(doc(ctx('diretor'),'medicoes','m')));
+});

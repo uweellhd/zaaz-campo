@@ -9,10 +9,10 @@ function database() {
   return getFirestore();
 }
 
-async function deleteExpiredPhotoDocuments(db, cutoff, deadline) {
+async function deleteExpiredPhotoDocuments(db, cutoff, deadline, collectionName = 'fotos') {
   let deleted = 0;
   while (Date.now() < deadline) {
-    const photos = await db.collection('fotos').where('criadoEm', '<=', Timestamp.fromMillis(cutoff)).limit(100).get();
+    const photos = await db.collection(collectionName).where('criadoEm', '<=', Timestamp.fromMillis(cutoff)).limit(100).get();
     if (photos.empty) break;
     const batch = db.batch();
     photos.docs.forEach(photo => batch.delete(photo.ref));
@@ -60,9 +60,10 @@ async function main() {
   const db = database();
   const nowMs = Date.now();
   const deadline = nowMs + 20000;
-  const deleted = await deleteExpiredPhotoDocuments(db, nowMs - PHOTO_RETENTION_MS, deadline);
+  const deleted = await deleteExpiredPhotoDocuments(db, nowMs - PHOTO_RETENTION_MS, nowMs + 8000);
+  const measurementPhotosDeleted = await deleteExpiredPhotoDocuments(db, nowMs - PHOTO_RETENTION_MS, nowMs + 16000, 'medicoesFotos');
   const legacy = await cleanLegacyIncidentPhotos(db, nowMs, deadline);
-  console.log(JSON.stringify({ photosDeleted: deleted, legacyPhotosRemoved: legacy.removed, incidentsScanned: legacy.scanned }));
+  console.log(JSON.stringify({ photosDeleted: deleted, measurementPhotosDeleted, legacyPhotosRemoved: legacy.removed, incidentsScanned: legacy.scanned }));
 }
 
 main().catch(error => {

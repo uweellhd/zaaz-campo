@@ -10,6 +10,7 @@ import { renderizarGaleria } from '../lib/photo-gallery.mjs';
 import { montarGaleria, abrirFotos, fecharFotos, fotoAberta } from '../lib/photo-viewer.mjs';
 import { selecionarIncidentes, analisarOperacao, leituraExecutiva, dataConclusao, horarioBrasil, diaBrasil } from '../lib/executive-metrics.mjs';
 import { reconhecerSupervisor, coordenadasValidas, lerLocalizacao } from '../lib/incident-identity.mjs';
+import { iniciarMedicoes } from './measurements.js';
 import { criarRelatorioPDF } from '../lib/executive-report.mjs';
 
 const firebaseConfig = {
@@ -32,16 +33,17 @@ let estadoSalvo = '';
 let usuarioUid = '';
 const ouvintes = new Map();
 let saindo = false;
+let medicoes;
 const abasPermitidas = {
-  admin: ['viewGerente', 'viewNoc', 'viewSac', 'viewTech', 'viewSupervisor', 'viewProjetos', 'viewConta', 'viewAcessos'],
-  gerente: ['viewGerente'],
-  diretor: ['viewGerente'],
+  admin: ['viewMedicoes', 'viewGerente', 'viewNoc', 'viewSac', 'viewTech', 'viewSupervisor', 'viewProjetos', 'viewConta', 'viewAcessos'],
+  gerente: ['viewMedicoes', 'viewGerente'],
+  diretor: ['viewMedicoes', 'viewGerente'],
   noc: ['viewNoc', 'viewSac'],
   sac: ['viewSac'],
   suporte: ['viewSac'],
-  tecnico: ['viewTech'],
-  supervisor: ['viewSupervisor'],
-  projetos: ['viewProjetos']
+  tecnico: ['viewMedicoes', 'viewTech'],
+  supervisor: ['viewMedicoes', 'viewSupervisor'],
+  projetos: ['viewMedicoes', 'viewProjetos']
 };
 
 function ouvirUmaVez(chave, consulta, aoReceber) {
@@ -189,6 +191,8 @@ function configurarTelasPorPerfil() {
   if (btnSimular) btnSimular.style.display = perfilSalvo === 'admin' ? 'block' : 'none';
   const btnSupervisor = document.getElementById('btnTabSupervisor');
   const btnProjetos = document.getElementById('btnTabProjetos');
+  const btnMedicoes = document.getElementById('btnTabMedicoes');
+  if(btnMedicoes)btnMedicoes.style.display = ['admin','tecnico','supervisor'].includes(perfilSalvo) ? 'inline-block' : 'none';
   // Oculta todas as abas inicialmente
   [btnGerente, btnNoc, btnSac, btnTech, btnConta, btnAcessos, btnSupervisor, btnProjetos].forEach(btn => { if (btn) btn.style.display = 'none'; });
   if (btnConta) btnConta.style.display = 'block';
@@ -234,7 +238,10 @@ window.alternarAba = (idAba) => {
   const abaAlvo = document.getElementById(idAba);
   if (abaAlvo) abaAlvo.style.display = 'block';
 
-  if (idAba === 'viewGerente') {
+  if (idAba === 'viewMedicoes') {
+    document.getElementById('btnTabMedicoes')?.classList.add('active');
+    medicoes?.abrir();
+  } else if (idAba === 'viewGerente') {
     const b = document.getElementById('btnTabGerente');
     if (b) b.classList.add('active');
     carregarDashboardGerente();
@@ -1615,6 +1622,7 @@ window.exportarRelatorioCSV = () => {
 
 window.sair = async () => {
   saindo = true;
+  medicoes?.fechar();
   for (const cancelar of ouvintes.values()) cancelar();
   ouvintes.clear();
   try {
@@ -1641,6 +1649,7 @@ onAuthStateChanged(auth, async (usuario) => {
     perfilSalvo = perfil.perfil;
     estadoSalvo = perfil.estado;
     if (badgeElem) badgeElem.textContent = usuarioSalvo;
+    if(['admin','diretor','gerente','tecnico','supervisor','projetos'].includes(perfilSalvo))medicoes=iniciarMedicoes({db,uid:usuarioUid,nome:usuarioSalvo,perfil:perfilSalvo,estado:estadoSalvo,ouvir:ouvirUmaVez,marcarFoto:comprimirEMarcarDagua,obterGPS:obterGPSFoto});
     configurarTelasPorPerfil();
     ouvirUmaVez('meuPerfil', doc(db, 'usuarios', usuarioUid), snapshot => {
       if (!snapshot.exists() || snapshot.data().ativo !== true
