@@ -107,7 +107,7 @@ function criarControlesSupervisao() {
   ouvirUmaVez('vinculos-equipes',collection(db,'equipesTecnicas'),snapshot=>{vinculosEquipe=snapshot.docs.map(d=>({...d.data(),tecnicoUid:d.id}));renderizarEquipe();renderizarSupervisor()});
   if(perfilSalvo==='admin')ouvirUmaVez('supervisores-equipe',query(collection(db,'usuarios'),where('perfil','==','supervisor')),snapshot=>{
     supervisoresDisponiveis=snapshot.docs.map(d=>({...d.data(),uid:d.id})).filter(p=>p.ativo);const anterior=seletor.value;
-    seletor.replaceChildren(new Option('Selecione um supervisor',''),...supervisoresDisponiveis.map(p=>new Option(p.nome,p.uid)));seletor.value=anterior;renderizarEquipe();
+    seletor.replaceChildren(new Option('Selecione um supervisor',''),new Option(`${usuarioSalvo} · meu acesso admin`,usuarioUid),...supervisoresDisponiveis.map(p=>new Option(p.nome,p.uid)));seletor.value=anterior;renderizarEquipe();
   });
 }
 function renderizarEquipe(){

@@ -81,3 +81,21 @@ Referências oficiais consultadas em 19/10/2026:
 O laboratório compartilha a tela, validação de entrega, galerias, relatório e fluxo de Medições com a operação real. Os serviços de dados são injetados: Firebase na operação; adaptador exclusivamente em memória no laboratório (`lib/measurement-lab.mjs`). O módulo de Medições não importa o SDK do Firebase. Não há escrita no banco real ou em rascunhos reais durante a simulação. A leitura de login/perfil do administrador continua real, apenas para proteger a entrada do laboratório. A simulação demonstra o fluxo; a autorização do servidor é validada separadamente nos testes do emulador.
 
 A navegação da Diretoria usa um seletor centralizado com **Rompimentos** e **Medições OTDR**, ambos do mesmo tamanho e na mesma linha no computador e no celular. Ao escolher Medições por esse seletor, a aba Diretoria permanece ativa no menu principal.
+
+## Correção de apresentação e responsável administrador — 19/10/2026
+
+- A janela de detalhes/distribuição continua usando o mesmo fluxo. Recebeu o cabeçalho e o contêiner de leitura já usados nos modais do sistema, com posição fixa, margens automáticas, rolagem interna e limite de largura. Foi conferida no centro da tela a 1882×903, 1366×900, 390×844 e 844×390.
+- A abertura e a coleta ficam centralizadas, com largura máxima de 860 px, seguindo o formulário técnico existente. Não foram alteradas as quatro etapas de rompimentos ou os requisitos de entrega de Medições.
+- A confirmação de Projetos reutiliza `project-treatment` e `project-check`. Checkbox mantém 20×20 px, ao lado do texto, e a ação de confirmação fica centralizada.
+- No laboratório, o botão Rompimentos usa o seletor de serviço já existente para retornar ao teste de rompimentos.
+
+### Como usar seu acesso Admin como responsável nas medições
+
+1. Abrir **Supervisão → Gerenciar equipe de técnicos**.
+2. Em **Supervisor da equipe**, escolher seu próprio nome, identificado como **meu acesso admin**. Associar o técnico aprovado que fará parte da sua equipe. A indicação **transferir equipe** informa quando o técnico pertence a outro responsável; essa alteração deve ser feita conscientemente pelo administrador.
+3. Abrir **Medições → Nova medição** e escolher seu nome em **Supervisor responsável**. É o mesmo UID e o mesmo perfil Admin, sem criar uma conta duplicada ou editar seu cadastro de acesso.
+4. Na Supervisão ou nos detalhes da medição, distribuir ao técnico dessa equipe. O administrador continua podendo abrir a coleta e acompanhar/conferir a entrega com suas permissões existentes.
+
+As regras permitem o Admin como responsável apenas para o seu próprio UID. Outros perfis não podem assumir sua identidade ou criar equipes sob ela. O ajuste não inclui administradores na correspondência automática de nomes/identidades IXC do NOC.
+
+Validação desta correção: 22 testes unitários, 32 testes de regras no emulador, fluxo de Medições com envio/retomada/download/Projetos, administrador como responsável, verificação do posicionamento e checkbox, e regressão do laboratório de rompimentos nas quatro etapas, consulta SAC e entrega a Projetos. Os testes usam dados fictícios; não alteram a operação real.

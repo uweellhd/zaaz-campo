@@ -209,7 +209,9 @@ service cloud.firestore {
         && request.resource.data.atualizadoEm == request.time && request.resource.data.atualizadoPorUid == request.auth.uid
         && get(/databases/$(database)/documents/usuarios/$(uid)).data.perfil == 'tecnico'
         && get(/databases/$(database)/documents/usuarios/$(uid)).data.ativo == true
-        && get(/databases/$(database)/documents/usuarios/$(request.resource.data.supervisorUid)).data.perfil == 'supervisor'
+        && (get(/databases/$(database)/documents/usuarios/$(request.resource.data.supervisorUid)).data.perfil == 'supervisor'
+          || (role() == 'admin' && request.resource.data.supervisorUid == request.auth.uid
+            && get(/databases/$(database)/documents/usuarios/$(request.resource.data.supervisorUid)).data.perfil == 'admin'))
         && get(/databases/$(database)/documents/usuarios/$(request.resource.data.supervisorUid)).data.ativo == true
         && (role() == 'admin' || (request.resource.data.supervisorUid == request.auth.uid
           && (!exists(/databases/$(database)/documents/equipesTecnicas/$(uid)) || resource.data.supervisorUid == request.auth.uid)));
@@ -342,7 +344,8 @@ service cloud.firestore {
         && text(d.referencia,100) && text(d.cidade,120) && text(d.pontoA,200) && text(d.pontoB,200)
         && d.fibras is string && d.fibras.size() <= 300 && d.tecnicoUid == '' && d.tecnicoNome == ''
         && d.estado in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
-        && supervisor.ativo == true && supervisor.perfil == 'supervisor' && d.supervisorNome == supervisor.nome
+        && supervisor.ativo == true && (supervisor.perfil == 'supervisor'
+          || (role() == 'admin' && d.supervisorUid == request.auth.uid && supervisor.perfil == 'admin')) && d.supervisorNome == supervisor.nome
         && (role() == 'admin' || (role() == 'supervisor' && d.supervisorUid == request.auth.uid));
     }
     function measurementAssignment() {

@@ -4,7 +4,7 @@
 .measure-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
 .measure-toolbar { justify-content:flex-start; padding:18px; margin:18px 0; border:1px solid var(--border-color); border-radius:12px; background:var(--card-bg); }
 .measure-toolbar label,.measure-form label { display:flex; flex-direction:column; gap:7px; font-size:13px; font-weight:600; min-width:0; }
-.measure-toolbar input,.measure-toolbar select,.measure-form :is(input,select,textarea) { width:100%; box-sizing:border-box; padding:11px 12px; border:1px solid var(--border-color); border-radius:8px; background:var(--input-bg); color:var(--text-main); font:inherit; }
+.measure-toolbar input,.measure-toolbar select,.measure-form :is(input:not([type=checkbox]),select,textarea) { width:100%; box-sizing:border-box; padding:11px 12px; border:1px solid var(--border-color); border-radius:8px; background:var(--input-bg); color:var(--text-main); font:inherit; }
 .measure-toolbar label { flex:1 1 140px; }
 .measure-kpis { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px; }
 .measure-kpi,.measure-state,.measure-direction { padding:20px; border:1px solid var(--border-color); border-radius:12px; background:var(--card-bg); }
@@ -27,14 +27,14 @@
 .measure-feedback { padding:10px 0; color:var(--text-muted); overflow-wrap:anywhere; }
 .measure-error { color:#c23442; }
 .measure-empty { padding:30px 16px; color:var(--text-muted); }
-.measure-modal { border:none; border-radius:14px; padding:24px; width:min(900px,calc(100% - 32px)); max-height:90dvh; box-sizing:border-box; background:var(--card-bg); color:var(--text-main); }
+.measure-modal { position:fixed; inset:0; margin:auto; height:fit-content; max-width:860px; overflow-y:auto; border:none; border-radius:14px; padding:24px; width:min(900px,calc(100% - 32px)); max-height:90dvh; box-sizing:border-box; background:var(--card-bg); color:var(--text-main); }
 .measure-modal::backdrop { background:rgba(10,22,40,.65); }
 .measure-modal p { overflow-wrap:anywhere; white-space:pre-wrap; line-height:1.55; }
-.measure-modal .measure-heading { position:sticky; top:-24px; background:var(--card-bg); padding:12px 0; z-index:1; }
+.measure-modal .modal-header { position:sticky; top:-24px; background:var(--card-bg); padding:12px 0; z-index:1; }
 .measure-detail-grid { display:grid; gap:18px; }
 .measure-detail-grid h4 { margin:4px 0 10px; }
 .measure-status { font-weight:600; color:var(--zaaz-blue); }
-@media(max-width:640px){.measure-kpis { grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }.measure-kpi { padding:15px; }.measure-fields { grid-template-columns:1fr; }.measure-toolbar { padding:12px; }.measure-modal { padding:16px; }.measure-modal .measure-heading { top:-16px; }.measure-direction { padding:16px; }.measure-actions button { flex:1; }.measure-heading .btn-primary { width:100%; }.measure-toolbar label { flex-basis:calc(50% - 12px); }.measure-toolbar .measure-search { flex-basis:100%; }}
+@media(max-width:640px){.measure-kpis { grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }.measure-kpi { padding:15px; }.measure-fields { grid-template-columns:1fr; }.measure-toolbar { padding:12px; }.measure-modal { padding:16px; }.measure-modal .modal-header { top:-16px; }.measure-direction { padding:16px; }.measure-actions button { flex:1; }.measure-heading .btn-primary { width:100%; }.measure-toolbar label { flex-basis:calc(50% - 12px); }.measure-toolbar .measure-search { flex-basis:100%; }}
 @media(prefers-reduced-motion:reduce){#viewMedicoes * { scroll-behavior:auto; transition:none; }}
 
 /* Navegação executiva própria: não herda a largura dos botões de formulário. */
@@ -45,3 +45,10 @@
 .dashboard-body .measure-actions > :is(button,.btn-primary) { width:auto; min-width:110px; margin:0; }
 .supervisor-measurements { margin:26px 0; padding:20px; border:1px solid var(--border-color); border-radius:12px; background:var(--input-bg); }
 @media(max-width:640px){.dashboard-body .executive-switch { padding:10px 6px; font-size:13px; }.supervisor-measurements { padding:14px; }}
+
+/* Usa as mesmas dimensões de leitura do formulário técnico e a confirmação de Projetos. */
+.dashboard-body #viewMedicoes .measure-form.field-card { width:100%; max-width:860px; margin:20px auto; }
+.measure-form.project-treatment .project-check { flex-direction:row; }
+.measure-modal .measure-form > .btn-primary { justify-self:center; width:min(100%,360px); }
+.measure-modal .modal-header h3 { min-width:0; overflow-wrap:anywhere; }
+.measure-modal .modal-header button { flex-shrink:0; }

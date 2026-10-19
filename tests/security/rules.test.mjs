@@ -1,4 +1,5 @@
 import { before, beforeEach, after, test } from 'node:test';
+import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import { doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, Timestamp, runTransaction, onSnapshot } from 'firebase/firestore';
@@ -341,4 +342,21 @@ test('medição: fotos expiradas não são expostas; binários e histórico perm
   await assertFails(getDoc(doc(ctx('diretor'),'medicoesFotos','m-tx-0')));
   await assertSucceeds(getDoc(doc(ctx('projetos'),'medicoes','m','arquivos','tx-0')));
   await assertSucceeds(getDoc(doc(ctx('diretor'),'medicoes','m')));
+});
+
+test('admin pode ser responsável por sua equipe e medição sem trocar o perfil',async()=>{
+  const admin=ctx('admin'),ref=doc(admin,'medicoes','m');
+  await assertSucceeds(setDoc(doc(admin,'equipesTecnicas','tecnicoA'),{tecnicoUid:'tecnicoA',supervisorUid:'admin',ativo:true,atualizadoEm:serverTimestamp(),atualizadoPorUid:'admin'}));
+  await assertSucceeds(setDoc(ref,medicaoAberta({supervisorUid:'admin',supervisorNome:'admin'})));
+  await assertSucceeds(updateDoc(ref,atribuicaoMedicao({atribuidoPorUid:'admin',atribuidoPorNome:'admin'})));
+  await assertSucceeds(getDoc(doc(ctx('tecnicoA'),'medicoes','m')));
+  await subirProvas(ctx('tecnicoA'));
+  await assertSucceeds(updateDoc(doc(ctx('tecnicoA'),'medicoes','m'),entregarMedicao()));
+  await assertSucceeds(updateDoc(ref,{status:'CONFERIDA',observacaoProjetos:'Teste de conferência como administrador.',conferidoPorUid:'admin',conferidoPorNome:'admin',conferidoEm:serverTimestamp()}));
+  assert.equal((await getDoc(doc(admin,'usuarios','admin'))).data().perfil,'admin');
+});
+test('atuação do admin como responsável não permite a outro perfil assumir a identidade dele',async()=>{
+  await assertFails(setDoc(doc(ctx('supervisorA'),'medicoes','m'),medicaoAberta({supervisorUid:'admin',supervisorNome:'admin',criadoPorUid:'supervisorA'})));
+  await assertFails(setDoc(doc(ctx('supervisorA'),'equipesTecnicas','tecnicoA'),{tecnicoUid:'tecnicoA',supervisorUid:'admin',ativo:true,atualizadoEm:serverTimestamp(),atualizadoPorUid:'supervisorA'}));
+  await assertFails(setDoc(doc(ctx('admin'),'medicoes','externo'),medicaoAberta({supervisorUid:'diretor',supervisorNome:'diretor'})));
 });
