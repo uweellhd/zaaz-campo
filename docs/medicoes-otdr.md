@@ -1,12 +1,12 @@
 # Medições OTDR — NEXTFLOW Campo
 
-Atualização de 19/10/2026. Serviço separado dos rompimentos; não altera as quatro etapas existentes.
+Atualização de 19/10/2026, revisada após teste de abertura e distribuição. Serviço separado dos rompimentos; não altera as quatro etapas existentes.
 
 ## Como usar
 
-1. Técnico: abrir **Medições**, ao lado de **Técnico**, e tocar em **Nova medição**. Informar referência/OS, cidade, estado, ponto A/TX, ponto B/RX e identificação das fibras. O técnico deve estar cadastrado e vinculado a uma equipe em Supervisão. Administrador e supervisor também podem registrar a demanda e escolher o técnico (supervisor apenas da própria equipe).
-2. Registrar a demanda com internet. A diretoria já passa a enxergá-la como **Em campo**. Não é preciso finalizar o serviço para ele aparecer no acompanhamento.
-3. Coletar **TX e RX**, em uma única etapa: pelo menos uma foto e um arquivo original em cada lado, GPS e descrição da medição. Limites: seis fotos por lado, três arquivos por lado, **2 MiB por arquivo original**. Fotos originais de até 20 MiB são reduzidas com a mesma rotina de imagem do Campo. Formatos de arquivo: `.sor`, `.msor`, `.trc`, `.iolm`.
+1. Administração: abrir **Medições → Nova medição**, informar referência/OS, cidade, estado, pontos A/TX e B/RX e escolher o **supervisor responsável**. Não existe seleção de técnico na abertura. **Fibras são opcionais** e podem ficar em branco enquanto a rede é levantada. Supervisor também pode abrir uma demanda diretamente para sua própria fila.
+2. A demanda entra como **Aguardando técnico** e já aparece na Diretoria. Na guia **Supervisão**, o responsável encontra o bloco **Medições OTDR**, abre o cartão e usa **Alocar técnico**. Só aparecem técnicos ativos da própria equipe. O serviço passa a **Em campo** e surge no acesso do técnico escolhido, que usa **Continuar coleta**. Não é preciso finalizar o serviço para ele aparecer no acompanhamento. Demandas já existentes continuam válidas, sem migração.
+3. Coletar **TX e RX**, em uma única etapa: pelo menos uma foto e um arquivo original em cada lado, GPS e descrição da medição. O técnico pode preencher **Fibras identificadas (opcional)** durante a coleta, sem inventar números para conseguir concluir. Limites: seis fotos por lado, três arquivos por lado, **2 MiB por arquivo original**. Fotos originais de até 20 MiB são reduzidas com a mesma rotina de imagem do Campo. Formatos de arquivo: `.sor`, `.msor`, `.trc`, `.iolm`.
 4. A foto recebe NEXTFLOW/ZAAZ, nome do usuário que está registrando, data/hora do aparelho, lado TX/RX e GPS com precisão informada. Permitir câmera/fotos e localização no celular. O GPS é do registro, não comprova o local de captura de um arquivo antigo; os metadados EXIF não são certificados.
 5. Conferir as miniaturas (toque para ampliar), remover anexos incorretos e preencher a descrição. **Conferir e entregar para Projetos** pede confirmação antes de transmitir. O cancelamento mantém tudo editável. Após iniciar a transmissão, anexos ficam congelados: uma falha deve ser retomada com o mesmo rascunho, evitando trocar evidências já recebidas.
 6. Projetos: na sua aba, abrir **Medições OTDR · conferir entregas**. Clicar na demanda para ver GPS, ampliar fotos e baixar os originais. Conferir os arquivos no software apropriado, preencher a observação/referência, marcar a confirmação e salvar. Ficam registrados usuário, nome e data/hora de conferência. A confirmação é imutável no cliente.
@@ -14,7 +14,8 @@ Atualização de 19/10/2026. Serviço separado dos rompimentos; não altera as q
 
 ## O que fica salvo e quando aparece
 
-- `EM_CAMPO`: demanda registrada/atribuída. Coleta em elaboração no aparelho do técnico.
+- `AGUARDANDO_TECNICO`: aberta para um supervisor, sem técnico. Não conta como serviço em execução.
+- `EM_CAMPO`: supervisor alocou um técnico ativo da equipe. Coleta em elaboração no aparelho do técnico.
 - `ENTREGUE`: fotos TX/RX, arquivos TX/RX, GPS e descrição confirmados no servidor. Projetos passa a receber a demanda.
 - `CONFERIDA`: Projetos registrou o tratamento e o responsável. Entrega e conferência são indicadores distintos; nenhuma aprovação óptica é inferida automaticamente.
 - `onSnapshot` atualiza os setores com conexão. A lista e o modal aberto acompanham mudanças de situação. Não há envio por e-mail ou WhatsApp nesta atualização.
@@ -25,14 +26,14 @@ Atualização de 19/10/2026. Serviço separado dos rompimentos; não altera as q
 
 | Perfil | Acesso a Medições |
 |---|---|
-| Técnico | Criar para si, visualizar e entregar somente as próprias demandas |
-| Supervisor | Criar para técnico da própria equipe; acompanhar demandas vinculadas ao seu UID |
+| Técnico | Visualizar e entregar somente as demandas que foram alocadas ao seu UID; fibras opcionais durante a coleta |
+| Supervisor | Abrir para sua fila, alocar técnico ativo da própria equipe e acompanhar demandas vinculadas ao seu UID |
 | Projetos | Receber apenas entregues/conferidas; consultar anexos e registrar conferência |
 | Diretor / gerente | Consultar todas as demandas, filtros por estado e PDF |
-| Admin | Registrar/atribuir, consultar, entregar e conferir; regras não permitem apagar histórico pelo cliente |
+| Admin | Abrir para um supervisor, distribuir para a equipe dele, consultar, entregar e conferir; regras não permitem apagar histórico pelo cliente |
 | NOC / SAC / Suporte | Sem acesso à nova área; permissões dos rompimentos preservadas |
 
-O vínculo da equipe é fotografado no cadastro da demanda. Alterar uma equipe depois não muda o supervisor de demandas já registradas. Nome é exibido; autorização usa UID. Técnico pode consultar o perfil do próprio supervisor para registrar esse nome, sem listar todos os supervisores.
+O supervisor é registrado na abertura; a equipe do técnico é validada no momento da alocação. A alocação registra usuário, nome e data/hora, e não pode ser trocada depois que a medição entrou em campo. Alterar uma equipe depois não muda o supervisor de demandas já registradas. Nome é exibido; autorização usa UID. Técnico pode consultar o perfil do próprio supervisor para registrar esse nome, sem listar todos os supervisores.
 
 ## Armazenamento do piloto gratuito
 
@@ -66,3 +67,17 @@ Referências oficiais consultadas em 19/10/2026:
 - [Cotas gratuitas Firestore](https://firebase.google.com/docs/firestore/pricing)
 - [VIAVI: SOR e MSOR](https://www.viavisolutions.com/en-us/support/knowledge-base/solution/sor-file-versus-msor-file)
 - [EXFO: exportação SOR de iOLM](https://www.exfo.com/en/resources/videos/how-to-videos/how-to-generate-sor-file-iolm-results/)
+
+## Laboratório de Medições (sem alterar a operação real)
+
+1. Entrar no menu do nome → **Testar setores**. Em **Serviço**, escolher **Medições OTDR · etapa única**.
+2. Usar **Administração** para abrir uma demanda sem técnico e sem fibras; escolher Supervisor A. As amostras SIM-MED-001 e SIM-MED-002 também permitem testar direto a distribuição.
+3. Trocar **Testar como** para **Supervisor A**, clicar na fila e **Alocar técnico**. Somente Técnico A pertence a essa equipe. Supervisor B/Técnico B pertencem à outra equipe de teste. Conferir que as demandas alheias não aparecem.
+4. Trocar para **Técnico A**, abrir o cartão e **Continuar coleta**. Preencher só a descrição e tentar entregar sem fotos/arquivos/GPS para conferir as validações. Usar **Preencher evidências fictícias** para receber fotos marcadas, GPS e arquivos de exemplo. Eles não contêm uma curva óptica real.
+5. Opcional: antes de confirmar, clicar em **Simular falha no próximo envio**. Tentar enviar, ler a mensagem e usar **Retomar envio para Projetos**. Depois que o envio começou, os anexos ficam congelados, como na operação real.
+6. Trocar para **Projetos**, ampliar fotos, baixar os arquivos fictícios, preencher observação e confirmar conferência. Trocar para **Diretor**, ver estados/filas e exportar o PDF. Ele traz **SIMULAÇÃO / DADOS FICTÍCIOS** e nome de arquivo começando por SIMULACAO.
+7. **Reiniciar teste** limpa os dados desse serviço fictício. Escolher **Rompimentos** retorna ao laboratório anterior. Atualizar a página também reinicia Medições.
+
+O laboratório compartilha a tela, validação de entrega, galerias, relatório e fluxo de Medições com a operação real. Os serviços de dados são injetados: Firebase na operação; adaptador exclusivamente em memória no laboratório (`lib/measurement-lab.mjs`). O módulo de Medições não importa o SDK do Firebase. Não há escrita no banco real ou em rascunhos reais durante a simulação. A leitura de login/perfil do administrador continua real, apenas para proteger a entrada do laboratório. A simulação demonstra o fluxo; a autorização do servidor é validada separadamente nos testes do emulador.
+
+A navegação da Diretoria usa um seletor centralizado com **Rompimentos** e **Medições OTDR**, ambos do mesmo tamanho e na mesma linha no computador e no celular. Ao escolher Medições por esse seletor, a aba Diretoria permanece ativa no menu principal.

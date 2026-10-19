@@ -1,3 +1,4 @@
+import { iniciarLaboratorioMedicoes } from './simulacao-medicoes.js';
 import { avaliarFinalizacao, avaliarEtapa, listaFotos, LIMITE_FOTOS, categoriasEtapa, modeloDescricao, separarDescricao, formatarPrevisao } from '../lib/field-flow.mjs';
 import { renderizarGaleria } from '../lib/photo-gallery.mjs';
 import { montarGaleria, fotoAberta, fecharFotos } from '../lib/photo-viewer.mjs';
@@ -123,8 +124,13 @@ function publicar(numero,descricao,chaves){
  if(numero<4)mudarPasso(numero+1);return true;
 }
 export function iniciarLaboratorio(){
- $('simPerfil').onchange=()=>{perfil=$('simPerfil').value;ativo=null;fecharModal();avisar('');renderizar()};
- $('simReiniciar').onclick=()=>{if(confirm('Reiniciar somente os dados fictícios deste laboratório?')){iniciarDados();avisar('Laboratório reiniciado.')}};
+ $('simPerfil').value=perfil;
+ const medidas=iniciarLaboratorioMedicoes();
+ const modoMedicoes=()=>$('simServico').value==='medicoes';
+ const ocultarRompimentos=()=>{for(const id of ['simNoc','simConsulta','simDiretor'])$(id).hidden=true;$('viewTech').style.display='none';document.querySelectorAll('[data-sim-filtro]').forEach(e=>e.remove());};
+ $('simServico').onchange=()=>{ativo=null;fecharModal();avisar('');const mode=modoMedicoes();for(const option of $('simPerfil').options){option.hidden=mode?['noc','sac'].includes(option.value):['admin','supervisorB'].includes(option.value)}if(mode){if(['noc','sac'].includes(perfil))perfil='admin';$('simPerfil').value=perfil;ocultarRompimentos();medidas.abrir(perfil)}else{medidas.fechar();if(['admin','supervisorB'].includes(perfil))perfil='noc';$('simPerfil').value=perfil;atualizarRoteiro();renderizar()}};
+ $('simPerfil').onchange=()=>{perfil=$('simPerfil').value;ativo=null;fecharModal();avisar('');if(modoMedicoes()){ocultarRompimentos();medidas.abrir(perfil)}else renderizar()};
+ $('simReiniciar').onclick=()=>{if(confirm('Reiniciar somente os dados fictícios deste laboratório?')){if(modoMedicoes())medidas.reiniciar();else iniciarDados();avisar('Laboratório reiniciado.')}};
  $('techFormFlow').addEventListener('input',()=>{$('techEtapa4Erro').hidden=true});
  $('simNocForm').onsubmit=e=>{e.preventDefault();const id=$('simNovoId').value.trim();if(chamados.some(i=>i.id===id)){avisar('Esse ID fictício já existe.');return}chamados.push({id,os:'OS-FICTICIA',cidade:$('simCidade').value.trim(),tecnico:'',supervisor:'',eventos:[],status:'ABERTO'});avisar('ID fictício criado. Identifique o supervisor; ele aciona o técnico da equipe.');renderizar()};
  $('simFechar').onclick=fecharModal;$('modalSim').onclick=e=>{if(e.target===$('modalSim'))fecharModal()};document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!e.defaultPrevented)fecharModal()});

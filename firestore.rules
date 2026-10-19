@@ -336,19 +336,23 @@ service cloud.firestore {
     }
     function measurementCreate() {
       let d = request.resource.data;
-      let person = get(/databases/$(database)/documents/usuarios/$(d.tecnicoUid)).data;
+      let supervisor = get(/databases/$(database)/documents/usuarios/$(d.supervisorUid)).data;
       return d.keys().hasOnly(['referencia','cidade','pontoA','pontoB','fibras','estado','tecnicoUid','tecnicoNome','supervisorUid','supervisorNome','status','criadoPorUid','criadoEm','versao'])
-        && d.versao == 1 && d.status == 'EM_CAMPO' && d.criadoPorUid == request.auth.uid && d.criadoEm == request.time
-        && text(d.referencia,100) && text(d.cidade,120) && text(d.pontoA,200) && text(d.pontoB,200) && text(d.fibras,300)
+        && d.versao == 1 && d.status == 'AGUARDANDO_TECNICO' && d.criadoPorUid == request.auth.uid && d.criadoEm == request.time
+        && text(d.referencia,100) && text(d.cidade,120) && text(d.pontoA,200) && text(d.pontoB,200)
+        && d.fibras is string && d.fibras.size() <= 300 && d.tecnicoUid == '' && d.tecnicoNome == ''
         && d.estado in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
-        && person.ativo == true && person.perfil == 'tecnico' && d.tecnicoNome == person.nome
-        && (d.supervisorUid == '' ? (role() == 'admin' && d.supervisorNome == '') :
-          (teamMember(d.tecnicoUid,d.supervisorUid)
-            && get(/databases/$(database)/documents/usuarios/$(d.supervisorUid)).data.ativo == true
-            && get(/databases/$(database)/documents/usuarios/$(d.supervisorUid)).data.perfil == 'supervisor'
-            && d.supervisorNome == get(/databases/$(database)/documents/usuarios/$(d.supervisorUid)).data.nome))
-        && (role() == 'admin' || (role() == 'tecnico' && d.tecnicoUid == request.auth.uid)
-          || (role() == 'supervisor' && d.supervisorUid == request.auth.uid));
+        && supervisor.ativo == true && supervisor.perfil == 'supervisor' && d.supervisorNome == supervisor.nome
+        && (role() == 'admin' || (role() == 'supervisor' && d.supervisorUid == request.auth.uid));
+    }
+    function measurementAssignment() {
+      let d = request.resource.data;
+      let person = get(/databases/$(database)/documents/usuarios/$(d.tecnicoUid)).data;
+      return resource.data.status == 'AGUARDANDO_TECNICO' && d.status == 'EM_CAMPO'
+        && (role() == 'admin' || (role() == 'supervisor' && resource.data.supervisorUid == request.auth.uid))
+        && d.diff(resource.data).affectedKeys().hasOnly(['status','tecnicoUid','tecnicoNome','atribuidoEm','atribuidoPorUid','atribuidoPorNome'])
+        && teamMember(d.tecnicoUid,resource.data.supervisorUid) && d.tecnicoNome == person.nome
+        && d.atribuidoEm == request.time && d.atribuidoPorUid == request.auth.uid && d.atribuidoPorNome == profile().nome;
     }
     function measurementProof(id, key, count) {
       let proof = get(/databases/$(database)/documents/medicoes/$(id)/comprovantes/$(key)).data;
@@ -357,9 +361,9 @@ service cloud.firestore {
     function measurementDelivery(id) {
       let d = request.resource.data;
       return measurementOwner(id)
-        && d.diff(resource.data).affectedKeys().hasOnly(['status','entregueEm','entreguePorUid','observacao','txGps','rxGps','txFotos','rxFotos','txArquivos','rxArquivos'])
+        && d.diff(resource.data).affectedKeys().hasOnly(['status','entregueEm','entreguePorUid','observacao','txGps','rxGps','txFotos','rxFotos','txArquivos','rxArquivos','fibras'])
         && d.status == 'ENTREGUE' && d.entreguePorUid == request.auth.uid && d.entregueEm == request.time
-        && text(d.observacao,3000) && measurementGPS(d.txGps) && measurementGPS(d.rxGps)
+        && text(d.observacao,3000) && d.get('fibras','') is string && d.get('fibras','').size() <= 300 && measurementGPS(d.txGps) && measurementGPS(d.rxGps)
         && measurementProof(id,'txFotos',d.txFotos) && measurementProof(id,'rxFotos',d.rxFotos)
         && measurementProof(id,'txArquivos',d.txArquivos) && measurementProof(id,'rxArquivos',d.rxArquivos);
     }
@@ -392,8 +396,8 @@ service cloud.firestore {
     }
     match /medicoes/{measurementId} {
       allow read: if measurementReader(resource.data);
-      allow create: if active() && role() in ['admin','supervisor','tecnico'] && measurementCreate();
-      allow update: if active() && (measurementDelivery(measurementId)
+      allow create: if active() && role() in ['admin','supervisor'] && measurementCreate();
+      allow update: if active() && (measurementAssignment() || measurementDelivery(measurementId)
         || (role() in ['admin','projetos'] && resource.data.status == 'ENTREGUE' && request.resource.data.status == 'CONFERIDA'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','observacaoProjetos','conferidoPorUid','conferidoPorNome','conferidoEm'])
           && text(request.resource.data.observacaoProjetos,2000) && request.resource.data.conferidoPorUid == request.auth.uid

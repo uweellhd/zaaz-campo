@@ -96,6 +96,8 @@
         <div class="kpi-card"><span class="kpi-title">Resolvidos</span><h2 id="supervisorCompleto">0</h2></div>
         <div class="kpi-card"><span class="kpi-title">Aguardando técnico</span><h2 id="supervisorFotosFaltantes">0</h2></div>
       </div>
+      <section class="supervisor-measurements" aria-label="Medições da supervisão"><div class="measure-heading"><div><h4>Medições OTDR</h4><p id="supervisorMedicoesContagem" class="panel-desc">Carregando medições da equipe…</p></div><button type="button" class="btn-sec-sm" onclick="alternarAba('viewMedicoes')">Ver todas as medições</button></div><div id="supervisorMedicoesLista" class="incidents-grid-list"></div></section>
+      <h4 class="section-subtitle">IDs de rompimento</h4>
       <div id="supervisorResultados" class="incidents-grid-list"></div>
     </section>
 
@@ -122,7 +124,7 @@
 
     <!-- 1. PAINEL DA DIRETORIA / GERÊNCIA -->
     <section id="viewGerente" class="view-panel" style="display:none;">
-      <div class="measure-tabs"><span class="btn-primary">Rompimentos</span><button type="button" class="btn-sec-sm" onclick="alternarAba('viewMedicoes')">Medições OTDR →</button></div>
+      <nav class="executive-switcher" aria-label="Visões da diretoria"><button type="button" class="executive-switch selected" aria-pressed="true" onclick="alternarAba('viewGerente')">Rompimentos</button><button type="button" class="executive-switch" aria-pressed="false" onclick="alternarAba('viewMedicoes','diretoria')">Medições OTDR</button></nav>
       <div class="executive-hero">
         <div>
           <p class="section-eyebrow"><span class="live-dot"></span> Operação de rede</p>
