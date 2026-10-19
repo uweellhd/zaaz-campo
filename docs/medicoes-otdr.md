@@ -4,23 +4,23 @@ Atualização de 19/10/2026, revisada após teste de abertura e distribuição. 
 
 ## Como usar
 
-1. Administração ou Coordenação: abrir **Medições → Nova medição**, informar referência/OS, cidade, estado, pontos A/TX e B/RX e escolher o **supervisor responsável**. Não existe seleção de técnico na abertura. **Fibras são opcionais** e podem ficar em branco enquanto a rede é levantada. Supervisor também pode abrir uma demanda diretamente para sua própria fila.
+1. Administração ou Coordenação: abrir **Medições → Nova medição**, informar referência/OS, cidade, estado, POP 1 e POP 2 e escolher o **supervisor responsável**. Não existe seleção de técnico na abertura. **Fibras são opcionais** e podem ficar em branco enquanto a rede é levantada. Supervisor também pode abrir uma demanda diretamente para sua própria fila.
 2. A demanda entra como **Aguardando técnico** e já aparece na Diretoria. Na guia **Supervisão**, o responsável encontra o bloco **Medições OTDR**, abre o cartão e usa **Alocar técnico**. Só aparecem técnicos ativos da própria equipe. O serviço passa a **Em campo** e surge no acesso do técnico escolhido, que abre **Técnico → Medições** e toca no cartão de atendimento. Não é preciso finalizar o serviço para ele aparecer no acompanhamento. Demandas já existentes continuam válidas, sem migração.
-3. Coletar **TX e RX**, em uma única etapa: pelo menos uma foto e um arquivo original em cada lado, GPS e descrição da medição. O técnico pode preencher **Fibras identificadas (opcional)** durante a coleta, sem inventar números para conseguir concluir. Limites: seis fotos por lado, três arquivos por lado, **2 MiB por arquivo original**. Fotos originais de até 20 MiB são reduzidas com a mesma rotina de imagem do Campo. Formatos de arquivo: `.pdf`, `.sor`, `.msor`, `.trc`, `.iolm`. Um PDF exportado do equipamento conta como arquivo de medição do lado correspondente; não é obrigatório um nativo adicional.
-4. A foto recebe NEXTFLOW/ZAAZ, nome do usuário que está registrando, data/hora do aparelho, lado TX/RX e GPS com precisão informada. Permitir câmera/fotos e localização no celular. O GPS é do registro, não comprova o local de captura de um arquivo antigo; os metadados EXIF não são certificados.
-5. Conferir as miniaturas (toque para ampliar), remover anexos incorretos e preencher a descrição. **Conferir e entregar para Projetos** pede confirmação antes de transmitir. O cancelamento mantém tudo editável. Após iniciar a transmissão, anexos ficam congelados: uma falha deve ser retomada com o mesmo rascunho, evitando trocar evidências já recebidas.
+3. **Etapa 1 — POP 1:** registrar as fibras identificadas, quando conhecidas (uma, duas ou conforme o caso, sem quantidade fixa), GPS, descrição, de uma a seis fotos e de um a três arquivos. Cada original deve ter até **2 MiB**. Formatos: `.pdf`, `.sor`, `.msor`, `.trc`, `.iolm`, inclusive `.msor.pdf`. Fotos de até 20 MiB são reduzidas pela rotina existente. Conferir as miniaturas e remover anexos errados antes de enviar.
+4. **Avançar e enviar POP 1** pede confirmação. Com internet, transmite e confirma esta etapa no servidor. Supervisor e Diretoria passam a ver sua localização, fotos, arquivos, fibras e observação. A etapa enviada fica bloqueada; a OS continua **Em campo**, atribuída ao técnico, com indicação **POP 1 enviado · aguardando POP 2**. É possível voltar à lista, sair e retomar outro dia, inclusive em outro aparelho depois do envio confirmado. Projetos ainda não recebe a demanda.
+5. **Etapa 2 — POP 2:** repetir o procedimento no segundo local, com GPS, fotos, arquivos, fibras e descrição próprios. O rascunho ainda não enviado fica somente no aparelho. **Finalizar e enviar POP 2** pede confirmação e entrega o conjunto a Projetos; o cartão sai da rota técnica. Não se repete nem se reenvia o POP 1. Cada foto recebe NEXTFLOW/ZAAZ, nome do usuário que está registrando, data/hora do aparelho, POP e GPS com precisão informada. Permitir câmera/fotos e localização no celular. O GPS é do registro, não comprova a captura de um arquivo antigo; metadados EXIF não são certificados.
 6. Projetos: na sua aba, escolher **Medições**, ao lado de **Rompimentos**. Clicar na demanda para ver GPS, ampliar fotos e baixar os originais. Conferir os arquivos no software apropriado, preencher a observação/referência, marcar a confirmação e salvar. Ficam registrados usuário, nome e data/hora de conferência. A confirmação é imutável no cliente.
 7. Diretoria/Gerência: na aba Diretoria, escolher **Medições OTDR**. Filtrar estado, situação, abertura e busca. A tela e o **Relatório PDF** usam o mesmo recorte. O PDF contém resumo, distribuição por estado, inventário e ficha por demanda. Datas de recorte e apresentação são de Brasília. Escolher **Rompimentos** retorna à outra visão da Diretoria.
 
 ## O que fica salvo e quando aparece
 
 - `AGUARDANDO_TECNICO`: aberta para um supervisor, sem técnico. Não conta como serviço em execução.
-- `EM_CAMPO`: supervisor alocou um técnico ativo da equipe. Coleta em elaboração no aparelho do técnico.
-- `ENTREGUE`: fotos TX/RX, arquivos TX/RX, GPS e descrição confirmados no servidor. Projetos passa a receber a demanda.
+- `EM_CAMPO`: supervisor alocou um técnico ativo da equipe. Antes do primeiro envio, aparece POP 1 em andamento; após o primeiro envio confirmado (`etapaConcluida: 1`), aparece POP 1 enviado / aguardando POP 2. O responsável e o técnico permanecem os mesmos.
+- `ENTREGUE`: os dois POPs foram confirmados, com seus próprios anexos, GPS e descrições (`etapaConcluida: 2`). Projetos passa a receber a demanda.
 - `CONFERIDA`: Projetos registrou o tratamento e o responsável. Entrega e conferência são indicadores distintos; nenhuma aprovação óptica é inferida automaticamente.
 - `onSnapshot` atualiza os setores com conexão. A lista e o modal aberto acompanham mudanças de situação. Não há envio por e-mail ou WhatsApp nesta atualização.
 - Coleta em IndexedDB com chave de UID e demanda, incluindo arquivos originais. Depois de uma falha/reabertura, continuar a mesma demanda no mesmo aparelho e usar **Retomar envio**. **A reconexão não envia sozinha**. O cadastro inicial da demanda exige internet. Limpeza do navegador, modo anônimo, falta de espaço ou perda do aparelho podem remover o rascunho.
-- Uma entrega longa só é confirmada depois que todos os comprovantes foram validados. O envio parcial não aparece como entregue. Os comprovantes de foto precisam ser recentes; não retomar uma transmissão que ficou abandonada por mais de 14 dias. Em caso de perda do rascunho depois de iniciar a transmissão, acionar a administração para recuperação assistida; não substituir silenciosamente arquivos de uma tentativa anterior.
+- Cada etapa só é confirmada depois que seus comprovantes foram validados. Uma transmissão incompleta não avança a etapa. O POP 1 confirmado já aparece para acompanhamento, sem significar entrega a Projetos. A espera entre POPs não tem prazo de conclusão: concluir o POP 2 não revalida a idade dos comprovantes já aceitos do POP 1. Os comprovantes de uma transmissão ainda não confirmada precisam ser recentes; não retomar uma transmissão abandonada por mais de 14 dias. Em caso de perda do rascunho depois de iniciar a transmissão, acionar a administração para recuperação assistida; não substituir silenciosamente arquivos de uma tentativa anterior.
 
 ## Acesso
 
@@ -40,9 +40,9 @@ O supervisor é registrado na abertura; a equipe do técnico é validada no mome
 Cloud Storage for Firebase exige Blaze/faturamento vinculado desde 2026. Nenhum plano, conta de cobrança ou bucket foi criado/alterado nesta atualização. Para testar a funcionalidade na infraestrutura existente, originais pequenos são preservados como partes privadas no Firestore. **É uma solução limitada de piloto, não o armazenamento definitivo para coleta massiva nacional.**
 
 - Metadados/status: `medicoes/{id}`.
-- Fotos: `medicoesFotos/{id}-{tx|rx}-{indice}`. Apenas JPEG marcado, até 700.000 caracteres, seis posições por lado. Leitura vence em 15 dias; a rotina GitHub Actions **Limpar fotos antigas** remove esses documentos, além das fotos dos rompimentos.
-- Originais: `medicoes/{id}/arquivos/{tx|rx}-{indice}` e subcoleção `partes/{0..3}`. Cada parte contém até 512 KiB binários em base64. Tamanho máximo original 2 MiB, três posições por lado. Dados são imutáveis. O download remonta os bytes, verifica tamanho e SHA-256 antes de oferecer o arquivo.
-- Comprovantes: `medicoes/{id}/comprovantes/{txFotos|rxFotos|txArquivos|rxArquivos}`. A entrega exige os quatro comprovantes; fotos, arquivos e partes devem existir, respeitar limites e pertencer à demanda. Não basta declarar números de anexos.
+- Fotos: `medicoesFotos/{id}-{tx|rx}-{indice}`. Apenas JPEG marcado, até 700.000 caracteres, seis posições por POP. Leitura vence em 15 dias; a rotina GitHub Actions **Limpar fotos antigas** remove esses documentos, além das fotos dos rompimentos.
+- Originais: `medicoes/{id}/arquivos/{tx|rx}-{indice}` e subcoleção `partes/{0..3}`. Cada parte contém até 512 KiB binários em base64. Tamanho máximo original 2 MiB, três posições por POP. Dados são imutáveis. O download remonta os bytes, verifica tamanho e SHA-256 antes de oferecer o arquivo.
+- Comprovantes: `medicoes/{id}/comprovantes/{txFotos|rxFotos|txArquivos|rxArquivos}`. Cada POP exige seus dois comprovantes (fotos e arquivos); fotos, arquivos e partes devem existir, respeitar limites e pertencer à demanda. Não basta declarar números de anexos.
 - **Os arquivos OTDR não são excluídos após 15 dias.** Histórico, nomes, GPS, descrição e conferência também permanecem. SHA-256 detecta corrupção/troca de bytes no download; não certifica que o arquivo foi produzido por um equipamento real. A extensão é validada, mas a curva não é interpretada nem o formato interno certificado.
 - Firestore gratuito: 1 GiB armazenado, 50 mil leituras/dia, 20 mil escritas/dia e 10 GiB/mês de saída, compartilhados com toda a aplicação. Base64 acrescenta aproximadamente 33% aos bytes; a entrega máxima pode ocupar cerca de **24 MiB**, mais índices/metadados. Poucas dezenas de entregas grandes já podem comprometer essa cota. Conferir **Firestore → Uso** antes de ampliar o piloto. O esgotamento pode interromper o serviço; não há promessa de armazenamento gratuito ilimitado.
 - Listener consulta metadados acessíveis; paginação de 24 cartões é visual, não reduz a consulta inicial. Fotos/binários só são lidos ao abrir/baixar. A expansão exigirá agregações e paginação no servidor.
@@ -58,7 +58,7 @@ Cloud Storage for Firebase exige Blaze/faturamento vinculado desde 2026. Nenhum 
 ## Verificação e publicação
 
 - Testes unitários: `node --test tests/*.test.mjs`.
-- Regras reais no emulador: `npm ci --prefix tests/security` e `npm test --prefix tests/security` (Java 21). Cobrem domínio/perfis, equipe, campos, TX/RX obrigatórios, contagem máxima, partes truncadas, anexos privados, conferência, imutabilidade e fotos vencidas, além da regressão dos rompimentos.
+- Regras reais no emulador: `npm ci --prefix tests/security` e `npm test --prefix tests/security` (Java 21). Cobrem domínio/perfis, equipe, campos, POPs sequenciais obrigatórios, contagem máxima, partes truncadas, anexos privados, conferência, imutabilidade e fotos vencidas, além da regressão dos rompimentos.
 - Navegador com dados sintéticos: cadastro, marca/GPS, cancelamento, rascunho e retomada, envio multipartes, download byte a byte, ampliação em modal, Projetos, diretoria, temas e PDF paginado. Nenhum registro de teste foi inserido no banco real.
 - Publicar pela integração GitHub/Netlify existente, numa única atualização consolidada. As regras são publicadas pelo workflow **Validar sem publicar / Publicar**, que já usa o segredo configurado. Não é necessário copiar código no Firebase manualmente se a etapa Publicar terminar com sucesso.
 
@@ -70,12 +70,12 @@ Referências oficiais consultadas em 19/10/2026:
 
 ## Laboratório de Medições (sem alterar a operação real)
 
-1. Entrar no menu do nome → **Testar setores**. Em **Serviço**, escolher **Medições OTDR · etapa única**.
+1. Entrar no menu do nome → **Testar setores**. Em **Serviço**, escolher **Medições OTDR · POP 1 e POP 2**.
 2. Usar **Administração** para abrir uma demanda sem técnico e sem fibras; escolher Supervisor A. As amostras SIM-MED-001 e SIM-MED-002 também permitem testar direto a distribuição.
 3. Trocar **Testar como** para **Supervisor A**, clicar na fila e **Alocar técnico**. Somente Técnico A pertence a essa equipe. Supervisor B/Técnico B pertencem à outra equipe de teste. Conferir que as demandas alheias não aparecem.
-4. Trocar para **Técnico A**, abrir o cartão e **Continuar coleta**. Preencher só a descrição e tentar entregar sem fotos/arquivos/GPS para conferir as validações. Usar **Preencher evidências fictícias** para receber fotos marcadas, GPS e arquivos de exemplo. Eles não contêm uma curva óptica real.
-5. Opcional: antes de confirmar, clicar em **Simular falha no próximo envio**. Tentar enviar, ler a mensagem e usar **Retomar envio para Projetos**. Depois que o envio começou, os anexos ficam congelados, como na operação real.
-6. Trocar para **Projetos**, ampliar fotos, baixar os arquivos fictícios, preencher observação e confirmar conferência. Trocar para **Diretor**, ver estados/filas e exportar o PDF. Ele traz **SIMULAÇÃO / DADOS FICTÍCIOS** e nome de arquivo começando por SIMULACAO.
+4. Trocar para **Técnico A**, abrir o cartão e **Continuar coleta**. Tentar enviar sem fotos/arquivos/GPS para conferir as validações. Usar **Preencher evidências fictícias**: preenche somente o POP atual, com fotos marcadas, GPS e arquivos de exemplo, sem curva óptica real.
+5. Opcional: antes de confirmar cada POP, clicar em **Simular falha no próximo envio** e depois usar **Retomar envio do POP 1/2**. Após iniciar a transmissão, anexos ficam congelados. Enviar o POP 1, trocar para Supervisor A/Diretor e consultar suas evidências. Conferir que Projetos ainda não recebeu a demanda. Voltar ao Técnico A: o cartão continua na rota, abrindo diretamente o POP 2. Preencher e enviar o segundo POP.
+6. Trocar para **Projetos**, ampliar fotos dos dois POPs, baixar os arquivos fictícios e confirmar conferência. Trocar para **Diretor**, ver estados/filas e exportar o PDF, inclusive com somente o POP 1 enviado. O documento identifica **SIMULAÇÃO / DADOS FICTÍCIOS** e usa nome começando por SIMULACAO.
 7. **Reiniciar teste** limpa os dados desse serviço fictício. Escolher **Rompimentos** retorna ao laboratório anterior. Atualizar a página também reinicia Medições.
 
 O laboratório compartilha a tela, validação de entrega, galerias, relatório e fluxo de Medições com a operação real. Os serviços de dados são injetados: Firebase na operação; adaptador exclusivamente em memória no laboratório (`lib/measurement-lab.mjs`). O módulo de Medições não importa o SDK do Firebase. Não há escrita no banco real ou em rascunhos reais durante a simulação. A leitura de login/perfil do administrador continua real, apenas para proteger a entrada do laboratório. A simulação demonstra o fluxo; a autorização do servidor é validada separadamente nos testes do emulador.
@@ -117,7 +117,7 @@ O próprio administrador aparece na distribuição de Medições e IDs como `nom
 
 1. Em **Medições → Nova medição**, abra uma demanda e escolha seu nome como supervisor (ou abra a demanda de teste que já existe).
 2. Abra o cartão e, em **Técnico da equipe**, selecione seu nome com `meu acesso admin` e clique em **Alocar técnico**.
-3. Abra **Técnico → Medições**, toque na demanda e preencha a coleta real com fotos, GPS, arquivos TX/RX e descrição. Os requisitos e a confirmação de entrega são os mesmos.
+3. Abra **Técnico → Medições**, toque na demanda e preencha a coleta real com fotos, GPS, arquivos e descrição de cada POP. Os requisitos e a confirmação de entrega são os mesmos.
 4. Depois da entrega, abra **Projetos → Medições OTDR** para conferir e registrar o tratamento. O admin mantém o acompanhamento completo; a ocultação de entregas concluídas é própria do perfil técnico.
 5. Para testar rompimentos, em **Supervisão** selecione seu nome na distribuição do ID. Abra o atendimento em **Técnico**.
 
@@ -136,7 +136,7 @@ No acesso técnico, a tela de trabalho oferece somente **Rompimentos** e **Medi�
 
 Para testar com admin, use **Técnico → Medições**: a mesma interface técnica mostra apenas suas coletas atribuídas. A guia principal **Medições** continua sendo a gestão completa do admin; Supervisão distribui e Projetos confere, com os mesmos registros compartilhados em tempo real. O botão de coleta de uma demanda própria na gestão encaminha para a área técnica. As instâncias de gestão e execução usam ouvintes separados para que uma consulta não impeça a outra de atualizar.
 
-PDFs exportados dos OTDR, inclusive nomes terminados em `.msor.pdf`, são aceitos no campo de arquivos TX/RX. Limites mantidos: 1–3 arquivos por lado, até 2 MiB cada, 1–6 fotos por lado, GPS e descrição. Os arquivos ficam preservados byte a byte, com verificação de tamanho e SHA-256 no download. A aceitação de PDF não interpreta automaticamente as curvas nem determina aprovação óptica. Os PDFs de medição seguem a retenção dos arquivos, não a expiração de fotos de 15 dias.
+PDFs exportados dos OTDR, inclusive nomes terminados em `.msor.pdf`, são aceitos no campo de arquivos de cada POP. Limites mantidos: 1–3 arquivos por POP, até 2 MiB cada, 1–6 fotos por POP, GPS e descrição. Os arquivos ficam preservados byte a byte, com verificação de tamanho e SHA-256 no download. A aceitação de PDF não interpreta automaticamente as curvas nem determina aprovação óptica. Os PDFs de medição seguem a retenção dos arquivos, não a expiração de fotos de 15 dias.
 
 
 ## Ajustes de apresentação, navegação e hierarquia
@@ -149,3 +149,15 @@ PDFs exportados dos OTDR, inclusive nomes terminados em `.msor.pdf`, são aceito
 - **Celular:** NEXTFLOW centralizado; fibra azul na largura disponível do cabeçalho, com margens pequenas. A barra de rolagem horizontal tem espaço abaixo dos botões para não encobrir a área clicável.
 
 Validação desta atualização: testes das regras do coordenador, restrição dos demais perfis, indicadores navegáveis em todas as situações, visão executiva sem ações de escrita, filas de Projetos com chegada em tempo real, igualdade de estilos entre cartões técnicos, cabeçalho/rolagem em 320, 390 e 691 px, além do fluxo de entrega e download íntegro do PDF e regressão do laboratório.
+
+
+## Duas etapas POP 1 / POP 2 — 19/10/2026
+
+A divisão reutiliza o formulário técnico, indicador de etapas, confirmação, rascunho, marcação de fotos, galeria, relatório e fluxo de Projetos existentes. Não altera as quatro etapas de rompimentos.
+
+- Novas demandas usam `versao: 2`. O primeiro envio grava `fluxoVersao: 2`, `etapaConcluida: 1`, data/hora do servidor, UID/nome do remetente, GPS, fibras e observação do POP 1. O segundo grava `etapaConcluida: 2` e a entrega técnica com os dados próprios do POP 2.
+- As chaves internas históricas `tx`/`rx`, caminhos de fotos e arquivos permanecem para não quebrar registros nem links existentes; a interface usa POP 1/POP 2. Fotos antigas não têm a marca d’água reescrita. Não foi realizada migração nem exclusão de registros.
+- Demandas anteriores ainda em campo usam as duas etapas ao abrir a versão atual. O rascunho anterior no mesmo navegador preserva os anexos; evidências do segundo local ficam reservadas para o POP 2. Entregas anteriores continuam consultáveis, com indicação no PDF de coleta em envio único. As regras mantêm compatibilidade com a entrega antiga apenas para registros v1 que ainda não iniciaram o fluxo em duas etapas; novas v2 não podem pular a sequência.
+- Fotos expiram **15 dias após seu próprio envio**. Se houver intervalo maior entre POPs, as fotos do POP 1 podem já estar indisponíveis quando o POP 2 terminar. Isso não bloqueia a conclusão: histórico, GPS, descrições e arquivos permanecem. Nenhuma mudança de retenção foi aplicada.
+- O acompanhamento ao vivo ocorre após o técnico confirmar e concluir o envio da etapa com internet. Rascunhos locais e fotos ainda não enviadas não são visíveis aos outros setores. A reconexão exige retomar o envio; não há transmissão silenciosa automática.
+- Validação: 31 testes unitários e 42 testes de regras. Incluem bloqueio de recuo/pulo, restrições por perfil, provas completas por POP, imutabilidade do primeiro envio e conclusão 30 dias depois. Navegador: celular, falhas/retomadas dos dois POPs, cancelamento, observador já aberto recebendo POP 1, saída/retorno à rota, GPS distintos, download íntegro, PDF parcial, entrada em Projetos somente após POP 2 e regressão do laboratório de rompimentos.
