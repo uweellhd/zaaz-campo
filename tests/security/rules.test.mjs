@@ -6,7 +6,7 @@ import { doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, 
 
 let env;
 const users = {
-  admin: ['admin','TODOS'], noc: ['noc','TODOS'], sac: ['sac','TODOS'], suporte: ['suporte','TODOS'],
+  admin: ['admin','TODOS'], coordenador: ['coordenador','TODOS'], noc: ['noc','TODOS'], sac: ['sac','TODOS'], suporte: ['suporte','TODOS'],
   diretor: ['diretor','TODOS'], gerente: ['gerente','TODOS'], tecnicoA: ['tecnico','SP'], tecnicoB: ['tecnico','SP'],
   tecnicoOutro: ['tecnico','PR'], tecnicoMG: ['tecnico','MG'], supervisorA: ['supervisor','SP'], supervisorB: ['supervisor','SP'], projetos: ['projetos','TODOS']
 };
@@ -404,4 +404,25 @@ test('PDF de OTDR é aceito sem nativo extra, preservado e entregue com as mesma
   await assertSucceeds(updateDoc(doc(db,'medicoes','m'),entregarMedicao()));
   await assertSucceeds(getDoc(doc(ctx('projetos'),'medicoes','m','arquivos','tx-0')));
   await assertFails(getDoc(doc(ctx('tecnicoB'),'medicoes','m','arquivos','tx-0')));
+});
+
+
+test('coordenação cria demandas para supervisor ativo, sem assumir distribuição ou conferência',async()=>{
+  const db=ctx('coordenador');
+  await assertSucceeds(getDocs(query(collection(db,'usuarios'),where('perfil','==','supervisor'))));
+  await assertFails(getDocs(collection(db,'usuarios')));
+  await assertFails(getDoc(doc(db,'usuarios','tecnicoA')));
+  await assertSucceeds(setDoc(doc(db,'medicoes','m'),medicaoAberta({criadoPorUid:'coordenador'})));
+  await assertFails(setDoc(doc(db,'medicoes','invalida'),medicaoAberta({criadoPorUid:'coordenador',supervisorUid:'tecnicoA',supervisorNome:'tecnicoA'})));
+  await assertFails(updateDoc(doc(db,'medicoes','m'),atribuicaoMedicao({atribuidoPorUid:'coordenador',atribuidoPorNome:'coordenador'})));
+  await assertSucceeds(updateDoc(doc(ctx('supervisorA'),'medicoes','m'),atribuicaoMedicao()));
+  await subirProvas(ctx('tecnicoA'));await assertSucceeds(updateDoc(doc(ctx('tecnicoA'),'medicoes','m'),entregarMedicao()));
+  await assertSucceeds(getDoc(doc(db,'medicoes','m')));
+  await assertFails(updateDoc(doc(db,'medicoes','m'),{status:'CONFERIDA',observacaoProjetos:'Tentativa de conferir.',conferidoPorUid:'coordenador',conferidoPorNome:'coordenador',conferidoEm:serverTimestamp()}));
+  await assertFails(getDoc(doc(db,'incidentes','a')));
+  await assertFails(updateDoc(doc(db,'usuarios','coordenador'),{perfil:'admin'}));
+});
+test('somente admin aprova ou configura o perfil de coordenador',async()=>{
+  await assertFails(updateDoc(doc(ctx('supervisorA'),'usuarios','tecnicoB'),{perfil:'coordenador'}));
+  await assertSucceeds(updateDoc(doc(ctx('admin'),'usuarios','tecnicoB'),{perfil:'coordenador'}));
 });

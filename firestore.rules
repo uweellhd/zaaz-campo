@@ -177,9 +177,9 @@ service cloud.firestore {
         || (active() && role() == 'tecnico' && resource.data.perfil == 'supervisor'
           && get(/databases/$(database)/documents/equipesTecnicas/$(request.auth.uid)).data.supervisorUid == uid)
         || (active() && (role() == 'admin' || (role() in ['noc','supervisor'] && resource.data.perfil in ['tecnico', 'supervisor'])
-          || (role() == 'tecnico' && resource.data.perfil == 'tecnico')));
+          || (role() == 'tecnico' && resource.data.perfil == 'tecnico') || (role() == 'coordenador' && resource.data.perfil == 'supervisor')));
       allow list: if active() && (role() == 'admin' || (role() in ['noc','supervisor'] && resource.data.perfil in ['tecnico', 'supervisor'])
-        || (role() == 'tecnico' && resource.data.perfil == 'tecnico'));
+        || (role() == 'tecnico' && resource.data.perfil == 'tecnico') || (role() == 'coordenador' && resource.data.perfil == 'supervisor'));
       allow create: if active() && role() == 'admin' && uid != request.auth.uid
         && request.resource.data.keys().hasOnly(['ativo', 'estado', 'nome', 'perfil'])
         && request.resource.data.ativo == true
@@ -187,7 +187,7 @@ service cloud.firestore {
         && request.resource.data.nome is string
         && request.resource.data.nome.size() >= 3
         && request.resource.data.nome.size() <= 120
-        && request.resource.data.perfil in ['noc', 'sac', 'suporte', 'tecnico', 'gerente', 'diretor', 'supervisor', 'projetos']
+        && request.resource.data.perfil in ['noc', 'sac', 'suporte', 'tecnico', 'gerente', 'diretor', 'supervisor', 'coordenador', 'projetos']
 
         && exists(/databases/$(database)/documents/solicitacoesAcesso/$(uid))
         && get(/databases/$(database)/documents/solicitacoesAcesso/$(uid)).data.status == 'pendente';
@@ -195,7 +195,7 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ativo', 'estado', 'nome', 'perfil'])
         && request.resource.data.ativo is bool
         && (request.resource.data.estado == 'TODOS' || request.resource.data.estado.matches('^[A-Z]{2}$'))
-        && request.resource.data.perfil in ['noc', 'sac', 'suporte', 'tecnico', 'gerente', 'diretor', 'supervisor', 'projetos']
+        && request.resource.data.perfil in ['noc', 'sac', 'suporte', 'tecnico', 'gerente', 'diretor', 'supervisor', 'coordenador', 'projetos']
 ;
       allow delete: if false;
     }
@@ -320,7 +320,7 @@ service cloud.firestore {
 
     // Medições OTDR: serviço independente. Nenhuma permissão é herdada dos rompimentos.
     function measurementReader(data) {
-      return active() && (role() in ['admin','diretor','gerente']
+      return active() && (role() in ['admin','diretor','gerente','coordenador']
         || (role() == 'tecnico' && data.tecnicoUid == request.auth.uid)
         || (role() == 'supervisor' && data.supervisorUid == request.auth.uid)
         || (role() == 'projetos' && data.status in ['ENTREGUE','CONFERIDA']));
@@ -346,7 +346,7 @@ service cloud.firestore {
         && d.estado in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
         && supervisor.ativo == true && (supervisor.perfil == 'supervisor'
           || (role() == 'admin' && d.supervisorUid == request.auth.uid && supervisor.perfil == 'admin')) && d.supervisorNome == supervisor.nome
-        && (role() == 'admin' || (role() == 'supervisor' && d.supervisorUid == request.auth.uid));
+        && (role() in ['admin','coordenador'] || (role() == 'supervisor' && d.supervisorUid == request.auth.uid));
     }
     function measurementAssignment() {
       let d = request.resource.data;
@@ -400,7 +400,7 @@ service cloud.firestore {
     }
     match /medicoes/{measurementId} {
       allow read: if measurementReader(resource.data);
-      allow create: if active() && role() in ['admin','supervisor'] && measurementCreate();
+      allow create: if active() && role() in ['admin','supervisor','coordenador'] && measurementCreate();
       allow update: if active() && (measurementAssignment() || measurementDelivery(measurementId)
         || (role() in ['admin','projetos'] && resource.data.status == 'ENTREGUE' && request.resource.data.status == 'CONFERIDA'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','observacaoProjetos','conferidoPorUid','conferidoPorNome','conferidoEm'])

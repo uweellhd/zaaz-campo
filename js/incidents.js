@@ -11,6 +11,7 @@ import { montarGaleria, abrirFotos, fecharFotos, fotoAberta } from '../lib/photo
 import { selecionarIncidentes, analisarOperacao, leituraExecutiva, dataConclusao, horarioBrasil, diaBrasil } from '../lib/executive-metrics.mjs';
 import { reconhecerSupervisor, coordenadasValidas, lerLocalizacao } from '../lib/incident-identity.mjs';
 import { configurarAlteracaoSenha } from './account.js';
+import { criarCartaoTecnico } from '../lib/field-task-card.mjs';
 import { iniciarMedicoes } from './measurements.js';
 import { criarRelatorioPDF } from '../lib/executive-report.mjs';
 
@@ -35,7 +36,8 @@ let estadoSalvo = '';
 let usuarioUid = '';
 const ouvintes = new Map();
 let saindo = false;
-let medicoes, medicoesTecnico;
+let medicoes, medicoesTecnico, medicoesProjetos;
+let servicoProjetos = 'rompimentos';
 let servicoTecnico = 'rompimentos';
 const abasPermitidas = {
   admin: ['viewMedicoes', 'viewGerente', 'viewNoc', 'viewSac', 'viewTech', 'viewSupervisor', 'viewProjetos', 'viewConta', 'viewAcessos'],
@@ -46,6 +48,7 @@ const abasPermitidas = {
   suporte: ['viewSac'],
   tecnico: ['viewMedicoes', 'viewTech'],
   supervisor: ['viewMedicoes', 'viewSupervisor'],
+  coordenador: ['viewMedicoes'],
   projetos: ['viewMedicoes', 'viewProjetos']
 };
 
@@ -186,7 +189,7 @@ function configurarTelasPorPerfil() {
   const partesNome=String(usuarioSalvo||'').trim().split(/\s+/).filter(Boolean);
   const iniciais=partesNome.length>1?partesNome[0][0]+partesNome.at(-1)[0]:(partesNome[0]||'·').slice(0,2);
   document.getElementById('accountInitials').textContent=iniciais.toLocaleUpperCase('pt-BR');
-  document.getElementById('accountRole').textContent=({admin:'Administração',diretor:'Diretoria',gerente:'Gerência',noc:'NOC',sac:'SAC',suporte:'Suporte',tecnico:'Técnico',supervisor:'Supervisão',projetos:'Projetos'})[perfilSalvo]||'Minha conta';
+  document.getElementById('accountRole').textContent=({admin:'Administração',diretor:'Diretoria',gerente:'Gerência',noc:'NOC',sac:'SAC',suporte:'Suporte',tecnico:'Técnico',supervisor:'Supervisão',coordenador:'Coordenação',projetos:'Projetos'})[perfilSalvo]||'Minha conta';
 
   const btnGerente = document.getElementById('btnTabGerente');
   const btnNoc = document.getElementById('btnTabNoc');
@@ -199,7 +202,7 @@ function configurarTelasPorPerfil() {
   const btnSupervisor = document.getElementById('btnTabSupervisor');
   const btnProjetos = document.getElementById('btnTabProjetos');
   const btnMedicoes = document.getElementById('btnTabMedicoes');
-  if(btnMedicoes)btnMedicoes.style.display = ['admin','supervisor'].includes(perfilSalvo) ? 'inline-block' : 'none';
+  if(btnMedicoes)btnMedicoes.style.display = ['admin','supervisor','coordenador'].includes(perfilSalvo) ? 'inline-block' : 'none';
   // Oculta todas as abas inicialmente
   [btnGerente, btnNoc, btnSac, btnTech, btnConta, btnAcessos, btnSupervisor, btnProjetos].forEach(btn => { if (btn) btn.style.display = 'none'; });
   if (btnConta) btnConta.style.display = 'block';
@@ -228,6 +231,8 @@ function configurarTelasPorPerfil() {
   } else if (perfilSalvo === 'supervisor') {
     if (btnSupervisor) btnSupervisor.style.display = 'inline-block';
     alternarAba('viewSupervisor');
+  } else if (perfilSalvo === 'coordenador') {
+    alternarAba('viewMedicoes');
   } else if (perfilSalvo === 'projetos') {
     if (btnProjetos) btnProjetos.style.display = 'inline-block';
     alternarAba('viewProjetos');
@@ -238,6 +243,14 @@ function configurarTelasPorPerfil() {
   }
 }
 
+window.alternarServicoProjetos = servico => {
+  if(!['admin','projetos'].includes(perfilSalvo))return;
+  servicoProjetos=servico==='medicoes'?'medicoes':'rompimentos';
+  el('projetosRompimentosArea').hidden=servicoProjetos!=='rompimentos';
+  el('projetosMedicoesArea').hidden=servicoProjetos!=='medicoes';
+  document.querySelectorAll('[data-project-service]').forEach(b=>{const selected=b.dataset.projectService===servicoProjetos;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected))});
+  if(servicoProjetos==='medicoes')medicoesProjetos?.abrir();else carregarProjetos();
+};
 window.alternarServicoTecnico = servico => {
   if(!['admin','tecnico'].includes(perfilSalvo))return;
   servicoTecnico = servico === 'medicoes' ? 'medicoes' : 'rompimentos';
@@ -248,6 +261,7 @@ window.alternarServicoTecnico = servico => {
 };
 window.alternarAba = (idAba, contexto = '') => {
   if(perfilSalvo==='tecnico' && idAba==='viewMedicoes'){idAba='viewTech';contexto='medicoes'}
+  if(perfilSalvo==='projetos' && idAba==='viewMedicoes'){idAba='viewProjetos';contexto='medicoes'}
   if (idAba !== 'viewConta' && !(abasPermitidas[perfilSalvo] || []).includes(idAba)) return;
   const conta = document.getElementById('accountMenu');
   if (conta) conta.open = false;
@@ -285,7 +299,7 @@ window.alternarAba = (idAba, contexto = '') => {
     medicoes?.abrirSupervisao();
   } else if (idAba === 'viewProjetos') {
     document.getElementById('btnTabProjetos')?.classList.add('active');
-    carregarProjetos();
+    window.alternarServicoProjetos(contexto || servicoProjetos);
   }
 };
 
@@ -401,7 +415,7 @@ function carregarSolicitacoes() {
       nome.textContent = pessoa.nome || documento.id;
       const perfil = document.createElement('select');
       perfil.setAttribute('aria-label', `Função de ${pessoa.nome}`);
-      for (const [valor, texto] of Object.entries({ sac: 'SAC', suporte: 'Suporte', noc: 'NOC', tecnico: 'Técnico', supervisor: 'Supervisor', projetos: 'Projetos', gerente: 'Gerente', diretor: 'Diretor' })) {
+      for (const [valor, texto] of Object.entries({ sac: 'SAC', suporte: 'Suporte', noc: 'NOC', tecnico: 'Técnico', supervisor: 'Supervisor', coordenador: 'Coordenador', projetos: 'Projetos', gerente: 'Gerente', diretor: 'Diretor' })) {
         perfil.add(new Option(texto, valor));
       }
       perfil.value = pessoa.perfil;
@@ -454,7 +468,7 @@ function carregarSolicitacoes() {
       email.textContent = pedido.email;
       const perfil = document.createElement('select');
       perfil.setAttribute('aria-label', `Função de ${pedido.nome}`);
-      for (const [valor, texto] of Object.entries({ sac: 'SAC', suporte: 'Suporte', noc: 'NOC', tecnico: 'Técnico', supervisor: 'Supervisor', projetos: 'Projetos', gerente: 'Gerente', diretor: 'Diretor' })) {
+      for (const [valor, texto] of Object.entries({ sac: 'SAC', suporte: 'Suporte', noc: 'NOC', tecnico: 'Técnico', supervisor: 'Supervisor', coordenador: 'Coordenador', projetos: 'Projetos', gerente: 'Gerente', diretor: 'Diretor' })) {
         perfil.add(new Option(texto, valor));
       }
       const estado = document.createElement('select');
@@ -936,15 +950,7 @@ function carregarListaTecnico() {
         iniciarAtendimentoTecnico(item, false);
       }
 
-      const card = document.createElement('div');
-      card.className = 'incidente-card';
-      card.onclick = () => iniciarAtendimentoTecnico(item, true);
-      card.innerHTML = `
-        <h4 style="color:var(--zaaz-blue); margin-bottom:6px;">🚨 ID: ${escaparHtml(item.idIncidente)}</h4>
-        <p style="font-size:13px;"><strong>OS:</strong> ${escaparHtml(item.os)} | <strong>Cidades:</strong> ${escaparHtml(item.cidades)}</p>
-        <p style="font-size:12px; color:var(--zaaz-blue); font-weight:700; margin-top:8px;">Status: ${escaparHtml(item.statusAtual)}</p>
-        <p style="font-size:12px; color:var(--success); font-weight:700;">▶️ Abrir atendimento atribuído</p>
-      `;
+      const card = criarCartaoTecnico({titulo:`🚨 ID: ${item.idIncidente}`,campos:[['OS',item.os],['Cidades',item.cidades]],status:item.statusAtual,abrir:()=>iniciarAtendimentoTecnico(item,true)});
       container.appendChild(card);
     });
   });
@@ -1644,6 +1650,7 @@ window.sair = async () => {
   saindo = true;
   medicoes?.fechar();
   medicoesTecnico?.fechar();
+  medicoesProjetos?.fechar();
   for (const cancelar of ouvintes.values()) cancelar();
   ouvintes.clear();
   try {
@@ -1672,7 +1679,8 @@ onAuthStateChanged(auth, async (usuario) => {
     if (badgeElem) badgeElem.textContent = usuarioSalvo;
     const contextoMedicoes={servicos:{collection,doc,getDoc,getDocs,setDoc,updateDoc,query,where,serverTimestamp,runTransaction},db,uid:usuarioUid,nome:usuarioSalvo,perfil:perfilSalvo,estado:estadoSalvo,ouvir:ouvirUmaVez,marcarFoto:comprimirEMarcarDagua,obterGPS:obterGPSFoto};
     if(['admin','tecnico'].includes(perfilSalvo))medicoesTecnico=iniciarMedicoes({...contextoMedicoes,perfil:'tecnico',root:el('techMedicoesArea'),ouvir:(key,...args)=>ouvirUmaVez('campo-'+key,...args),navegar:()=>window.alternarAba('viewTech','medicoes')});
-    if(['admin','diretor','gerente','supervisor','projetos'].includes(perfilSalvo))medicoes=iniciarMedicoes({...contextoMedicoes,abrirColetaPropria:async id=>{window.alternarAba('viewTech','medicoes');await medicoesTecnico.abrirColeta(id)}});
+    if(['admin','diretor','gerente','supervisor','coordenador'].includes(perfilSalvo))medicoes=iniciarMedicoes({...contextoMedicoes,abrirColetaPropria:async id=>{window.alternarAba('viewTech','medicoes');await medicoesTecnico.abrirColeta(id)}});
+    if(['admin','projetos'].includes(perfilSalvo))medicoesProjetos=iniciarMedicoes({...contextoMedicoes,perfil:'projetos',filaProjetos:true,root:el('projetosMedicoesArea'),ouvir:(key,...args)=>ouvirUmaVez('projetos-'+key,...args)});
     configurarTelasPorPerfil();
     ouvirUmaVez('meuPerfil', doc(db, 'usuarios', usuarioUid), snapshot => {
       if (!snapshot.exists() || snapshot.data().ativo !== true
