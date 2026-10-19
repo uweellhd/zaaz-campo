@@ -99,3 +99,13 @@ A navegação da Diretoria usa um seletor centralizado com **Rompimentos** e **M
 As regras permitem o Admin como responsável apenas para o seu próprio UID. Outros perfis não podem assumir sua identidade ou criar equipes sob ela. O ajuste não inclui administradores na correspondência automática de nomes/identidades IXC do NOC.
 
 Validação desta correção: 22 testes unitários, 32 testes de regras no emulador, fluxo de Medições com envio/retomada/download/Projetos, administrador como responsável, verificação do posicionamento e checkbox, e regressão do laboratório de rompimentos nas quatro etapas, consulta SAC e entrega a Projetos. Os testes usam dados fictícios; não alteram a operação real.
+
+## Visão de trabalho do técnico — 19/10/2026
+
+A área do técnico segue a lista de trabalho dos IDs: mostra somente medições atribuídas ao seu UID que estão **Em campo**. Depois da entrega confirmada, a coleta fecha e o cartão sai dessa lista. Ao voltar ao mesmo perfil ou atualizar a página, a entrega concluída continua fora da tela de trabalho. Projetos recebe a entrega normalmente; supervisão e diretoria mantêm seu acompanhamento.
+
+Os filtros de acompanhamento e os cinco indicadores de distribuição/Projetos não aparecem nessa visão técnica. A lista vazia informa **Nenhuma medição em andamento atribuída ao seu acesso**. A janela não abre detalhes de entregas concluídas para esse perfil. Essa é uma mudança de apresentação no módulo existente, com o mesmo comportamento de lista de trabalho dos rompimentos; não altera registros, regras ou a guarda do histórico.
+
+O botão **Continuar coleta** usa o grupo de ações já existente nas etapas técnicas, centralizado, com até 360 px de largura, altura mínima de 48 px, separação de 24 px e espaço interno após o resumo. A tipografia da janela permanece na família do sistema, com texto de 14 px e título de 18 px.
+
+Validação: entrega técnica deixa zero cartões e nenhum indicador/filtro administrativo nessa tela; reabertura do perfil e posterior conferência por Projetos não fazem a entrega reaparecer para o técnico. Mesmo cenário conferido no laboratório. Revalidados download, fotos ampliadas, retomada de envio, administrador responsável, temas, navegação e laboratório de rompimentos nas quatro etapas, consulta SAC e entrega a Projetos.

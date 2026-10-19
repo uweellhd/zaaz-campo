@@ -26,7 +26,7 @@
 .measure-deliver { justify-self:center; width:min(100%,360px); min-height:48px; }
 .measure-feedback { padding:10px 0; color:var(--text-muted); overflow-wrap:anywhere; }
 .measure-error { color:#c23442; }
-.measure-empty { padding:30px 16px; color:var(--text-muted); }
+.measure-empty { grid-column:1 / -1; padding:30px 16px; color:var(--text-muted); }
 .measure-modal { position:fixed; inset:0; margin:auto; height:fit-content; max-width:860px; overflow-y:auto; border:none; border-radius:14px; padding:24px; width:min(900px,calc(100% - 32px)); max-height:90dvh; box-sizing:border-box; background:var(--card-bg); color:var(--text-main); }
 .measure-modal::backdrop { background:rgba(10,22,40,.65); }
 .measure-modal p { overflow-wrap:anywhere; white-space:pre-wrap; line-height:1.55; }
@@ -52,3 +52,10 @@
 .measure-modal .measure-form > .btn-primary { justify-self:center; width:min(100%,360px); }
 .measure-modal .modal-header h3 { min-width:0; overflow-wrap:anywhere; }
 .measure-modal .modal-header button { flex-shrink:0; }
+
+/* Ação de coleta no mesmo padrão de espaçamento e largura das etapas técnicas. */
+.dashboard-body .measure-modal > .btn-step-group { justify-content:center; margin-top:24px; padding-top:18px; border-top:1px solid var(--border-color); }
+.dashboard-body .measure-modal > .btn-step-group .btn-primary { width:min(100%,360px); min-height:48px; font-size:14px; line-height:1.4; }
+.measure-modal { font-size:14px; line-height:1.6; }
+.measure-modal .modal-header h3 { font-size:18px; font-weight:600; line-height:1.35; }
+.measure-modal > p + p { margin-top:8px; }
