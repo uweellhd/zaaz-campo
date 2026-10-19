@@ -174,6 +174,8 @@ service cloud.firestore {
 
     match /usuarios/{uid} {
       allow get: if (signedIn() && request.auth.uid == uid)
+        || (active() && role() == 'tecnico' && resource.data.perfil == 'supervisor'
+          && get(/databases/$(database)/documents/equipesTecnicas/$(request.auth.uid)).data.supervisorUid == uid)
         || (active() && (role() == 'admin' || (role() in ['noc','supervisor'] && resource.data.perfil in ['tecnico', 'supervisor'])
           || (role() == 'tecnico' && resource.data.perfil == 'tecnico')));
       allow list: if active() && (role() == 'admin' || (role() in ['noc','supervisor'] && resource.data.perfil in ['tecnico', 'supervisor'])
@@ -312,6 +314,136 @@ service cloud.firestore {
         && request.resource.data.observacaoOzmaps is string
         && request.resource.data.observacaoOzmaps.size() <= 2000;
       allow delete: if false;
+    }
+
+    // Medições OTDR: serviço independente. Nenhuma permissão é herdada dos rompimentos.
+    function measurementReader(data) {
+      return active() && (role() in ['admin','diretor','gerente']
+        || (role() == 'tecnico' && data.tecnicoUid == request.auth.uid)
+        || (role() == 'supervisor' && data.supervisorUid == request.auth.uid)
+        || (role() == 'projetos' && data.status in ['ENTREGUE','CONFERIDA']));
+    }
+    function measurementOwner(id) {
+      let data = get(/databases/$(database)/documents/medicoes/$(id)).data;
+      return active() && data.status == 'EM_CAMPO'
+        && (role() == 'admin' || (role() == 'tecnico' && data.tecnicoUid == request.auth.uid));
+    }
+    function measurementGPS(g) {
+      return g is map && g.keys().hasOnly(['latitude','longitude','precisao'])
+        && g.latitude is number && g.latitude >= -90 && g.latitude <= 90
+        && g.longitude is number && g.longitude >= -180 && g.longitude <= 180
+        && g.precisao is number && g.precisao >= 0;
+    }
+    function measurementCreate() {
+      let d = request.resource.data;
+      let person = get(/databases/$(database)/documents/usuarios/$(d.tecnicoUid)).data;
+      return d.keys().hasOnly(['referencia','cidade','pontoA','pontoB','fibras','estado','tecnicoUid','tecnicoNome','supervisorUid','supervisorNome','status','criadoPorUid','criadoEm','versao'])
+        && d.versao == 1 && d.status == 'EM_CAMPO' && d.criadoPorUid == request.auth.uid && d.criadoEm == request.time
+        && text(d.referencia,100) && text(d.cidade,120) && text(d.pontoA,200) && text(d.pontoB,200) && text(d.fibras,300)
+        && d.estado in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']
+        && person.ativo == true && person.perfil == 'tecnico' && d.tecnicoNome == person.nome
+        && (d.supervisorUid == '' ? (role() == 'admin' && d.supervisorNome == '') :
+          (teamMember(d.tecnicoUid,d.supervisorUid)
+            && get(/databases/$(database)/documents/usuarios/$(d.supervisorUid)).data.ativo == true
+            && get(/databases/$(database)/documents/usuarios/$(d.supervisorUid)).data.perfil == 'supervisor'
+            && d.supervisorNome == get(/databases/$(database)/documents/usuarios/$(d.supervisorUid)).data.nome))
+        && (role() == 'admin' || (role() == 'tecnico' && d.tecnicoUid == request.auth.uid)
+          || (role() == 'supervisor' && d.supervisorUid == request.auth.uid));
+    }
+    function measurementProof(id, key, count) {
+      let proof = get(/databases/$(database)/documents/medicoes/$(id)/comprovantes/$(key)).data;
+      return proof.quantidade == count && proof.criadoEm > request.time - duration.value(14,'d');
+    }
+    function measurementDelivery(id) {
+      let d = request.resource.data;
+      return measurementOwner(id)
+        && d.diff(resource.data).affectedKeys().hasOnly(['status','entregueEm','entreguePorUid','observacao','txGps','rxGps','txFotos','rxFotos','txArquivos','rxArquivos'])
+        && d.status == 'ENTREGUE' && d.entreguePorUid == request.auth.uid && d.entregueEm == request.time
+        && text(d.observacao,3000) && measurementGPS(d.txGps) && measurementGPS(d.rxGps)
+        && measurementProof(id,'txFotos',d.txFotos) && measurementProof(id,'rxFotos',d.rxFotos)
+        && measurementProof(id,'txArquivos',d.txArquivos) && measurementProof(id,'rxArquivos',d.rxArquivos);
+    }
+    function proofPhoto(id, side, index, count) {
+      let photoId = id + '-' + side + '-' + string(index);
+      return index >= count || (get(/databases/$(database)/documents/medicoesFotos/$(photoId)).data.medicaoId == id
+        && get(/databases/$(database)/documents/medicoesFotos/$(photoId)).data.criadoEm > request.time - duration.value(1,'d'));
+    }
+    function proofFile(id, side, index, count) {
+      let fileId = side + '-' + string(index);
+      return index >= count || get(/databases/$(database)/documents/medicoes/$(id)/arquivos/$(fileId)).data.completo == true;
+    }
+    function validMeasurementProof(id, key) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['tipo','lado','quantidade','criadoPorUid','criadoEm'])
+        && d.criadoPorUid == request.auth.uid && d.criadoEm == request.time && d.lado in ['tx','rx'] && d.quantidade is int && d.quantidade >= 1
+        && ((d.tipo == 'fotos' && key == d.lado + 'Fotos' && d.quantidade <= 6
+          && proofPhoto(id,d.lado,0,d.quantidade) && proofPhoto(id,d.lado,1,d.quantidade)
+          && proofPhoto(id,d.lado,2,d.quantidade) && proofPhoto(id,d.lado,3,d.quantidade)
+          && proofPhoto(id,d.lado,4,d.quantidade) && proofPhoto(id,d.lado,5,d.quantidade))
+          || (d.tipo == 'arquivos' && key == d.lado + 'Arquivos' && d.quantidade <= 3
+          && proofFile(id,d.lado,0,d.quantidade) && proofFile(id,d.lado,1,d.quantidade) && proofFile(id,d.lado,2,d.quantidade)));
+    }
+    function measurementChunk(id, file, n, count) {
+      return n >= count || exists(/databases/$(database)/documents/medicoes/$(id)/arquivos/$(file)/partes/$(string(n)));
+    }
+    function measurementPartLength(file, partId) {
+      let length = int(partId) == file.partes - 1 ? file.tamanho - (file.partes - 1) * 524288 : 524288;
+      return int((length + 2) / 3) * 4;
+    }
+    match /medicoes/{measurementId} {
+      allow read: if measurementReader(resource.data);
+      allow create: if active() && role() in ['admin','supervisor','tecnico'] && measurementCreate();
+      allow update: if active() && (measurementDelivery(measurementId)
+        || (role() in ['admin','projetos'] && resource.data.status == 'ENTREGUE' && request.resource.data.status == 'CONFERIDA'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','observacaoProjetos','conferidoPorUid','conferidoPorNome','conferidoEm'])
+          && text(request.resource.data.observacaoProjetos,2000) && request.resource.data.conferidoPorUid == request.auth.uid
+          && request.resource.data.conferidoPorNome == profile().nome && request.resource.data.conferidoEm == request.time));
+      allow delete: if false;
+      match /comprovantes/{key} {
+        allow read: if measurementReader(get(/databases/$(database)/documents/medicoes/$(measurementId)).data);
+        allow create: if measurementOwner(measurementId) && validMeasurementProof(measurementId,key);
+        allow update, delete: if false;
+      }
+      match /arquivos/{fileId} {
+        allow read: if measurementReader(get(/databases/$(database)/documents/medicoes/$(measurementId)).data);
+        allow create: if measurementOwner(measurementId)
+          && request.resource.data.keys().hasOnly(['nome','tamanho','sha256','lado','indice','partes','completo','criadoPorUid','criadoEm'])
+          && request.resource.data.lado in ['tx','rx'] && request.resource.data.indice in [0,1,2]
+          && fileId == request.resource.data.lado + '-' + string(request.resource.data.indice)
+          && text(request.resource.data.nome,180) && request.resource.data.nome.lower().matches('^.+[.](sor|msor|trc|iolm)$')
+          && request.resource.data.tamanho is int && request.resource.data.tamanho > 0 && request.resource.data.tamanho <= 2097152
+          && request.resource.data.partes in [1,2,3,4]
+          && request.resource.data.tamanho > (request.resource.data.partes - 1) * 524288 && request.resource.data.tamanho <= request.resource.data.partes * 524288
+          && request.resource.data.sha256.matches('^[a-f0-9]{64}$') && request.resource.data.completo == false
+          && request.resource.data.criadoPorUid == request.auth.uid && request.resource.data.criadoEm == request.time;
+        allow update: if measurementOwner(measurementId) && resource.data.completo == false && request.resource.data.completo == true
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completo'])
+          && measurementChunk(measurementId,fileId,0,resource.data.partes) && measurementChunk(measurementId,fileId,1,resource.data.partes)
+          && measurementChunk(measurementId,fileId,2,resource.data.partes) && measurementChunk(measurementId,fileId,3,resource.data.partes);
+        allow delete: if false;
+        match /partes/{partId} {
+          allow read: if measurementReader(get(/databases/$(database)/documents/medicoes/$(measurementId)).data);
+          allow create: if measurementOwner(measurementId)
+            && get(/databases/$(database)/documents/medicoes/$(measurementId)/arquivos/$(fileId)).data.completo == false
+            && partId in ['0','1','2','3'] && int(partId) < get(/databases/$(database)/documents/medicoes/$(measurementId)/arquivos/$(fileId)).data.partes
+            && request.resource.data.keys().hasOnly(['dados']) && text(request.resource.data.dados,699052)
+            && request.resource.data.dados.size() == measurementPartLength(get(/databases/$(database)/documents/medicoes/$(measurementId)/arquivos/$(fileId)).data,partId)
+            && request.resource.data.dados.matches('^[A-Za-z0-9+/]+={0,2}$');
+          allow update, delete: if false;
+        }
+      }
+    }
+    match /medicoesFotos/{photoId} {
+      allow get: if (active() && role() in ['admin','tecnico'] && !exists(/databases/$(database)/documents/medicoesFotos/$(photoId))) || resource.data.criadoEm > request.time - duration.value(15,'d')
+        && measurementReader(get(/databases/$(database)/documents/medicoes/$(resource.data.medicaoId)).data);
+      allow list: if false;
+      allow create: if measurementOwner(request.resource.data.medicaoId)
+        && request.resource.data.keys().hasOnly(['medicaoId','lado','indice','criadoPorUid','criadoEm','dadosBase64'])
+        && request.resource.data.lado in ['tx','rx'] && request.resource.data.indice in [0,1,2,3,4,5]
+        && photoId == request.resource.data.medicaoId + '-' + request.resource.data.lado + '-' + string(request.resource.data.indice)
+        && request.resource.data.criadoPorUid == request.auth.uid && request.resource.data.criadoEm == request.time
+        && text(request.resource.data.dadosBase64,700000) && request.resource.data.dadosBase64.matches('^data:image/jpeg;base64,.*');
+      allow update, delete: if false;
     }
 
     match /{document=**} {
