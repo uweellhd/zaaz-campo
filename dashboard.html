@@ -102,10 +102,16 @@
     </section>
 
     <section id="viewProjetos" class="view-panel" style="display:none;">
-      <p class="section-eyebrow">Projetos</p>
-      <div class="measure-heading"><h3 class="panel-title">Projetos · caixas para OZmaps</h3><button type="button" class="btn-sec-sm" onclick="alternarAba('viewMedicoes')">Medições OTDR · conferir entregas →</button></div>
-      <p class="panel-desc">Somente os dados da etapa 4: ID, OS, localizações, fotos das caixas e serviço executado.</p>
-      <div id="projetosResultados" class="incidents-grid-list"><p>Carregando entregas...</p></div>
+      <h3 class="panel-title">Projetos</h3>
+      <nav class="tech-service-switcher" aria-label="Entregas de Projetos">
+        <button type="button" class="selected" aria-pressed="true" onclick="alternarServicoProjetos('rompimentos')" data-project-service="rompimentos">Rompimentos</button>
+        <button type="button" aria-pressed="false" onclick="alternarServicoProjetos('medicoes')" data-project-service="medicoes">Medições</button>
+      </nav>
+      <div id="projetosRompimentosArea">
+        <p class="panel-desc">Somente os dados da etapa 4: ID, OS, localizações, fotos das caixas e serviço executado.</p>
+        <div id="projetosResultados" class="incidents-grid-list"><p>Carregando entregas...</p></div>
+      </div>
+      <div id="projetosMedicoesArea" hidden></div>
     </section>
 
     <section id="viewConta" class="view-panel" style="display:none;">

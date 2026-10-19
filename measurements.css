@@ -91,3 +91,12 @@
 .measure-gps { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .measure-gps p { flex:1 1 145px; min-width:0; margin:0; font-size:12px; overflow-wrap:anywhere; }
 .measure-gps button,.measure-file > button { flex-shrink:0; min-height:44px; white-space:nowrap; padding:8px 12px; }
+
+/* O mesmo cartão técnico atende os dois serviços. */
+.field-task-card { width:100%; text-align:left; color:var(--text-main); font:inherit; cursor:pointer; }
+.measure-feedback-top:empty { display:none; }
+.measure-workspace.measure-editing > .measure-queue-description { display:none; }
+button.measure-kpi { text-align:left; color:var(--text-main); font:inherit; cursor:pointer; }
+button.measure-kpi[aria-pressed=true] { border-color:var(--zaaz-blue); }
+button.measure-kpi:hover { border-color:var(--zaaz-blue); }
+button.measure-kpi:focus-visible { outline:2px solid var(--zaaz-blue); outline-offset:3px; }

@@ -99,3 +99,16 @@ body { -webkit-font-smoothing:antialiased; }
 .dashboard-body #viewConta #contaEmail { border-top:1px solid var(--border-color); padding-top:24px; max-width:480px; }
 .dashboard-body #viewConta #contaEmail[hidden] { display:none; }
 .dashboard-body #viewConta #senhaRequisitos { margin-top:6px; }
+
+/* A rolagem ocupa sua faixa abaixo dos botões, sem encobrir a navegação. */
+.dashboard-body .nav-menu { overflow-y:hidden; padding-bottom:10px; scrollbar-width:thin; }
+.dashboard-body .nav-menu::-webkit-scrollbar { height:4px; }
+.dashboard-body .nav-menu::-webkit-scrollbar-track { background:transparent; }
+.dashboard-body .nav-menu::-webkit-scrollbar-thumb { background:var(--border-color); border-radius:4px; }
+@media(max-width:700px){
+ .dashboard-body .top-nav { padding:10px 16px; gap:8px; }
+ .dashboard-body .nav-brand { width:100%; min-width:0; text-align:center; }
+ .dashboard-body .brand-fiber { width:calc(100% - 4px); margin:6px auto; }
+ .dashboard-body .brand-fiber::after { left:auto; right:0; }
+ .dashboard-body .nav-menu { padding-top:8px; padding-bottom:10px; }
+}
