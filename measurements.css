@@ -65,3 +65,29 @@
 .dashboard-body .measure-actions > button { display:flex; align-items:center; justify-content:center; width:100%; min-width:0; min-height:44px; padding:10px 12px; margin:0; border:1px solid transparent; font-size:14px; line-height:1.4; white-space:nowrap; }
 .dashboard-body .measure-heading { align-items:flex-start; row-gap:22px; }
 @media(max-width:640px){.dashboard-body .measure-actions { width:100%; }.dashboard-body .measure-toolbar label { flex-basis:100%; }}
+
+/* Área de execução: duas filas, sem os controles administrativos. */
+.dashboard-body #adminNavMenu[hidden],#techRompimentosArea[hidden],#techMedicoesArea[hidden] { display:none; }
+.tech-service-switcher { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; width:min(100%,460px); margin:20px 0; padding:5px; border:1px solid var(--border-color); border-radius:9px; background:var(--input-bg); }
+.tech-service-switcher button { min-width:0; min-height:44px; padding:10px 12px; border:0; border-radius:6px; background:transparent; color:var(--text-main); font-size:14px; font-weight:600; cursor:pointer; }
+.tech-service-switcher button.selected { background:var(--zaaz-blue); color:#fff; }
+.tech-service-switcher button:focus-visible { outline:2px solid var(--zaaz-blue); outline-offset:2px; }
+.measure-workspace .measure-heading .section-eyebrow { display:none; }
+.measure-workspace .measure-heading .panel-title { font-size:20px; }
+.measure-workspace .measure-heading { margin-bottom:8px; }
+.measure-workspace.measure-editing > :is(.measure-heading,.measure-feedback-top,.measure-queue,.measure-more) { display:none; }
+.dashboard-body :is(#viewMedicoes,#techMedicoesArea) .measure-form.field-card { width:100%; max-width:860px; margin:16px auto; }
+.measure-form .tech-flow-header { margin-bottom:0; }
+.measure-form .tech-flow-header h4 { margin:0; min-width:0; overflow-wrap:anywhere; font-size:16px; }
+.measure-form .tech-flow-header button { min-height:44px; flex-shrink:0; }
+.measure-workspace .measure-direction { padding:16px; gap:12px; }
+.measure-workspace .measure-direction > .btn-sec-sm { justify-self:start; min-height:44px; }
+@media(max-width:640px){.measure-workspace .measure-form.field-card { padding:14px; }.measure-form .tech-flow-header { flex-wrap:wrap; }.measure-form .photo-gallery { grid-template-columns:repeat(2,minmax(0,1fr)); }.measure-form input[type=file] { padding:10px; font-size:13px; }}
+
+.dashboard-body #techMedicoesArea .measure-form.field-card { padding:0; border:0; background:transparent; }
+.dashboard-body .measure-form.field-card .btn-sec-sm { margin:0; }
+.measure-form .tech-flow-header { flex-direction:row; flex-wrap:wrap; align-items:center; gap:12px; }
+.measure-form .tech-flow-header > button { width:auto; }
+.measure-gps { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.measure-gps p { flex:1 1 145px; min-width:0; margin:0; font-size:12px; overflow-wrap:anywhere; }
+.measure-gps button,.measure-file > button { flex-shrink:0; min-height:44px; white-space:nowrap; padding:8px 12px; }

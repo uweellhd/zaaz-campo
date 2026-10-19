@@ -35,7 +35,8 @@ let estadoSalvo = '';
 let usuarioUid = '';
 const ouvintes = new Map();
 let saindo = false;
-let medicoes;
+let medicoes, medicoesTecnico;
+let servicoTecnico = 'rompimentos';
 const abasPermitidas = {
   admin: ['viewMedicoes', 'viewGerente', 'viewNoc', 'viewSac', 'viewTech', 'viewSupervisor', 'viewProjetos', 'viewConta', 'viewAcessos'],
   gerente: ['viewMedicoes', 'viewGerente'],
@@ -198,10 +199,11 @@ function configurarTelasPorPerfil() {
   const btnSupervisor = document.getElementById('btnTabSupervisor');
   const btnProjetos = document.getElementById('btnTabProjetos');
   const btnMedicoes = document.getElementById('btnTabMedicoes');
-  if(btnMedicoes)btnMedicoes.style.display = ['admin','tecnico','supervisor'].includes(perfilSalvo) ? 'inline-block' : 'none';
+  if(btnMedicoes)btnMedicoes.style.display = ['admin','supervisor'].includes(perfilSalvo) ? 'inline-block' : 'none';
   // Oculta todas as abas inicialmente
   [btnGerente, btnNoc, btnSac, btnTech, btnConta, btnAcessos, btnSupervisor, btnProjetos].forEach(btn => { if (btn) btn.style.display = 'none'; });
   if (btnConta) btnConta.style.display = 'block';
+  el('adminNavMenu').hidden = perfilSalvo === 'tecnico';
   el('contaEmail').hidden = perfilSalvo !== 'admin';
   el('contaEmailAtual').textContent = auth.currentUser?.email || '';
   document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
@@ -236,7 +238,16 @@ function configurarTelasPorPerfil() {
   }
 }
 
+window.alternarServicoTecnico = servico => {
+  if(!['admin','tecnico'].includes(perfilSalvo))return;
+  servicoTecnico = servico === 'medicoes' ? 'medicoes' : 'rompimentos';
+  el('techRompimentosArea').hidden = servicoTecnico !== 'rompimentos';
+  el('techMedicoesArea').hidden = servicoTecnico !== 'medicoes';
+  document.querySelectorAll('[data-tech-service]').forEach(b=>{const selected=b.dataset.techService===servicoTecnico;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected))});
+  if(servicoTecnico==='medicoes')medicoesTecnico?.abrir();else carregarListaTecnico();
+};
 window.alternarAba = (idAba, contexto = '') => {
+  if(perfilSalvo==='tecnico' && idAba==='viewMedicoes'){idAba='viewTech';contexto='medicoes'}
   if (idAba !== 'viewConta' && !(abasPermitidas[perfilSalvo] || []).includes(idAba)) return;
   const conta = document.getElementById('accountMenu');
   if (conta) conta.open = false;
@@ -263,7 +274,7 @@ window.alternarAba = (idAba, contexto = '') => {
   } else if (idAba === 'viewTech') {
     const b = document.getElementById('btnTabTech');
     if (b) b.classList.add('active');
-    carregarListaTecnico();
+    window.alternarServicoTecnico(contexto || servicoTecnico);
   } else if (idAba === 'viewConta') {
     document.getElementById('btnTabConta')?.classList.add('active');
   } else if (idAba === 'viewAcessos') {
@@ -1632,6 +1643,7 @@ window.exportarRelatorioCSV = () => {
 window.sair = async () => {
   saindo = true;
   medicoes?.fechar();
+  medicoesTecnico?.fechar();
   for (const cancelar of ouvintes.values()) cancelar();
   ouvintes.clear();
   try {
@@ -1658,7 +1670,9 @@ onAuthStateChanged(auth, async (usuario) => {
     perfilSalvo = perfil.perfil;
     estadoSalvo = perfil.estado;
     if (badgeElem) badgeElem.textContent = usuarioSalvo;
-    if(['admin','diretor','gerente','tecnico','supervisor','projetos'].includes(perfilSalvo))medicoes=iniciarMedicoes({servicos:{collection,doc,getDoc,getDocs,setDoc,updateDoc,query,where,serverTimestamp,runTransaction},db,uid:usuarioUid,nome:usuarioSalvo,perfil:perfilSalvo,estado:estadoSalvo,ouvir:ouvirUmaVez,marcarFoto:comprimirEMarcarDagua,obterGPS:obterGPSFoto});
+    const contextoMedicoes={servicos:{collection,doc,getDoc,getDocs,setDoc,updateDoc,query,where,serverTimestamp,runTransaction},db,uid:usuarioUid,nome:usuarioSalvo,perfil:perfilSalvo,estado:estadoSalvo,ouvir:ouvirUmaVez,marcarFoto:comprimirEMarcarDagua,obterGPS:obterGPSFoto};
+    if(['admin','tecnico'].includes(perfilSalvo))medicoesTecnico=iniciarMedicoes({...contextoMedicoes,perfil:'tecnico',root:el('techMedicoesArea'),ouvir:(key,...args)=>ouvirUmaVez('campo-'+key,...args),navegar:()=>window.alternarAba('viewTech','medicoes')});
+    if(['admin','diretor','gerente','supervisor','projetos'].includes(perfilSalvo))medicoes=iniciarMedicoes({...contextoMedicoes,abrirColetaPropria:async id=>{window.alternarAba('viewTech','medicoes');await medicoesTecnico.abrirColeta(id)}});
     configurarTelasPorPerfil();
     ouvirUmaVez('meuPerfil', doc(db, 'usuarios', usuarioUid), snapshot => {
       if (!snapshot.exists() || snapshot.data().ativo !== true

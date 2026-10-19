@@ -386,3 +386,22 @@ test('exceção de teste é somente para o próprio admin ativo; supervisor não
   await assertFails(updateDoc(doc(ctx('adminInativo'),'medicoes','m'),{...self,tecnicoUid:'adminInativo',tecnicoNome:'Admin inativo',atribuidoPorUid:'adminInativo',atribuidoPorNome:'Admin inativo'}));
   await assertSucceeds(updateDoc(doc(db,'medicoes','m'),self));
 });
+
+test('PDF de OTDR é aceito sem nativo extra, preservado e entregue com as mesmas regras de acesso',async()=>{
+  await seedMedicao();const db=ctx('tecnicoA');
+  for(const side of ['tx','rx']){
+    await assertSucceeds(setDoc(doc(db,'medicoesFotos',`m-${side}-0`),{medicaoId:'m',lado:side,indice:0,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp(),dadosBase64:'data:image/jpeg;base64,QUJD'}));
+    await assertSucceeds(setDoc(doc(db,'medicoes','m','comprovantes',`${side}Fotos`),{tipo:'fotos',lado:side,quantidade:1,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()}));
+    const ref=doc(db,'medicoes','m','arquivos',`${side}-0`);
+    const meta={nome:'POP-PNM-DIO-03-FO-04.msor.pdf',tamanho:3,sha256:'a'.repeat(64),lado:side,indice:0,partes:1,completo:false,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()};
+    await assertFails(setDoc(ref,{...meta,nome:'relatorio.pdf.exe'}));
+    await assertSucceeds(setDoc(ref,meta));
+    await assertFails(getDoc(doc(ctx('projetos'),'medicoes','m','arquivos',`${side}-0`)));
+    await assertSucceeds(setDoc(doc(db,'medicoes','m','arquivos',`${side}-0`,'partes','0'),{dados:'QUJD'}));
+    await assertSucceeds(updateDoc(ref,{completo:true}));
+    await assertSucceeds(setDoc(doc(db,'medicoes','m','comprovantes',`${side}Arquivos`),{tipo:'arquivos',lado:side,quantidade:1,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()}));
+  }
+  await assertSucceeds(updateDoc(doc(db,'medicoes','m'),entregarMedicao()));
+  await assertSucceeds(getDoc(doc(ctx('projetos'),'medicoes','m','arquivos','tx-0')));
+  await assertFails(getDoc(doc(ctx('tecnicoB'),'medicoes','m','arquivos','tx-0')));
+});
