@@ -161,3 +161,16 @@ A divisão reutiliza o formulário técnico, indicador de etapas, confirmação,
 - Fotos expiram **15 dias após seu próprio envio**. Se houver intervalo maior entre POPs, as fotos do POP 1 podem já estar indisponíveis quando o POP 2 terminar. Isso não bloqueia a conclusão: histórico, GPS, descrições e arquivos permanecem. Nenhuma mudança de retenção foi aplicada.
 - O acompanhamento ao vivo ocorre após o técnico confirmar e concluir o envio da etapa com internet. Rascunhos locais e fotos ainda não enviadas não são visíveis aos outros setores. A reconexão exige retomar o envio; não há transmissão silenciosa automática.
 - Validação: 31 testes unitários e 42 testes de regras. Incluem bloqueio de recuo/pulo, restrições por perfil, provas completas por POP, imutabilidade do primeiro envio e conclusão 30 dias depois. Navegador: celular, falhas/retomadas dos dois POPs, cancelamento, observador já aberto recebendo POP 1, saída/retorno à rota, GPS distintos, download íntegro, PDF parcial, entrada em Projetos somente após POP 2 e regressão do laboratório de rompimentos.
+
+
+## Padronização de apresentação — 19/10/2026
+
+Técnico e Projetos reutilizam agora `executive-switcher` e `executive-switch`, o mesmo seletor da Diretoria: centralizado antes do título, duas opções na mesma linha, mesmos tamanhos, estado selecionado e foco por teclado. O seletor técnico separado foi removido do CSS; os comandos e as filas permanecem os mesmos.
+
+Os filtros de Medições reutilizam `executive-filterbar`, `report-filters` e `executive-actions` dos Rompimentos. Datas, estado e situação ficam no primeiro grupo; a busca ocupa a largura disponível. Limpar filtros e Relatório PDF ficam abaixo dos campos, com mensagem de acompanhamento no próprio bloco. Os indicadores reutilizam também `kpi-card`, `kpi-title` e `kpi-value` dos cartões existentes. Os mesmos filtros continuam alimentando lista, indicadores e PDF; a limpeza também remove o filtro de situação escolhido pelos indicadores.
+
+A tipografia mantém a família de fonte da aplicação, com peso normal nos valores dos campos, títulos e rótulos com destaque moderado, números alinhados e texto legível no celular. Botões mantêm área mínima de toque e as ações quebram em linhas quando necessário, sem quebrar suas legendas. O tema escuro usa o azul sólido já adotado para ações selecionadas. Os gráficos respeitam a largura dos cartões mesmo antes de carregar a biblioteca.
+
+Conferência em navegador: seletores com medidas e estilos iguais em Diretoria, Projetos e Técnico; temas Claro, Escuro e ZAAZ; larguras de 320, 390 e 1366 px; filtros, limpeza e indicadores sincronizados; nenhuma ação de escrita na visão executiva. Regressão da coleta POP 1/POP 2 e do laboratório de rompimentos. Esta alteração não modifica regras de acesso, dados, etapas ou retenção de fotos.
+
+A regressão encontrou e corrigiu uma referência ausente à tabela de situações no gerador de PDF de Medições. A exportação foi novamente conferida com o POP 1 enviado e POP 2 pendente.

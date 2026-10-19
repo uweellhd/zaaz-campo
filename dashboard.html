@@ -102,11 +102,11 @@
     </section>
 
     <section id="viewProjetos" class="view-panel" style="display:none;">
-      <h3 class="panel-title">Projetos</h3>
-      <nav class="tech-service-switcher" aria-label="Entregas de Projetos">
-        <button type="button" class="selected" aria-pressed="true" onclick="alternarServicoProjetos('rompimentos')" data-project-service="rompimentos">Rompimentos</button>
-        <button type="button" aria-pressed="false" onclick="alternarServicoProjetos('medicoes')" data-project-service="medicoes">Medições</button>
+      <nav class="executive-switcher" aria-label="Entregas de Projetos">
+        <button type="button" class="executive-switch selected" aria-pressed="true" onclick="alternarServicoProjetos('rompimentos')" data-project-service="rompimentos">Rompimentos</button>
+        <button type="button" class="executive-switch" aria-pressed="false" onclick="alternarServicoProjetos('medicoes')" data-project-service="medicoes">Medições</button>
       </nav>
+      <h3 class="panel-title">Projetos</h3>
       <div id="projetosRompimentosArea">
         <p class="panel-desc">Somente os dados da etapa 4: ID, OS, localizações, fotos das caixas e serviço executado.</p>
         <div id="projetosResultados" class="incidents-grid-list"><p>Carregando entregas...</p></div>
@@ -235,11 +235,11 @@
 
     <!-- 4. PAINEL EXCLUSIVO DO TÉCNICO DE CAMPO -->
     <section id="viewTech" class="view-panel" style="display:none;">
-      <h3 class="panel-title">Atendimento em campo</h3>
-      <nav class="tech-service-switcher" aria-label="Serviços técnicos">
-        <button type="button" class="selected" aria-pressed="true" onclick="alternarServicoTecnico('rompimentos')" data-tech-service="rompimentos">Rompimentos</button>
-        <button type="button" aria-pressed="false" onclick="alternarServicoTecnico('medicoes')" data-tech-service="medicoes">Medições</button>
+      <nav class="executive-switcher" aria-label="Serviços técnicos">
+        <button type="button" class="executive-switch selected" aria-pressed="true" onclick="alternarServicoTecnico('rompimentos')" data-tech-service="rompimentos">Rompimentos</button>
+        <button type="button" class="executive-switch" aria-pressed="false" onclick="alternarServicoTecnico('medicoes')" data-tech-service="medicoes">Medições</button>
       </nav>
+      <h3 class="panel-title">Atendimento em campo</h3>
       <div id="techRompimentosArea">
 
       <div id="techSelectArea">

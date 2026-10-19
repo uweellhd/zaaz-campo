@@ -112,3 +112,21 @@ body { -webkit-font-smoothing:antialiased; }
  .dashboard-body .brand-fiber::after { left:auto; right:0; }
  .dashboard-body .nav-menu { padding-top:8px; padding-bottom:10px; }
 }
+
+/* Uma hierarquia tipográfica para consulta, distribuição e execução. */
+.dashboard-body :is(input,select,textarea) { font-family:var(--interface-font); font-weight:400; line-height:1.5; }
+.dashboard-body :is(h3,h4,h5) { font-weight:600; }
+.dashboard-body .panel-desc { font-size:14px; line-height:1.6; }
+.dashboard-body :is(.project-list-card,.field-task-card) { font-size:14px; line-height:1.55; }
+.dashboard-body :is(.project-list-card,.field-task-card) > strong { font-size:16px; font-weight:600; line-height:1.4; }
+.dashboard-body :is(.project-list-card,.field-task-card) small { font-size:12px; line-height:1.55; }
+.dashboard-body .report-filters label { font-size:12px; color:var(--text-muted); }
+.dashboard-body .report-filters :is(input,select) { min-height:44px; }
+.dashboard-body .report-filters input::placeholder { font-weight:400; }
+@media(max-width:640px){
+ .dashboard-body :is(input:not([type=file]):not([type=checkbox]):not([type=radio]),select,textarea) { font-size:16px; }
+}
+
+.dashboard-body .chart-card canvas { max-width:100%; }
+
+.dashboard-body .executive-actions button { min-height:44px; white-space:nowrap; }
