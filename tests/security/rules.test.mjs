@@ -255,8 +255,8 @@ const medicao = (extra={}) => ({referencia:'OTDR-TESTE',cidade:'São Paulo',pont
 const gpsMedicao={latitude:-23.1,longitude:-46.2,precisao:5};
 const entregarMedicao = (extra={})=>({status:'ENTREGUE',entregueEm:serverTimestamp(),entreguePorUid:'tecnicoA',observacao:'Medição executada.',txGps:gpsMedicao,rxGps:gpsMedicao,txFotos:1,rxFotos:1,txArquivos:1,rxArquivos:1,...extra});
 async function seedMedicao(extra={}){await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'medicoes','m'),medicao(extra)))}
-async function subirProvas(db,{photos=1,files=1,chunks=1,uid='tecnicoA'}={}){
-  for(const side of ['tx','rx']){
+async function subirProvas(db,{photos=1,files=1,chunks=1,uid='tecnicoA',sides=['tx','rx']}={}){
+  for(const side of sides){
     for(let n=0;n<photos;n++)await assertSucceeds(setDoc(doc(db,'medicoesFotos',`m-${side}-${n}`),{medicaoId:'m',lado:side,indice:n,criadoPorUid:uid,criadoEm:serverTimestamp(),dadosBase64:'data:image/jpeg;base64,QUJD'}));
     await assertSucceeds(setDoc(doc(db,'medicoes','m','comprovantes',`${side}Fotos`),{tipo:'fotos',lado:side,quantidade:photos,criadoPorUid:uid,criadoEm:serverTimestamp()}));
     for(let n=0;n<files;n++){
@@ -268,7 +268,13 @@ async function subirProvas(db,{photos=1,files=1,chunks=1,uid='tecnicoA'}={}){
     await assertSucceeds(setDoc(doc(db,'medicoes','m','comprovantes',`${side}Arquivos`),{tipo:'arquivos',lado:side,quantidade:files,criadoPorUid:uid,criadoEm:serverTimestamp()}));
   }
 }
-const medicaoAberta = (extra={}) => medicao({status:'AGUARDANDO_TECNICO',tecnicoUid:'',tecnicoNome:'',fibras:'',criadoPorUid:'admin',...extra});
+const medicaoAberta = (extra={}) => medicao({versao:2,status:'AGUARDANDO_TECNICO',tecnicoUid:'',tecnicoNome:'',fibras:'',criadoPorUid:'admin',...extra});
+const pop1Medicao=(uid='tecnicoA',extra={})=>({etapaConcluida:1,fluxoVersao:2,pop1EnviadoEm:serverTimestamp(),pop1PorUid:uid,pop1PorNome:uid,pop1Observacao:'Medição do primeiro POP.',fibrasPop1:'FO 04',txGps:gpsMedicao,txFotos:1,txArquivos:1,...extra});
+const pop2Medicao=(uid='tecnicoA',extra={})=>({status:'ENTREGUE',etapaConcluida:2,entregueEm:serverTimestamp(),entreguePorUid:uid,entreguePorNome:uid,observacao:'Medição do segundo POP.',fibrasPop2:'FO 04 e 05',rxGps:gpsMedicao,rxFotos:1,rxArquivos:1,...extra});
+async function enviarDuasEtapas(db,uid='tecnicoA'){
+  await subirProvas(db,{uid,sides:['tx']});await assertSucceeds(updateDoc(doc(db,'medicoes','m'),pop1Medicao(uid)));
+  await subirProvas(db,{uid,sides:['rx']});await assertSucceeds(updateDoc(doc(db,'medicoes','m'),pop2Medicao(uid)));
+}
 const atribuicaoMedicao = (extra={})=>({status:'EM_CAMPO',tecnicoUid:'tecnicoA',tecnicoNome:'tecnicoA',atribuidoEm:serverTimestamp(),atribuidoPorUid:'supervisorA',atribuidoPorNome:'supervisorA',...extra});
 test('medição: abertura sem técnico e sem fibras, vinculada ao supervisor correto',async()=>{
   await assertSucceeds(setDoc(doc(ctx('admin'),'medicoes','m'),medicaoAberta()));
@@ -350,8 +356,7 @@ test('admin pode ser responsável por sua equipe e medição sem trocar o perfil
   await assertSucceeds(setDoc(ref,medicaoAberta({supervisorUid:'admin',supervisorNome:'admin'})));
   await assertSucceeds(updateDoc(ref,atribuicaoMedicao({atribuidoPorUid:'admin',atribuidoPorNome:'admin'})));
   await assertSucceeds(getDoc(doc(ctx('tecnicoA'),'medicoes','m')));
-  await subirProvas(ctx('tecnicoA'));
-  await assertSucceeds(updateDoc(doc(ctx('tecnicoA'),'medicoes','m'),entregarMedicao()));
+  await enviarDuasEtapas(ctx('tecnicoA'));
   await assertSucceeds(updateDoc(ref,{status:'CONFERIDA',observacaoProjetos:'Teste de conferência como administrador.',conferidoPorUid:'admin',conferidoPorNome:'admin',conferidoEm:serverTimestamp()}));
   assert.equal((await getDoc(doc(admin,'usuarios','admin'))).data().perfil,'admin');
 });
@@ -366,8 +371,7 @@ test('admin pode se alocar como técnico, coletar e conferir sem alterar equipe 
   const db=ctx('admin'),ref=doc(db,'medicoes','m');
   await assertSucceeds(setDoc(ref,medicaoAberta({supervisorUid:'admin',supervisorNome:'admin'})));
   await assertSucceeds(updateDoc(ref,atribuicaoMedicao({tecnicoUid:'admin',tecnicoNome:'admin',atribuidoPorUid:'admin',atribuidoPorNome:'admin'})));
-  await subirProvas(db,{uid:'admin'});
-  await assertSucceeds(updateDoc(ref,entregarMedicao({entreguePorUid:'admin'})));
+  await enviarDuasEtapas(db,'admin');
   await assertSucceeds(getDoc(doc(ctx('projetos'),'medicoes','m')));
   await assertSucceeds(updateDoc(ref,{status:'CONFERIDA',observacaoProjetos:'Conferência do teste individual.',conferidoPorUid:'admin',conferidoPorNome:'admin',conferidoEm:serverTimestamp()}));
   assert.equal((await getDoc(doc(db,'usuarios','admin'))).data().perfil,'admin');
@@ -416,7 +420,7 @@ test('coordenação cria demandas para supervisor ativo, sem assumir distribuiç
   await assertFails(setDoc(doc(db,'medicoes','invalida'),medicaoAberta({criadoPorUid:'coordenador',supervisorUid:'tecnicoA',supervisorNome:'tecnicoA'})));
   await assertFails(updateDoc(doc(db,'medicoes','m'),atribuicaoMedicao({atribuidoPorUid:'coordenador',atribuidoPorNome:'coordenador'})));
   await assertSucceeds(updateDoc(doc(ctx('supervisorA'),'medicoes','m'),atribuicaoMedicao()));
-  await subirProvas(ctx('tecnicoA'));await assertSucceeds(updateDoc(doc(ctx('tecnicoA'),'medicoes','m'),entregarMedicao()));
+  await enviarDuasEtapas(ctx('tecnicoA'));
   await assertSucceeds(getDoc(doc(db,'medicoes','m')));
   await assertFails(updateDoc(doc(db,'medicoes','m'),{status:'CONFERIDA',observacaoProjetos:'Tentativa de conferir.',conferidoPorUid:'coordenador',conferidoPorNome:'coordenador',conferidoEm:serverTimestamp()}));
   await assertFails(getDoc(doc(db,'incidentes','a')));
@@ -425,4 +429,44 @@ test('coordenação cria demandas para supervisor ativo, sem assumir distribuiç
 test('somente admin aprova ou configura o perfil de coordenador',async()=>{
   await assertFails(updateDoc(doc(ctx('supervisorA'),'usuarios','tecnicoB'),{perfil:'coordenador'}));
   await assertSucceeds(updateDoc(doc(ctx('admin'),'usuarios','tecnicoB'),{perfil:'coordenador'}));
+});
+
+
+test('POP 1 é obrigatório, transmite fotos e localização sem encerrar a OS nem liberar Projetos',async()=>{
+  await seedMedicao({versao:2});const db=ctx('tecnicoA'),ref=doc(db,'medicoes','m');
+  await assertFails(updateDoc(ref,pop2Medicao()));await assertFails(updateDoc(ref,entregarMedicao()));
+  await assertFails(updateDoc(ref,pop1Medicao()));
+  await assertFails(setDoc(doc(db,'medicoesFotos','m-rx-0'),{medicaoId:'m',lado:'rx',indice:0,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp(),dadosBase64:'data:image/jpeg;base64,QUJD'}));
+  await subirProvas(db,{sides:['tx']});
+  for(const uid of ['supervisorA','coordenador','diretor','tecnicoB'])await assertFails(updateDoc(doc(ctx(uid),'medicoes','m'),pop1Medicao(uid)));
+  await assertFails(updateDoc(ref,pop1Medicao('tecnicoA',{pop1PorNome:'Outro técnico'})));
+  await assertSucceeds(updateDoc(ref,pop1Medicao()));assert.equal((await getDoc(ref)).data().status,'EM_CAMPO');
+  for(const uid of ['supervisorA','diretor','coordenador']){await assertSucceeds(getDoc(doc(ctx(uid),'medicoes','m')));await assertSucceeds(getDoc(doc(ctx(uid),'medicoesFotos','m-tx-0')))}
+  await assertFails(getDoc(doc(ctx('projetos'),'medicoes','m')));
+  await assertSucceeds(getDocs(query(collection(db,'medicoes'),where('tecnicoUid','==','tecnicoA'))));
+});
+test('POP 1 enviado é imutável; POP 2 requer evidências próprias e encaminha para Projetos',async()=>{
+  await seedMedicao({versao:2});const db=ctx('tecnicoA'),ref=doc(db,'medicoes','m');await subirProvas(db,{sides:['tx']});await updateDoc(ref,pop1Medicao());
+  await assertFails(updateDoc(ref,{pop1Observacao:'Reescrita'}));await assertFails(updateDoc(ref,pop1Medicao()));
+  await assertFails(setDoc(doc(db,'medicoesFotos','m-tx-1'),{medicaoId:'m',lado:'tx',indice:1,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp(),dadosBase64:'data:image/jpeg;base64,QUJD'}));
+  await assertFails(updateDoc(ref,pop2Medicao()));await subirProvas(db,{sides:['rx']});
+  await assertFails(updateDoc(ref,pop2Medicao('tecnicoA',{txGps:{latitude:0,longitude:0,precisao:1}})));
+  await assertSucceeds(updateDoc(ref,pop2Medicao()));await assertSucceeds(getDoc(doc(ctx('projetos'),'medicoes','m')));
+  await assertFails(updateDoc(ref,{observacao:'Reescrita após entrega'}));
+});
+test('espera de mais de 15 dias entre POPs mantém histórico e permite concluir sem reenviar POP 1',async()=>{
+  await seedMedicao({versao:2});const db=ctx('tecnicoA'),ref=doc(db,'medicoes','m');await subirProvas(db,{sides:['tx']});await updateDoc(ref,pop1Medicao());
+  await env.withSecurityRulesDisabled(async c=>{const d=c.firestore(),old=Timestamp.fromMillis(Date.now()-30*86400000);await updateDoc(doc(d,'medicoes','m'),{pop1EnviadoEm:old});for(const key of ['txFotos','txArquivos'])await updateDoc(doc(d,'medicoes','m','comprovantes',key),{criadoEm:old});await updateDoc(doc(d,'medicoesFotos','m-tx-0'),{criadoEm:old})});
+  await assertFails(getDoc(doc(ctx('diretor'),'medicoesFotos','m-tx-0')));await assertSucceeds(getDoc(doc(ctx('supervisorA'),'medicoes','m')));
+  await subirProvas(db,{sides:['rx']});await assertSucceeds(updateDoc(ref,pop2Medicao()));assert.equal((await getDoc(ref)).data().txFotos,1);
+});
+test('nova abertura exige versão de duas etapas; registro legado pode avançar sem migração destrutiva',async()=>{
+  await assertFails(setDoc(doc(ctx('admin'),'medicoes','antiga'),medicaoAberta({versao:1})));
+  await seedMedicao({versao:1});const db=ctx('tecnicoA');await subirProvas(db,{sides:['tx']});await assertSucceeds(updateDoc(doc(db,'medicoes','m'),pop1Medicao()));await subirProvas(db,{sides:['rx']});await assertSucceeds(updateDoc(doc(db,'medicoes','m'),pop2Medicao()));
+});
+
+test('fluxo POP aceita o limite real de seis fotos e três arquivos por etapa',async()=>{
+ await seedMedicao({versao:2});const db=ctx('tecnicoA'),ref=doc(db,'medicoes','m');
+ await subirProvas(db,{sides:['tx'],photos:6,files:3,chunks:4});await assertSucceeds(updateDoc(ref,pop1Medicao('tecnicoA',{txFotos:6,txArquivos:3})));
+ await subirProvas(db,{sides:['rx'],photos:6,files:3,chunks:4});await assertSucceeds(updateDoc(ref,pop2Medicao('tecnicoA',{rxFotos:6,rxArquivos:3})));
 });
