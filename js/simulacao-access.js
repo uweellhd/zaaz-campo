@@ -22,10 +22,10 @@ onAuthStateChanged(getAuth(app), async usuario => {
     iniciado = true;
     const tema = localStorage.getItem('user_theme');
     if (['theme-light','theme-dark','theme-zaaz'].includes(tema)) document.body.className = `dashboard-body ${tema}`;
-    aviso.hidden = true;
-    document.getElementById('simLaboratorio').hidden = false;
     const laboratorio = await import('./simulacao.js');
     laboratorio.iniciarLaboratorio();
+    aviso.hidden = true;
+    document.getElementById('simLaboratorio').hidden = false;
   } catch {
     aviso.textContent = 'O laboratório é exclusivo do administrador. Volte ao sistema e confira seu acesso.';
   }

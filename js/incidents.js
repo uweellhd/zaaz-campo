@@ -3,7 +3,7 @@
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, updateDoc, runTransaction, query, where, documentId, startAfter, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, setDoc, updateDoc, runTransaction, query, where, documentId, startAfter, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut, verifyBeforeUpdateEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { avaliarFinalizacao, avaliarEtapa, categoriasEtapa, listaFotos, LIMITE_FOTOS, etapaConcluida, exigirProximaEtapa, modeloDescricao, separarDescricao, formatarPrevisao, resolvido } from '../lib/field-flow.mjs';
 import { renderizarGaleria } from '../lib/photo-gallery.mjs';
@@ -228,7 +228,7 @@ function configurarTelasPorPerfil() {
   }
 }
 
-window.alternarAba = (idAba) => {
+window.alternarAba = (idAba, contexto = '') => {
   if (idAba !== 'viewConta' && !(abasPermitidas[perfilSalvo] || []).includes(idAba)) return;
   const conta = document.getElementById('accountMenu');
   if (conta) conta.open = false;
@@ -239,8 +239,8 @@ window.alternarAba = (idAba) => {
   if (abaAlvo) abaAlvo.style.display = 'block';
 
   if (idAba === 'viewMedicoes') {
-    document.getElementById('btnTabMedicoes')?.classList.add('active');
-    medicoes?.abrir();
+    document.getElementById(contexto==='diretoria'?'btnTabGerente':'btnTabMedicoes')?.classList.add('active');
+    medicoes?.abrir({diretoria:contexto==='diretoria'});
   } else if (idAba === 'viewGerente') {
     const b = document.getElementById('btnTabGerente');
     if (b) b.classList.add('active');
@@ -263,6 +263,7 @@ window.alternarAba = (idAba) => {
   } else if (idAba === 'viewSupervisor') {
     document.getElementById('btnTabSupervisor')?.classList.add('active');
     carregarSupervisor();
+    medicoes?.abrirSupervisao();
   } else if (idAba === 'viewProjetos') {
     document.getElementById('btnTabProjetos')?.classList.add('active');
     carregarProjetos();
@@ -1649,7 +1650,7 @@ onAuthStateChanged(auth, async (usuario) => {
     perfilSalvo = perfil.perfil;
     estadoSalvo = perfil.estado;
     if (badgeElem) badgeElem.textContent = usuarioSalvo;
-    if(['admin','diretor','gerente','tecnico','supervisor','projetos'].includes(perfilSalvo))medicoes=iniciarMedicoes({db,uid:usuarioUid,nome:usuarioSalvo,perfil:perfilSalvo,estado:estadoSalvo,ouvir:ouvirUmaVez,marcarFoto:comprimirEMarcarDagua,obterGPS:obterGPSFoto});
+    if(['admin','diretor','gerente','tecnico','supervisor','projetos'].includes(perfilSalvo))medicoes=iniciarMedicoes({servicos:{collection,doc,getDoc,getDocs,setDoc,updateDoc,query,where,serverTimestamp,runTransaction},db,uid:usuarioUid,nome:usuarioSalvo,perfil:perfilSalvo,estado:estadoSalvo,ouvir:ouvirUmaVez,marcarFoto:comprimirEMarcarDagua,obterGPS:obterGPSFoto});
     configurarTelasPorPerfil();
     ouvirUmaVez('meuPerfil', doc(db, 'usuarios', usuarioUid), snapshot => {
       if (!snapshot.exists() || snapshot.data().ativo !== true

@@ -267,15 +267,28 @@ async function subirProvas(db,{photos=1,files=1,chunks=1}={}){
     await assertSucceeds(setDoc(doc(db,'medicoes','m','comprovantes',`${side}Arquivos`),{tipo:'arquivos',lado:side,quantidade:files,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()}));
   }
 }
-test('medição: técnico e supervisor registram apenas com vínculo real, sem forjar responsável',async()=>{
-  await assertSucceeds(setDoc(doc(ctx('tecnicoA'),'medicoes','m'),medicao()));
-  await assertFails(setDoc(doc(ctx('tecnicoB'),'medicoes','forjada'),medicao({criadoPorUid:'tecnicoB'})));
-  await assertFails(setDoc(doc(ctx('tecnicoA'),'medicoes','nome'),medicao({tecnicoNome:'Outra pessoa'})));
-  await assertSucceeds(setDoc(doc(ctx('supervisorA'),'medicoes','s'),medicao({criadoPorUid:'supervisorA'})));
-  await assertFails(setDoc(doc(ctx('supervisorB'),'medicoes','foraEquipe'),medicao({criadoPorUid:'supervisorB'})));
-  await assertFails(setDoc(doc(ctx('diretor'),'medicoes','edicao'),medicao({criadoPorUid:'diretor'})));
+const medicaoAberta = (extra={}) => medicao({status:'AGUARDANDO_TECNICO',tecnicoUid:'',tecnicoNome:'',fibras:'',criadoPorUid:'admin',...extra});
+const atribuicaoMedicao = (extra={})=>({status:'EM_CAMPO',tecnicoUid:'tecnicoA',tecnicoNome:'tecnicoA',atribuidoEm:serverTimestamp(),atribuidoPorUid:'supervisorA',atribuidoPorNome:'supervisorA',...extra});
+test('medição: abertura sem técnico e sem fibras, vinculada ao supervisor correto',async()=>{
+  await assertSucceeds(setDoc(doc(ctx('admin'),'medicoes','m'),medicaoAberta()));
+  await assertSucceeds(setDoc(doc(ctx('supervisorA'),'medicoes','s'),medicaoAberta({criadoPorUid:'supervisorA'})));
+  for(const uid of ['tecnicoA','diretor','noc'])await assertFails(setDoc(doc(ctx(uid),'medicoes',uid),medicaoAberta({criadoPorUid:uid})));
+  await assertFails(setDoc(doc(ctx('supervisorB'),'medicoes','fora'),medicaoAberta({criadoPorUid:'supervisorB'})));
+  await assertFails(setDoc(doc(ctx('admin'),'medicoes','antecipada'),medicaoAberta({tecnicoUid:'tecnicoA',tecnicoNome:'tecnicoA'})));
   await assertSucceeds(getDoc(doc(ctx('tecnicoA'),'usuarios','supervisorA')));
   await assertFails(getDoc(doc(ctx('tecnicoA'),'usuarios','supervisorB')));
+});
+test('medição: supervisor distribui somente sua demanda a técnico ativo da equipe; só então aparece ao técnico',async()=>{
+  await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'medicoes','m'),medicaoAberta()));
+  await assertSucceeds(getDoc(doc(ctx('supervisorA'),'medicoes','m')));
+  await assertFails(getDoc(doc(ctx('tecnicoA'),'medicoes','m')));
+  await assertFails(updateDoc(doc(ctx('supervisorB'),'medicoes','m'),atribuicaoMedicao({atribuidoPorUid:'supervisorB',atribuidoPorNome:'supervisorB'})));
+  await assertFails(updateDoc(doc(ctx('supervisorA'),'medicoes','m'),atribuicaoMedicao({tecnicoUid:'tecnicoOutro',tecnicoNome:'tecnicoOutro'})));
+  await assertFails(updateDoc(doc(ctx('tecnicoA'),'medicoes','m'),atribuicaoMedicao()));
+  await assertSucceeds(updateDoc(doc(ctx('supervisorA'),'medicoes','m'),atribuicaoMedicao()));
+  await assertSucceeds(getDoc(doc(ctx('tecnicoA'),'medicoes','m')));
+  await assertFails(getDoc(doc(ctx('tecnicoB'),'medicoes','m')));
+  await assertFails(updateDoc(doc(ctx('supervisorA'),'medicoes','m'),atribuicaoMedicao({tecnicoUid:'tecnicoB',tecnicoNome:'tecnicoB'})));
 });
 test('medição: leitores, técnico próprio e supervisão são segregados; Projetos recebe só entregues',async()=>{
   await seedMedicao();
@@ -297,7 +310,7 @@ test('medição: envio completo libera Projetos e diretor, registra conferência
   await seedMedicao();const db=ctx('tecnicoA');await assertSucceeds(getDoc(doc(db,'medicoesFotos','m-tx-0')));await subirProvas(db);
   await assertFails(updateDoc(doc(db,'medicoes','m'),entregarMedicao({txGps:{latitude:91,longitude:0,precisao:0}})));
   await assertFails(updateDoc(doc(db,'medicoes','m'),entregarMedicao({txFotos:6})));
-  await assertSucceeds(updateDoc(doc(db,'medicoes','m'),entregarMedicao()));
+  await assertSucceeds(updateDoc(doc(db,'medicoes','m'),entregarMedicao({fibras:'Identificadas em campo: 01 e 02'})));
   for(const uid of ['projetos','diretor','supervisorA']){await assertSucceeds(getDoc(doc(ctx(uid),'medicoesFotos','m-tx-0')));await assertSucceeds(getDoc(doc(ctx(uid),'medicoes','m','arquivos','rx-0','partes','0')))}
   await assertFails(updateDoc(doc(db,'medicoes','m'),{observacao:'Troca posterior'}));
   const review={status:'CONFERIDA',observacaoProjetos:'Arquivos conferidos no software do fabricante.',conferidoPorUid:'projetos',conferidoPorNome:'projetos',conferidoEm:serverTimestamp()};
