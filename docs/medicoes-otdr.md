@@ -109,3 +109,22 @@ Os filtros de acompanhamento e os cinco indicadores de distribuição/Projetos n
 O botão **Continuar coleta** usa o grupo de ações já existente nas etapas técnicas, centralizado, com até 360 px de largura, altura mínima de 48 px, separação de 24 px e espaço interno após o resumo. A tipografia da janela permanece na família do sistema, com texto de 14 px e título de 18 px.
 
 Validação: entrega técnica deixa zero cartões e nenhum indicador/filtro administrativo nessa tela; reabertura do perfil e posterior conferência por Projetos não fazem a entrega reaparecer para o técnico. Mesmo cenário conferido no laboratório. Revalidados download, fotos ampliadas, retomada de envio, administrador responsável, temas, navegação e laboratório de rompimentos nas quatro etapas, consulta SAC e entrega a Projetos.
+
+
+## Teste real individual com o admin
+
+O próprio administrador aparece na distribuição de Medições e IDs como `nome · meu acesso admin`. Não é preciso alterar o perfil, criar outro usuário nem incluir o admin em uma equipe técnica. A opção aparece somente para o próprio admin conectado; supervisores continuam distribuindo apenas aos técnicos ativos da própria equipe.
+
+1. Em **Medições → Nova medição**, abra uma demanda e escolha seu nome como supervisor (ou abra a demanda de teste que já existe).
+2. Abra o cartão e, em **Técnico da equipe**, selecione seu nome com `meu acesso admin` e clique em **Alocar técnico**.
+3. Use **Continuar coleta** e preencha a coleta real com fotos, GPS, arquivos TX/RX e descrição. Os requisitos e a confirmação de entrega são os mesmos.
+4. Depois da entrega, abra **Projetos → Medições OTDR** para conferir e registrar o tratamento. O admin mantém o acompanhamento completo; a ocultação de entregas concluídas é própria do perfil técnico.
+5. Para testar rompimentos, em **Supervisão** selecione seu nome na distribuição do ID. Abra o atendimento em **Técnico**.
+
+A regra de Medições permite apenas a autoatribuição de admin ativo com seu nome e UID reais. A alteração não permite que outro perfil escolha o admin, que um admin atribua outro admin como técnico, ou que um técnico ignore a equipe. Os registros do teste real ficam no banco e usam os limites normais do piloto. Não há limpeza automática nem cadastro de contas extras.
+
+## Minha conta: alterar senha
+
+Todos os perfis aprovados podem abrir o menu do próprio nome → **Minha conta → Alterar senha**. O formulário pede a senha atual, uma nova senha de pelo menos 12 caracteres e sua confirmação. A conta é reautenticada no Firebase Authentication antes da atualização. Erros de senha atual, conexão e excesso de tentativas são apresentados em português. Os campos são limpos após a tentativa no servidor. Senhas não são gravadas no Firestore, histórico, logs ou rascunhos locais. A troca de e-mail existente permanece restrita ao admin.
+
+Os botões **Nova medição / Voltar** agora usam o mesmo tamanho, altura, fonte e alinhamento; a ação principal é indicada pela cor. Em celulares, os filtros usam a largura disponível para não cortar o nome dos estados.

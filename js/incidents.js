@@ -4,12 +4,13 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, setDoc, updateDoc, runTransaction, query, where, documentId, startAfter, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, signOut, verifyBeforeUpdateEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signOut, verifyBeforeUpdateEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { avaliarFinalizacao, avaliarEtapa, categoriasEtapa, listaFotos, LIMITE_FOTOS, etapaConcluida, exigirProximaEtapa, modeloDescricao, separarDescricao, formatarPrevisao, resolvido } from '../lib/field-flow.mjs';
 import { renderizarGaleria } from '../lib/photo-gallery.mjs';
 import { montarGaleria, abrirFotos, fecharFotos, fotoAberta } from '../lib/photo-viewer.mjs';
 import { selecionarIncidentes, analisarOperacao, leituraExecutiva, dataConclusao, horarioBrasil, diaBrasil } from '../lib/executive-metrics.mjs';
 import { reconhecerSupervisor, coordenadasValidas, lerLocalizacao } from '../lib/incident-identity.mjs';
+import { configurarAlteracaoSenha } from './account.js';
 import { iniciarMedicoes } from './measurements.js';
 import { criarRelatorioPDF } from '../lib/executive-report.mjs';
 
@@ -26,6 +27,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+configurarAlteracaoSenha({auth,EmailAuthProvider,reauthenticateWithCredential,updatePassword});
 
 let perfilSalvo = '';
 let usuarioSalvo = '';
@@ -75,7 +77,11 @@ let paginaSupervisor = 1, paginaDiretoria = 1, filtroDiretoria = 'ativos';
 const TAMANHO_PAGINA = 24;
 function elemento(tag, texto, classe) { const e = document.createElement(tag); if (texto) e.textContent=texto; if (classe) e.className=classe; return e; }
 function supervisorSelecionado() { return perfilSalvo === 'admin' ? el('equipeSupervisor').value : usuarioUid; }
-function membrosAtivos(uid) { return vinculosEquipe.filter(v => v.supervisorUid===uid && v.ativo).map(v=>cadastrosEquipe.find(p=>p.uid===v.tecnicoUid && p.ativo && p.perfil==='tecnico')).filter(Boolean); }
+function membrosAtivos(uid) {
+  const pessoas=vinculosEquipe.filter(v => v.supervisorUid===uid && v.ativo).map(v=>cadastrosEquipe.find(p=>p.uid===v.tecnicoUid && p.ativo && p.perfil==='tecnico')).filter(Boolean);
+  if(uid && perfilSalvo==='admin')pessoas.push({uid:usuarioUid,nome:usuarioSalvo,rotulo:`${usuarioSalvo} · meu acesso admin`});
+  return pessoas;
+}
 function criarControlesSupervisao() {
   if (el('equipeSupervisor')) return;
   const bloco=elemento('details','', 'team-panel'); bloco.open=false;
@@ -112,7 +118,7 @@ function criarControlesSupervisao() {
 }
 function renderizarEquipe(){
   if(!el('equipeTecnicos'))return; const uid=supervisorSelecionado(),lista=el('equipeTecnicos');lista.replaceChildren();
-  for(const pessoa of membrosAtivos(uid)){
+  for(const pessoa of membrosAtivos(uid).filter(p=>p.uid!==usuarioUid || perfilSalvo!=='admin')){
     const linha=elemento('div','', 'team-member');linha.append(elemento('strong',pessoa.nome));const b=elemento('button','Remover da equipe','btn-sec-sm');b.type='button';
     b.onclick=async()=>{if(!confirm('Remover da equipe? Os IDs já atribuídos permanecem com o técnico até você redistribuí-los.'))return;b.disabled=true;try{await updateDoc(doc(db,'equipesTecnicas',pessoa.uid),{ativo:false,atualizadoEm:serverTimestamp(),atualizadoPorUid:usuarioUid})}catch{alert('Não foi possível remover.')}finally{b.disabled=false}};linha.append(b);lista.append(linha);
   }
@@ -134,10 +140,10 @@ function renderizarSupervisor(){
     abrir.append(elemento('strong',`ID ${item.idIncidente} · OS ${item.os||'—'}`),elemento('small',`${item.cidades||''} · ${item.statusAtual||'Aguardando atendimento'}`),elemento('span',`Técnico: ${item.tecnicoAtribuido||'A distribuir'}`,item.tecnicoUid?'evidence-complete':'evidence-pending'));abrir.onclick=()=>abrirModalDetalhes(item);card.append(abrir);
     if(!resolvido(item) && item.supervisorUid){
       const form=elemento('form','', 'assignment-search');const seletor=elemento('select');seletor.setAttribute('aria-label',`Técnico da equipe para ID ${item.idIncidente}`);
-      seletor.add(new Option('Selecione o técnico da equipe',''));for(const p of membrosAtivos(item.supervisorUid))seletor.add(new Option(p.nome,p.uid));seletor.value=item.tecnicoUid||'';
+      seletor.add(new Option('Selecione o técnico da equipe',''));for(const p of membrosAtivos(item.supervisorUid))seletor.add(new Option(p.rotulo||p.nome,p.uid));seletor.value=item.tecnicoUid||'';
       const b=elemento('button',item.tecnicoUid?'Redistribuir':'Acionar técnico','btn-primary');b.type='submit';
       form.append(seletor,b);form.onsubmit=async e=>{e.preventDefault();const destino=membrosAtivos(item.supervisorUid).find(p=>p.uid===seletor.value);if(!destino){alert('Escolha um técnico ativo desta equipe.');return}b.disabled=true;
-        try{await runTransaction(db,async tx=>{const ref=doc(db,'incidentes',item.docId);const atual=await tx.get(ref);const vinculo=await tx.get(doc(db,'equipesTecnicas',destino.uid));const pessoa=await tx.get(doc(db,'usuarios',destino.uid));if(!atual.exists()||resolvido(atual.data())||atual.data().supervisorUid!==item.supervisorUid||!vinculo.exists()||!vinculo.data().ativo||vinculo.data().supervisorUid!==item.supervisorUid||!pessoa.exists()||!pessoa.data().ativo||pessoa.data().perfil!=='tecnico')throw new Error('O ID ou a equipe mudou. Confira novamente.');tx.update(ref,{tecnicoUid:destino.uid,tecnicoAtribuido:pessoa.data().nome,atribuidoEm:serverTimestamp(),atribuidoPorUid:usuarioUid,atribuidoPorNome:usuarioSalvo})});}catch(erro){alert(erro.message||'Não foi possível distribuir o ID.')}finally{b.disabled=false}
+        try{await runTransaction(db,async tx=>{const ref=doc(db,'incidentes',item.docId);const atual=await tx.get(ref);const vinculo=await tx.get(doc(db,'equipesTecnicas',destino.uid));const pessoa=await tx.get(doc(db,'usuarios',destino.uid));const proprioAdmin=perfilSalvo==='admin'&&destino.uid===usuarioUid&&pessoa.exists()&&pessoa.data().perfil==='admin';if(!atual.exists()||resolvido(atual.data())||atual.data().supervisorUid!==item.supervisorUid||!pessoa.exists()||!pessoa.data().ativo||(!proprioAdmin&&(!vinculo.exists()||!vinculo.data().ativo||vinculo.data().supervisorUid!==item.supervisorUid||pessoa.data().perfil!=='tecnico')))throw new Error('O ID ou a equipe mudou. Confira novamente.');tx.update(ref,{tecnicoUid:destino.uid,tecnicoAtribuido:pessoa.data().nome,atribuidoEm:serverTimestamp(),atribuidoPorUid:usuarioUid,atribuidoPorNome:usuarioSalvo})});}catch(erro){alert(erro.message||'Não foi possível distribuir o ID.')}finally{b.disabled=false}
       };card.append(form);
     }lista.append(card);
   }
@@ -196,6 +202,8 @@ function configurarTelasPorPerfil() {
   // Oculta todas as abas inicialmente
   [btnGerente, btnNoc, btnSac, btnTech, btnConta, btnAcessos, btnSupervisor, btnProjetos].forEach(btn => { if (btn) btn.style.display = 'none'; });
   if (btnConta) btnConta.style.display = 'block';
+  el('contaEmail').hidden = perfilSalvo !== 'admin';
+  el('contaEmailAtual').textContent = auth.currentUser?.email || '';
   document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
 
   if (perfilSalvo === 'admin') {
