@@ -70,3 +70,5 @@ Testes unitários verificam escopo vazio, data sem hora na foto, períodos por a
 O navegador usa Firebase simulado e perfis fictícios: Admin, Diretoria, Operações, Projetos, Coordenação de Projetos e Técnico. Inclui acesso ao histórico, acompanhamento, distribuição de responsabilidade, conferência, fotos ampliadas, relatórios, marca da foto, temas e celular. PDFs são renderizados e conferidos, inclusive anexos opcionais, textos longos, quebras de tabela e recortes vazios. Nenhum dado fictício é inserido no banco real.
 
 Publicar uma atualização consolidada pela integração GitHub/Netlify. Confirmar sucesso da etapa **Publicar** do workflow de regras do Firebase e do deploy de produção antes de anunciar disponibilidade.
+
+Os testes de navegador ficam em `tests/browser/stage-one.cjs`. Para reproduzir: `npm ci --prefix tests/browser`, `npx --prefix tests/browser playwright install chromium` e `npm test --prefix tests/browser`. Em ambiente com Chromium próprio, informar `CHROMIUM_PATH`. O teste intercepta o SDK do Firebase e usa exclusivamente um banco fictício em memória; artefatos de conferência são gerados em `tests/browser/artifacts/`, fora do versionamento.

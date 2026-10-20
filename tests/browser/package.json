@@ -1,0 +1,10 @@
+{
+  "name": "nextflow-browser-checks",
+  "private": true,
+  "scripts": {
+    "test": "node stage-one.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}
