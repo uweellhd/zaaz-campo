@@ -4,7 +4,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, updateProfile, reload, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, updateProfile, reload, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
@@ -115,6 +115,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   processando = true;
 
   try {
+    await setPersistence(auth, document.getElementById('manterConectado').checked ? browserLocalPersistence : browserSessionPersistence);
     const credencial = await signInWithEmailAndPassword(auth, email, senha);
     await reload(credencial.user);
     await credencial.user.getIdToken(true);

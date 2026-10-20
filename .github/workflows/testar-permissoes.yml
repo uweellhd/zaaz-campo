@@ -24,3 +24,20 @@ jobs:
         run: node --test tests/*.test.mjs
       - name: Testes com usuários fictícios no emulador
         run: npm test --prefix tests/security
+
+  navegador:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tests/browser/package-lock.json
+      - run: npm ci --prefix tests/browser --ignore-scripts --no-audit --no-fund
+      - name: Preparar Chromium
+        working-directory: tests/browser
+        run: npx playwright install --with-deps chromium
+      - name: Conferir fluxos, relatórios, cargos, temas, conexão e telas pequenas
+        run: node tests/browser/stage-one.cjs

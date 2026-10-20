@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: firebase-maintenance
+  cancel-in-progress: false
+
 jobs:
   limpar:
     runs-on: ubuntu-latest

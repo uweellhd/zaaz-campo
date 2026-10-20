@@ -20,5 +20,6 @@
     }
   }
   aplicar();
+  document.addEventListener('nextflow-chart-ready',aplicar);
   new MutationObserver(aplicar).observe(document.body, { attributes:true, attributeFilter:['class'] });
 })();

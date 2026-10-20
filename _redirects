@@ -1,0 +1,7 @@
+/maintenance/* /404.html 404!
+/tests/* /404.html 404!
+/.github/* /404.html 404!
+/docs/* /404.html 404!
+/firestore.rules /404.html 404!
+/firebase.json /404.html 404!
+/firebase.test.json /404.html 404!

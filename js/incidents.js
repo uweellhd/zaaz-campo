@@ -1,9 +1,11 @@
+import { validarVolumePDF, mapearComLimite } from '../lib/async-work.mjs';
 /* ==========================================================================
    NEXTFLOW ENTERPRISE - LOGICA DE PERMISSÕES & INCIDENTES (js/incidents.js)
    ========================================================================== */
 
+import { criarConsultasCompartilhadas } from '../lib/live-queries.mjs';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, setDoc, updateDoc, runTransaction, query, where, documentId, startAfter, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, setDoc, updateDoc, runTransaction, query, where, documentId, startAfter, limit, serverTimestamp, queryEqual, refEqual } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut, verifyBeforeUpdateEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { avaliarFinalizacao, avaliarEtapa, categoriasEtapa, listaFotos, LIMITE_FOTOS, etapaConcluida, exigirProximaEtapa, modeloDescricao, separarDescricao, formatarPrevisao, resolvido } from '../lib/field-flow.mjs';
 import { renderizarGaleria } from '../lib/photo-gallery.mjs';
@@ -17,7 +19,7 @@ import { ROLES, scopeUids, scopeCaption, scopeQuery } from '../lib/access-scope.
 import { opcaoFotos, prepararFotosRelatorio } from './report-evidence.js';
 import { montarResponsabilidade } from './project-work.js';
 import { iniciarFilaProjetos } from './project-queue.js';
-import { criarRelatorioPDF } from '../lib/executive-report.mjs';
+const criarRelatorioPDF = async (...args) => (await import('../lib/executive-report.mjs')).criarRelatorioPDF(...args);
 
 const firebaseConfig = {
   apiKey: "AIzaSyCai2zdr3XvyohUL4Z3qllUU__xAtLeaoA",
@@ -39,6 +41,7 @@ let usuarioSalvo = '';
 let estadoSalvo = '';
 let usuarioUid = '';
 const ouvintes = new Map();
+const consultasCompartilhadas = criarConsultasCompartilhadas(onSnapshot, (a,b) => a.type === 'document' ? b.type === 'document' && refEqual(a,b) : b.type !== 'document' && queryEqual(a,b));
 let saindo = false;
 let medicoes, medicoesTecnico, medicoesProjetos, medicoesAcompanhamento;
 let supervisoresEscopo=[], filaProjetos;
@@ -60,10 +63,12 @@ const abasPermitidas = {
 
 function ouvirUmaVez(chave, consulta, aoReceber) {
   if (ouvintes.has(chave)) return;
-  const cancelar = onSnapshot(consulta, aoReceber, erro => {
+  const cancelar = consultasCompartilhadas.ouvir(consulta, aoReceber, erro => {
+    ouvintes.delete(chave);
     console.error(`Falha ao consultar ${chave}:`, erro);
     if (saindo || !auth.currentUser) return;
-    alert('Não foi possível consultar os registros. Confira seu perfil e as regras do Firestore.');
+    const mensagem=erro.code==='resource-exhausted'?'O banco atingiu um limite de uso. Avise o administrador e tente novamente mais tarde.':erro.code==='permission-denied'?'Seu acesso não permite esta consulta ou foi alterado. Entre novamente; se persistir, avise o administrador.':'Não foi possível atualizar os dados. Confira a conexão e tente abrir a guia novamente. Se necessário, atualize a página após salvar o rascunho.';
+    alert(mensagem);
   });
   ouvintes.set(chave, cancelar);
 }
@@ -715,7 +720,16 @@ let chartSupervisoresInstance = null, chartEtapasInstance=null, chartConclusoesI
 window.filtrarSituacaoDiretoria = valor => { filtroDiretoria=['resolvidos','todos'].includes(valor)?valor:'ativos';paginaDiretoria=1;renderizarPainelGerenteFiltrado(); };
 window.maisDiretoria = () => {paginaDiretoria++;renderizarPainelGerenteFiltrado()};
 
-function carregarDashboardGerente() {
+let graficosProntos;
+async function carregarDashboardGerente() {
+  try {
+    graficosProntos ||= import('../vendor/chart.umd.min.js').then(()=>{
+      if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)Chart.defaults.animation=false;
+      document.dispatchEvent(new Event('nextflow-chart-ready'));
+    }).catch(error=>{graficosProntos=null;throw error});
+    await graficosProntos;
+  } catch { el('avisoRelatorio').textContent='Gráficos indisponíveis. Os registros e relatórios continuam acessíveis.'; }
+  if(saindo)return;
   const consulta=scopeQuery({collection,query,where,db},perfilSalvo,supervisoresEscopo,'incidentes');
   if(!consulta){todosIncidentesCache=[];renderizarPainelGerenteFiltrado();el('avisoRelatorio').textContent='Nenhum supervisor vinculado. Solicite a configuração ao administrador.';return}
   ouvirUmaVez('gerente', consulta, (snapshot) => {
@@ -872,20 +886,26 @@ function abrirBancoRascunhos() {
   if (!bancoRascunhos) bancoRascunhos = new Promise((resolve, reject) => {
     const pedido = indexedDB.open('nextflow-campo-rascunhos', 1);
     pedido.onupgradeneeded = () => pedido.result.createObjectStore('atendimentos');
-    pedido.onsuccess = () => resolve(pedido.result);
-    pedido.onerror = () => reject(pedido.error);
+    let resultado;
+    pedido.onsuccess = () => { resultado = pedido.result; };
+    transacao.oncomplete = () => resolve(resultado);
+    transacao.onerror = () => reject(transacao.error);
+    transacao.onabort = () => reject(transacao.error);
   });
   return bancoRascunhos;
 }
 async function operarRascunho(modo, operacao, valor) {
+  const chave = `${usuarioUid}_${chamadoAtivoTecnico.docId}`;
   const banco = await abrirBancoRascunhos();
   return new Promise((resolve, reject) => {
     const transacao = banco.transaction('atendimentos', modo);
     const loja = transacao.objectStore('atendimentos');
-    const chave = `${usuarioUid}_${chamadoAtivoTecnico.docId}`;
     const pedido = operacao === 'get' ? loja.get(chave) : operacao === 'delete' ? loja.delete(chave) : loja.put(valor, chave);
-    pedido.onsuccess = () => resolve(pedido.result);
-    pedido.onerror = () => reject(pedido.error);
+    let resultado;
+    pedido.onsuccess = () => { resultado = pedido.result; };
+    transacao.oncomplete = () => resolve(resultado);
+    transacao.onerror = () => reject(transacao.error);
+    transacao.onabort = () => reject(transacao.error);
   });
 }
 function atualizarEstadoLocal(mensagem) {
@@ -937,9 +957,7 @@ async function restaurarRascunhoTecnico() {
 function carregarListaTecnico() {
   const idAtivoSalvo = localStorage.getItem(`tech_active_doc_${usuarioUid}`);
 
-  const consulta = perfilSalvo === 'admin'
-    ? collection(db, 'incidentes')
-    : query(collection(db, 'incidentes'), where('tecnicoUid', '==', usuarioUid));
+  const consulta = query(collection(db, 'incidentes'), where('tecnicoUid', '==', usuarioUid));
   ouvirUmaVez('tecnico', consulta, (snapshot) => {
     const container = document.getElementById('techIncidentsList');
     if (!container) return;
@@ -1622,7 +1640,7 @@ window.exportarRelatorioPDF = async () => {
   const filtros=filtrosDiretoria(),itens=selecionarIncidentes(todosIncidentesCache,filtros,detectarEstado);
   if(!itens.length){document.getElementById('avisoRelatorio').textContent='Nenhum chamado no recorte selecionado.';return}
   const botao=document.getElementById('btnRelatorioPDF'),aviso=document.getElementById('avisoRelatorio');gerandoRelatorio=true;botao.disabled=true;aviso.textContent='Preparando o relatório executivo...';
-  try{const completos=[];for(const item of itens){let projetoRelatorio=null;if(resolvido(item)){const snap=await getDoc(doc(db,'projetosEvidencias',item.docId));if(snap.exists())projetoRelatorio=snap.data()}completos.push({...item,projetoRelatorio})}const dados=fotosExecutivo.input.checked?await prepararFotosRelatorio(completos,'rompimentos',{doc,getDoc},db):completos;const {pdf,nome}=await criarRelatorioPDF(dados,{...filtros,emitidoPor:usuarioSalvo,perfil:perfilSalvo,escopo:scopeCaption(perfilSalvo)},detectarEstado);pdf.save(nome);aviso.textContent='PDF gerado. Verifique os downloads do navegador.'}
+  try{validarVolumePDF(itens);const completos=await mapearComLimite(itens,async item=>{let projetoRelatorio=null;if(resolvido(item)){const snap=await getDoc(doc(db,'projetosEvidencias',item.docId));if(snap.exists())projetoRelatorio=snap.data()}return {...item,projetoRelatorio}});const dados=fotosExecutivo.input.checked?await prepararFotosRelatorio(completos,'rompimentos',{doc,getDoc},db):completos;const {pdf,nome}=await criarRelatorioPDF(dados,{...filtros,emitidoPor:usuarioSalvo,perfil:perfilSalvo,escopo:scopeCaption(perfilSalvo)},detectarEstado);pdf.save(nome);aviso.textContent='PDF gerado. Verifique os downloads do navegador.'}
   catch(erro){aviso.textContent=erro.message||'Não foi possível gerar o PDF. Tente novamente.'}
   finally{gerandoRelatorio=false;botao.disabled=false}
 };
@@ -1668,6 +1686,8 @@ window.sair = async () => {
   medicoesAcompanhamento?.fechar();
   for (const cancelar of ouvintes.values()) cancelar();
   ouvintes.clear();
+  consultasCompartilhadas.fechar();
+  fecharFotos();
   try {
     await signOut(auth);
     window.location.replace('index.html');
@@ -1678,7 +1698,10 @@ window.sair = async () => {
 };
 
 onAuthStateChanged(auth, async (usuario) => {
-  if (!usuario) {
+  if (!usuario || (usuarioUid && usuario.uid !== usuarioUid)) {
+    saindo = true;
+    consultasCompartilhadas.fechar();
+    document.body.hidden = true;
     window.location.replace('index.html');
     return;
   }
