@@ -1,18 +1,21 @@
+import { criarBancoMedicoesLaboratorio } from '../lib/measurement-lab.mjs';
+import { montarResponsabilidade } from './project-work.js';
 import { iniciarLaboratorioMedicoes } from './simulacao-medicoes.js';
 import { avaliarFinalizacao, avaliarEtapa, listaFotos, LIMITE_FOTOS, categoriasEtapa, modeloDescricao, separarDescricao, formatarPrevisao } from '../lib/field-flow.mjs';
 import { renderizarGaleria } from '../lib/photo-gallery.mjs';
 import { montarGaleria, fotoAberta, fecharFotos } from '../lib/photo-viewer.mjs';
 
 // Laboratório isolado: nenhuma importação ou escrita no Firebase.
-let chamados = [], conquistas = new Set(), perfil = 'noc', ativo, passo = 1, fotos = {}, numeroCaixa = 0, filtroConsulta='ativos', equipe=['tecnicoA','tecnicoB'];
+const bancoProjetos=criarBancoMedicoesLaboratorio();
+let chamados = [], conquistas = new Set(), perfil = 'noc', ativo, passo = 1, fotos = {}, numeroCaixa = 0, filtroConsulta='ativos', equipe=['tecnicoA'];
 const nomes = { tecnicoA:'Técnico A (fictício)', tecnicoB:'Técnico B (fictício)' };
 const roteiro = [
- ['noc','NOC: criar um ID fictício e identificar o Supervisor A.'],
+ ['noc','NOC: criar um ID fictício com o supervisor informado no comunicado.'],
  ['etapa1','Técnico A: anexar o deslocamento e enviar a etapa 1.'],
  ['etapa2','Técnico A: anexar local e rompimento, informar causa e previsão e enviar a etapa 2.'],
  ['etapa3','Técnico A: anexar atuação e fusão, informar observação e enviar a etapa 3.'],
  ['etapa4','Técnico A: completar duas caixas, fotos e roteiro CAUSA / SOLUÇÃO / OBSERVAÇÃO; finalizar.'],
- ['sac','SAC: abrir o ID e conferir o histórico sem edição.'],
+ ['sac','Acompanhamento: abrir o ID e conferir as etapas recebidas, sem edição.'],
  ['supervisor','Supervisor A: distribuir o ID a um técnico da equipe e conferir as evidências.'],
  ['projetos','Projetos: abrir a entrega final e marcar lançamento no OZmaps.'],
  ['diretor','Diretor: conferir os indicadores e exportar o relatório fictício.'],
@@ -26,11 +29,12 @@ function atualizarRoteiro() {
  for(const [chave,texto] of roteiro){ const li=document.createElement('li'); li.textContent=(conquistas.has(chave)?'✓ ':'')+texto; if(conquistas.has(chave))li.className='done'; $('simRoteiro').append(li); }
 }
 function iniciarDados(){
+ bancoProjetos.reiniciar();
  chamados=[
   {id:'TESTE-1001',os:'OS-FICTICIA-01',cidade:'Cidade de teste / SP',tecnico:'tecnicoA',supervisor:'supervisorA',eventos:[],status:'ABERTO'},
   {id:'TESTE-1002',os:'OS-FICTICIA-02',cidade:'Outra cidade de teste / SP',tecnico:'',supervisor:'supervisorB',eventos:[],status:'ABERTO'},
   {id:'TESTE-1003',os:'OS-FICTICIA-03',cidade:'Cidade de teste / SP',tecnico:'',supervisor:'',eventos:[],status:'ABERTO'}
- ]; conquistas.clear(); ativo=null; atualizarRoteiro(); renderizar();
+ ]; equipe=['tecnicoA'];filtroConsulta='ativos';conquistas.clear(); ativo=null; atualizarRoteiro(); renderizar();
 }
 function card(chamado,onclick){
  const el=document.createElement('button');el.type='button';el.className='incidente-card supervisor-card';
@@ -43,57 +47,56 @@ function renderizar(){
  document.querySelectorAll('[data-sim-filtro]').forEach(e=>e.remove());
  for(const id of ['simNoc','simConsulta','simDiretor'])$(id).hidden=true;
  $('viewTech').style.display='none';
- const orientacoes={noc:'Crie um ID e identifique o supervisor. A distribuição para técnicos acontece na Supervisão.',tecnicoA:'Somente IDs atribuídos ao Técnico A. GPS e fotos de exemplo são fictícios; nada é enviado ao sistema real.',tecnicoB:'Somente IDs atribuídos ao Técnico B. O ID TESTE-1001 não aparece enquanto continuar com o Técnico A.',sac:'Consulta geral: abra o chamado para ler as etapas. Este perfil não oferece edição.',supervisorA:'Distribua seus IDs aos técnicos da equipe, acompanhe as etapas e consulte os resolvidos.',projetos:'Somente entregas da etapa 4. Finalize um chamado como técnico para ele aparecer aqui.',diretor:'Indicadores e relatório dos dados fictícios deste laboratório.'};
- $('simOrientacao').textContent=orientacoes[perfil];
+ const orientacoes={noc:'Crie um ID com o supervisor informado no comunicado. A distribuição para técnicos acontece na Supervisão.',tecnicoA:'Somente IDs atribuídos ao Técnico A. GPS e fotos de exemplo são fictícios; nada é enviado ao sistema real.',tecnicoB:'Somente IDs atribuídos ao Técnico B. O ID TESTE-1001 não aparece enquanto continuar com o Técnico A.',sac:'Consulta geral: abra o chamado para ler as etapas. Este perfil não oferece edição.',supervisorA:'Distribua seus IDs aos técnicos da equipe, acompanhe as etapas e consulte os resolvidos.',projetos:'Somente entregas da etapa 4. Finalize um chamado como técnico para ele aparecer aqui.',diretor:'Indicadores e relatório dos dados fictícios deste laboratório.'};
+ $('simVisaoLabel').hidden=!['projetos','coordenador_projetos'].includes(perfil);
+ $('simOrientacao').textContent=orientacoes[perfil]||({admin:'Administração: visão geral de teste. Selecione cada cargo acima para reproduzir abertura, distribuição, campo e tratamento.',supervisorB:'Supervisor B consulta somente a própria equipe.',coordenador:'Coordenação de Operações: apenas IDs vinculados ao Supervisor A.',coordenador_projetos:'Coordenação de Projetos: todas as entregas e acompanhamento; o analista confirma o tratamento.'}[perfil]);
  if(perfil==='noc'){
   $('simNoc').hidden=false;const lista=$('simNocLista');lista.replaceChildren();
   for(const item of chamados){
    const bloco=document.createElement('article');bloco.className='field-card';
    const titulo=document.createElement('strong');titulo.textContent=`${item.id} · ${item.status}`;
-   const seletor=document.createElement('select');seletor.setAttribute('aria-label',`Supervisor de ${item.id}`);
-   seletor.add(new Option('Identificar supervisor',''));seletor.add(new Option('Supervisor A','supervisorA'));seletor.add(new Option('Supervisor B','supervisorB'));seletor.value=item.supervisor;
-   const atribuir=document.createElement('button');atribuir.type='button';atribuir.className='btn-sec-sm';atribuir.textContent='Confirmar supervisor';
-   atribuir.onclick=()=>{item.supervisor=seletor.value;item.tecnico='';conquistar('noc');avisar(`Atribuição fictícia salva para ${item.id}.`);renderizar()};
+   const supervisor=texto('p',item.supervisor==='supervisorA'?'Supervisor A':item.supervisor==='supervisorB'?'Supervisor B':'Supervisor não identificado no comunicado');
    const abrir=document.createElement('button');abrir.className='btn-sec-sm';abrir.textContent='Ver devolutivas';abrir.onclick=()=>abrirDetalhes(item);
-   bloco.append(titulo,seletor,atribuir,abrir);lista.append(bloco);
+   bloco.append(titulo,supervisor,abrir);lista.append(bloco);
   }
  } else if(perfil.startsWith('tecnico')){
   $('viewTech').style.display='block';$('techSelectArea').style.display='block';$('techFormArea').style.display='none';
   const lista=$('techIncidentsList');lista.replaceChildren();
   for(const item of chamados.filter(i=>i.tecnico===perfil&&i.status!=='FINALIZADO')) lista.append(card(item,()=>abrirTecnico(item)));
   if(!lista.children.length)lista.textContent='Nenhum atendimento aberto atribuído a este técnico fictício.';
- } else if(perfil==='diretor'){
+ } else if(['diretor','admin','coordenador'].includes(perfil)){
   $('simDiretor').hidden=false;
-  const valores=[['Incidentes ativos',chamados.filter(i=>i.status!=='FINALIZADO').length],['IDs finalizados',chamados.filter(i=>i.final).length],['Entregas pendentes no OZmaps',chamados.filter(i=>i.final&&!i.ozmaps).length]];
+  const scope=perfil==='coordenador'?chamados.filter(i=>i.supervisor==='supervisorA'):chamados;
+  const valores=[['Incidentes ativos',scope.filter(i=>i.status!=='FINALIZADO').length],['IDs finalizados',scope.filter(i=>i.final).length],['Entregas pendentes no OZmaps',scope.filter(i=>i.final&&!i.ozmaps).length]];
   const kpis=$('simKpis');kpis.replaceChildren();for(const [rotulo,valor]of valores){const el=document.createElement('div');el.className='kpi-card';const nome=document.createElement('span');nome.className='kpi-title';nome.textContent=rotulo;const n=document.createElement('h2');n.className='kpi-value';n.textContent=valor;el.append(nome,n);kpis.append(el)}
-  $('simDiretorLista').replaceChildren(...chamados.map(item=>card(item,()=>abrirDetalhes(item))));
+  $('simDiretorLista').replaceChildren(...scope.map(item=>card(item,()=>abrirDetalhes(item))));
  } else {
   $('simConsulta').hidden=false;
-  $('simConsultaTitulo').textContent=perfil==='projetos'?'📐 Projetos · entregas finais':perfil==='supervisorA'?'👥 Supervisor A · seus IDs':'📞 SAC / Suporte · consulta';
+  $('simConsultaTitulo').textContent=['projetos','coordenador_projetos'].includes(perfil)?($('simVisao').value==='acompanhamento'?'Acompanhamento operacional':'Projetos · entregas finais'):perfil.startsWith('supervisor')?`Supervisão · ${perfil==='supervisorA'?'equipe A':'equipe B'}`:'Acompanhamento operacional';
   const lista=$('simConsultaLista');lista.replaceChildren();
-  const filtrados=chamados.filter(i=>perfil==='projetos'?Boolean(i.final):perfil==='supervisorA'?i.supervisor==='supervisorA'&&((i.status==='FINALIZADO')===(filtroConsulta==='resolvidos')):true);
-  if(perfil==='supervisorA'){
+  const filtrados=chamados.filter(i=>['projetos','coordenador_projetos'].includes(perfil)?($('simVisao').value==='acompanhamento'||Boolean(i.final)):perfil.startsWith('supervisor')?i.supervisor===perfil&&((i.status==='FINALIZADO')===(filtroConsulta==='resolvidos')):true);
+  if(perfil.startsWith('supervisor')){
     const filtros=document.createElement('div');filtros.className='status-tabs';for(const [v,n]of [['ativos','Em andamento'],['resolvidos','Resolvidos']]){const b=texto('button',n);b.type='button';b.className='btn-sec-sm'+(filtroConsulta===v?' active':'');b.onclick=()=>{filtroConsulta=v;renderizar()};filtros.append(b)}lista.before(filtros);filtros.dataset.simFiltro='true';
-    const detalhes=document.createElement('details');detalhes.className='team-panel';detalhes.dataset.simFiltro='true';detalhes.append(texto('summary','👥 Equipe do Supervisor A'));
-    const corpo=document.createElement('div');corpo.className='team-panel-body';for(const [uid,n]of Object.entries(nomes)){const label=texto('label','');const check=document.createElement('input');check.type='checkbox';check.checked=equipe.includes(uid);check.onchange=()=>{equipe=check.checked?[...equipe,uid]:equipe.filter(i=>i!==uid);renderizar()};label.append(check,document.createTextNode(' '+n));corpo.append(label)}detalhes.append(corpo);lista.before(detalhes);
+    const equipeNota=texto('p',perfil==='supervisorA'?'Equipe fictícia: Técnico A.':'Equipe fictícia: Técnico B.');equipeNota.dataset.simFiltro='true';lista.before(equipeNota);
   }
   for(const item of filtrados){
-    if(perfil!=='supervisorA'||item.status==='FINALIZADO'){lista.append(card(item,()=>abrirDetalhes(item)));continue}
-    const bloco=document.createElement('article');bloco.className='incidente-card supervisor-card';bloco.append(card(item,()=>abrirDetalhes(item)));const seletor=document.createElement('select');seletor.setAttribute('aria-label',`Técnico da equipe para ${item.id}`);seletor.add(new Option('Selecionar técnico',''));for(const uid of equipe)seletor.add(new Option(nomes[uid],uid));seletor.value=item.tecnico;
-    const b=texto('button','Acionar técnico');b.type='button';b.className='btn-primary';b.onclick=()=>{if(!equipe.includes(seletor.value))return;item.tecnico=seletor.value;conquistar('supervisor');avisar('ID atribuído ao técnico da equipe.');renderizar()};bloco.append(seletor,b);lista.append(bloco);
+    if(!perfil.startsWith('supervisor')||item.status==='FINALIZADO'){lista.append(card(item,()=>abrirDetalhes(item)));continue}
+    const bloco=document.createElement('article');bloco.className='incidente-card supervisor-card';bloco.append(card(item,()=>abrirDetalhes(item)));const seletor=document.createElement('select');seletor.setAttribute('aria-label',`Técnico da equipe para ${item.id}`);seletor.add(new Option('Selecionar técnico',''));for(const uid of (perfil==='supervisorB'?['tecnicoB']:equipe))seletor.add(new Option(nomes[uid],uid));seletor.value=item.tecnico;
+    const b=texto('button','Acionar técnico');b.type='button';b.className='btn-primary';b.onclick=()=>{if(!(perfil==='supervisorB'?['tecnicoB']:equipe).includes(seletor.value))return;item.tecnico=seletor.value;conquistar('supervisor');avisar('ID atribuído ao técnico da equipe.');renderizar()};bloco.append(seletor,b);lista.append(bloco);
   }
   if(!filtrados.length)lista.textContent='Nenhum registro disponível neste perfil fictício.';
  }
 }
 function texto(tag,conteudo){const el=document.createElement(tag);el.textContent=conteudo;return el}
-function abrirDetalhes(item){
+async function abrirDetalhes(item){
  const corpo=$('modalSimCorpo');corpo.replaceChildren();$('modalSimTitulo').textContent=`${item.id} · ${perfil==='projetos'?'Projetos':'Histórico fictício'}`;
  corpo.append(texto('p',`${item.os} · ${item.cidade}`));
- if(perfil==='projetos'){
+ if(['projetos','coordenador_projetos'].includes(perfil)&&$('simVisao').value!=='acompanhamento'){
   corpo.append(texto('p',`Serviço: ${item.final.descricao}`));
   for(const [indice,caixa]of item.final.caixas.entries()){const linha=document.createElement('div');linha.className='project-box';linha.append(texto('strong',`Caixa ${indice+1} · GPS ${caixa.gps}`));const galeria=document.createElement('div');montarGaleria(galeria,listaFotos(caixa.fotos||caixa.foto).map((src,n)=>({src,label:`Caixa ${indice+1} · Foto ${n+1}`})));linha.append(galeria);corpo.append(linha)}
+  if(!item.ozmaps){const record={...item,statusOzmaps:'PENDENTE'},s=bancoProjetos.api;await s.setDoc(s.doc({},'projetosEvidencias',item.id),record);await montarResponsabilidade(corpo,record,{perfil,uid:perfil,nome:bancoProjetos.pessoa(perfil).nome,servicos:s,db:{},collectionName:'projetosEvidencias',id:item.id,atualizar:novo=>{Object.assign(item,novo);abrirDetalhes(item)}})}
   const status=texto('p',item.ozmaps?'Registrado no OZmaps (simulação)':'Aguardando OZmaps (simulação)');corpo.append(status);
-  const form=document.createElement('form');form.className='project-treatment field-card';const label=texto('label','Observação / referência no OZmaps');label.htmlFor='simObsProjeto';const obs=document.createElement('textarea');obs.id='simObsProjeto';obs.maxLength=2000;obs.value=item.obsProjeto||'';obs.placeholder='Informe o que foi registrado no OZmaps.';const confirmacao=texto('label','');confirmacao.className='project-check';const check=document.createElement('input');check.type='checkbox';check.required=true;check.checked=Boolean(item.ozmaps);confirmacao.append(check,document.createTextNode('Confirmo que as caixas foram registradas no OZmaps e a entrega foi tratada.'));const b=texto('button','✓ Confirmar tratamento');b.type='submit';b.className='btn-primary';const audit=texto('p',item.ozmaps?'Responsável: Projetista de teste · '+item.horaProjeto:'Será registrado por: Projetista de teste');audit.className='project-audit';form.append(label,obs,confirmacao,audit,b);form.onsubmit=e=>{e.preventDefault();if(!check.checked)return;item.ozmaps=true;item.obsProjeto=obs.value.trim();item.horaProjeto=new Date().toLocaleString('pt-BR');conquistar('projetos');status.textContent='Registrado no OZmaps (simulação)';audit.textContent='Responsável: Projetista de teste · '+item.horaProjeto;renderizar()};corpo.append(form)
+  const form=document.createElement('form');form.className='project-treatment field-card';const label=texto('label','Observação / referência no OZmaps');label.htmlFor='simObsProjeto';const obs=document.createElement('textarea');obs.id='simObsProjeto';obs.maxLength=2000;obs.value=item.obsProjeto||'';obs.placeholder='Informe o que foi registrado no OZmaps.';const confirmacao=texto('label','');confirmacao.className='project-check';const check=document.createElement('input');check.type='checkbox';check.required=true;check.checked=Boolean(item.ozmaps);confirmacao.append(check,document.createTextNode('Confirmo que as caixas foram registradas no OZmaps e a entrega foi tratada.'));const b=texto('button','✓ Confirmar tratamento');b.type='submit';b.className='btn-primary';const audit=texto('p',item.ozmaps?'Responsável: Projetista de teste · '+item.horaProjeto:'Será registrado por: Projetista de teste');audit.className='project-audit';form.append(label,obs,confirmacao,audit,b);form.onsubmit=e=>{e.preventDefault();if(item.ozmaps||!check.checked||!obs.value.trim())return;item.ozmaps=true;item.obsProjeto=obs.value.trim();item.horaProjeto=new Date().toLocaleString('pt-BR');form.remove();conquistar('projetos');status.textContent='Registrado no OZmaps (simulação)';audit.textContent='Responsável: Projetista de teste · '+item.horaProjeto;renderizar()};if(perfil==='coordenador_projetos'){corpo.append(texto('p','A confirmação do tratamento pertence ao analista de Projetos.'));}else if(!item.ozmaps)corpo.append(form);else corpo.append(texto('p',`Projetista de teste · ${item.horaProjeto} · ${item.obsProjeto||''}`))
  } else {
   if(!item.eventos.length)corpo.append(texto('p','Ainda não há etapas enviadas neste ID fictício.'));
   for(const evento of item.eventos){const linha=document.createElement('div');linha.className='sim-event';linha.append(texto('strong',`Etapa ${evento.numero} · ${evento.hora} · ${evento.tecnico||'Técnico de teste'}`),texto('p',evento.descricao));const galeria=document.createElement('div');montarGaleria(galeria,evento.fotos.map((src,n)=>({src,label:evento.rotulos?.[n]||`Foto ${n+1}`})));linha.append(galeria);corpo.append(linha)}
@@ -120,7 +123,7 @@ function publicar(numero,descricao,chaves){
  const anexos=chaves.flatMap(chave=>listaFotos(fotos[chave]));
  const labels={fotoDeslocamento:'Deslocamento',fotoChegada:'Local do atendimento',fotoRompimento:'Rompimento localizado',fotoPanoramica:'Técnico atuando',fotoEquipe:'Fusão'};
  ativo.eventos.push({numero,descricao,tecnico:nomes[perfil],rotulos:chaves.flatMap(chave=>listaFotos(fotos[chave]).map((_,n)=>`${labels[chave]||chave} · ${n+1}`)),fotos:anexos,hora:new Date().toLocaleTimeString('pt-BR')});ativo.status=`ETAPA ${numero}`;conquistar(`etapa${numero}`);
- $('techLocalStatus').textContent=`Etapa ${numero} enviada no laboratório. Troque para SAC ou Supervisor para conferir.`;
+ $('techLocalStatus').textContent=`Etapa ${numero} enviada no laboratório. Troque para Acompanhamento ou Supervisão para conferir.`;
  if(numero<4)mudarPasso(numero+1);return true;
 }
 export function iniciarLaboratorio(){
@@ -128,13 +131,14 @@ export function iniciarLaboratorio(){
  const medidas=iniciarLaboratorioMedicoes();
  const modoMedicoes=()=>$('simServico').value==='medicoes';
  const ocultarRompimentos=()=>{for(const id of ['simNoc','simConsulta','simDiretor'])$(id).hidden=true;$('viewTech').style.display='none';document.querySelectorAll('[data-sim-filtro]').forEach(e=>e.remove());};
- $('simServico').onchange=()=>{ativo=null;fecharModal();avisar('');const mode=modoMedicoes();for(const option of $('simPerfil').options){option.hidden=mode?['noc','sac'].includes(option.value):['admin','supervisorB'].includes(option.value)}if(mode){if(['noc','sac'].includes(perfil))perfil='admin';$('simPerfil').value=perfil;ocultarRompimentos();medidas.abrir(perfil)}else{medidas.fechar();if(['admin','supervisorB'].includes(perfil))perfil='noc';$('simPerfil').value=perfil;atualizarRoteiro();renderizar()}};
+ $('simServico').onchange=()=>{ativo=null;fecharModal();avisar('');$('simVisao').value='fila';$('simPerfil').value=perfil;if(modoMedicoes()){ocultarRompimentos();medidas.abrir(perfil)}else{medidas.fechar();atualizarRoteiro();renderizar()}};
+ $('simVisao').onchange=()=>{fecharModal();if(modoMedicoes())medidas.abrir(perfil);else renderizar()};
  $('simPerfil').onchange=()=>{perfil=$('simPerfil').value;ativo=null;fecharModal();avisar('');if(modoMedicoes()){ocultarRompimentos();medidas.abrir(perfil)}else renderizar()};
  $('simReiniciar').onclick=()=>{if(confirm('Reiniciar somente os dados fictícios deste laboratório?')){if(modoMedicoes())medidas.reiniciar();else iniciarDados();avisar('Laboratório reiniciado.')}};
  $('techFormFlow').addEventListener('input',()=>{$('techEtapa4Erro').hidden=true});
- $('simNocForm').onsubmit=e=>{e.preventDefault();const id=$('simNovoId').value.trim();if(chamados.some(i=>i.id===id)){avisar('Esse ID fictício já existe.');return}chamados.push({id,os:'OS-FICTICIA',cidade:$('simCidade').value.trim(),tecnico:'',supervisor:'',eventos:[],status:'ABERTO'});avisar('ID fictício criado. Identifique o supervisor; ele aciona o técnico da equipe.');renderizar()};
+ $('simNocForm').onsubmit=e=>{e.preventDefault();const id=$('simNovoId').value.trim();if(chamados.some(i=>i.id===id)){avisar('Esse ID fictício já existe.');return}chamados.push({id,os:'OS-FICTICIA',cidade:$('simCidade').value.trim(),tecnico:'',supervisor:$('simSupervisorNovo').value,eventos:[],status:'ABERTO'});conquistar('noc');avisar('ID fictício criado com o supervisor do comunicado. Ele distribui à equipe.');renderizar()};
  $('simFechar').onclick=fecharModal;$('modalSim').onclick=e=>{if(e.target===$('modalSim'))fecharModal()};document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!e.defaultPrevented)fecharModal()});
- $('simExportar').onclick=()=>{const escape=v=>'"'+String(v).replace(/^[=+@-]/,"'").replaceAll('"','""')+'"';const csv=['ID;OS;Status',...chamados.map(i=>[i.id,i.os,i.status].map(escape).join(';'))].join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='SIMULACAO_NEXTFLOW.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);conquistar('diretor')};
+ $('simExportar').onclick=async()=>{const b=$('simExportar');b.disabled=true;try{const {criarRelatorioPDF}=await import('../lib/executive-report.mjs');const scope=perfil==='coordenador'?chamados.filter(i=>i.supervisor==='supervisorA'):chamados;const rows=scope.map(i=>({idIncidente:i.id,os:i.os,cidades:i.cidade,estado:'SP',tipoRede:'GPON',supervisorUid:i.supervisor,supervisorNome:i.supervisor==='supervisorA'?'Supervisor A':'Supervisor B',tecnicoAtribuido:nomes[i.tecnico]||'',statusAtual:i.status==='FINALIZADO'?'ETAPA 4: REPARO CONCLUÍDO / FINALIZADO':i.status,dataTimestamp:Date.now(),timelineEtapas:i.eventos.map(t=>({numeroEtapa:t.numero,etapa:`ETAPA ${t.numero}`,dataHora:t.hora,tecnico:t.tecnico,observacao:t.descricao})),etapaConcluida:i.eventos.length}));const {pdf,nome}=await criarRelatorioPDF(rows,{simulacao:true,emitidoPor:'Laboratório NEXTFLOW',escopo:perfil==='coordenador'?'Somente equipe A (fictícia)':'Dados fictícios'});pdf.save(nome);conquistar('diretor')}catch{avisar('Não foi possível gerar o PDF de simulação.')}finally{b.disabled=false}};
  const exemplo=texto('button','Usar fotos fictícias nesta etapa');exemplo.type='button';exemplo.className='btn-sec-sm sim-example-photos';exemplo.onclick=()=>{
   const chaves=passo===1?['fotoDeslocamento']:passo===2?['fotoChegada','fotoRompimento']:passo===3?['fotoPanoramica','fotoEquipe']:[...$('caixasTecnico').querySelectorAll('input[type=file]')].map(i=>i.id);
   for(const chave of chaves){const atuais=listaFotos(fotos[chave]);if(atuais.length<LIMITE_FOTOS){fotos[chave]=[...atuais,samplePhoto(`Etapa ${passo} · foto ${atuais.length+1}`)];galeria(chave)}}$('techEtapa4Erro').hidden=true;$('techLocalStatus').textContent='Fotos fictícias adicionadas. Preencha as informações obrigatórias antes de enviar.';

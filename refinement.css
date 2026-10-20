@@ -149,3 +149,15 @@ body { -webkit-font-smoothing:antialiased; }
 .report-photo-option { margin-right:auto; font-size:12px; color:var(--text-muted); }
 .dashboard-body .executive-actions .report-photo-option { display:flex; gap:8px; align-items:center; }
 .report-photo-option input[type=checkbox] { flex:0 0 18px; width:18px; height:18px; }
+
+/* Fase 2: teclado, telas estreitas e leitura sem deslocamentos de layout. */
+.login-remember { display:flex; align-items:center; gap:9px; margin:0 0 20px; font-size:13px; line-height:1.5; color:var(--text-muted,#64748b); cursor:pointer; }
+.login-remember input { width:18px; height:18px; flex:0 0 18px; accent-color:#0756c4; }
+:focus-visible { outline:3px solid #3695ef; outline-offset:3px; }
+.dashboard-body :is(.incidente-card,.project-list-card,.field-task-card) { overflow-wrap:anywhere; }
+.dashboard-body :is(.measure-search,.report-filters label,.measure-fields label) { min-width:0; }
+.dashboard-body .measure-feedback:empty { display:none; }
+.connection-status { margin:0 auto 14px; padding:10px 14px; border:1px solid var(--border-color); border-radius:8px; background:var(--panel-bg,#fff); color:var(--text-main,#263448); font-size:13px; }
+.connection-status[hidden] { display:none; }
+@media(max-width:380px) { .dashboard-body .dashboard-container { padding-left:10px; padding-right:10px; } .dashboard-body .executive-switch { padding-inline:8px; font-size:13px; } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; scroll-behavior:auto!important; transition:none!important; } }
