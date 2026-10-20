@@ -152,7 +152,9 @@ body { -webkit-font-smoothing:antialiased; }
 
 /* Fase 2: teclado, telas estreitas e leitura sem deslocamentos de layout. */
 .login-remember { display:flex; align-items:center; gap:9px; margin:0 0 20px; font-size:13px; line-height:1.5; color:var(--text-muted,#64748b); cursor:pointer; }
-.login-remember input { width:18px; height:18px; flex:0 0 18px; accent-color:#0756c4; }
+.login-card .login-remember input[type=checkbox] { appearance:auto; width:18px; height:18px; min-height:18px; flex:0 0 18px; margin:0; padding:0; accent-color:#0756c4; cursor:pointer; }
+.login-card .login-remember input[type=checkbox]:focus { box-shadow:none; }
+.login-card .login-remember input[type=checkbox]:focus-visible { outline:2px solid #0756c4; outline-offset:3px; }
 :focus-visible { outline:3px solid #3695ef; outline-offset:3px; }
 .dashboard-body :is(.incidente-card,.project-list-card,.field-task-card) { overflow-wrap:anywhere; }
 .dashboard-body :is(.measure-search,.report-filters label,.measure-fields label) { min-width:0; }
