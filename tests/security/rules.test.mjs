@@ -2,11 +2,11 @@ import { before, beforeEach, after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
-import { doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, Timestamp, runTransaction, onSnapshot } from 'firebase/firestore';
+import { doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, documentId, serverTimestamp, Timestamp, runTransaction, onSnapshot } from 'firebase/firestore';
 
 let env;
 const users = {
-  admin: ['admin','TODOS'], coordenador: ['coordenador','TODOS'], noc: ['noc','TODOS'], sac: ['sac','TODOS'], suporte: ['suporte','TODOS'],
+  coordenadorProjetos: ['coordenador_projetos','TODOS'], projetosB:['projetos','TODOS'], admin: ['admin','TODOS'], coordenador: ['coordenador','TODOS'], noc: ['noc','TODOS'], sac: ['sac','TODOS'], suporte: ['suporte','TODOS'],
   diretor: ['diretor','TODOS'], gerente: ['gerente','TODOS'], tecnicoA: ['tecnico','SP'], tecnicoB: ['tecnico','SP'],
   tecnicoOutro: ['tecnico','PR'], tecnicoMG: ['tecnico','MG'], supervisorA: ['supervisor','SP'], supervisorB: ['supervisor','SP'], projetos: ['projetos','TODOS']
 };
@@ -35,7 +35,7 @@ beforeEach(async () => {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
-    for (const [uid,[perfil,estado]] of Object.entries(users)) await setDoc(doc(db,'usuarios',uid),{perfil,estado,nome:uid,ativo:true});
+    for (const [uid,[perfil,estado]] of Object.entries(users)) await setDoc(doc(db,'usuarios',uid),{perfil,estado,nome:uid,ativo:true,...(perfil==='coordenador'?{supervisoresUids:['supervisorA']}: {})});
     await setDoc(doc(db,'usuarios','inativo'),{perfil:'sac',estado:'TODOS',nome:'Inativo',ativo:false});
     for(const uid of ['tecnicoA','tecnicoB','tecnicoMG'])await setDoc(doc(db,'equipesTecnicas',uid),{tecnicoUid:uid,supervisorUid:'supervisorA',ativo:true,atualizadoPorUid:'admin',atualizadoEm:Timestamp.now()});
     await setDoc(doc(db,'equipesTecnicas','tecnicoOutro'),{tecnicoUid:'tecnicoOutro',supervisorUid:'supervisorB',ativo:true,atualizadoPorUid:'admin',atualizadoEm:Timestamp.now()});
@@ -84,13 +84,13 @@ test('supervisor lê somente seus IDs e não altera o conteúdo das etapas',asyn
   await assertFails(getDoc(doc(db,'incidentes','b')));
   await assertFails(updateDoc(doc(db,'incidentes','a'),{previsao:'19:00'}));
 });
-test('Projetos acessa somente a entrega e as fotos finais, sem incidente completo',async()=>{
+test('Projetos acompanha o incidente ao vivo e trata somente a entrega final',async()=>{
   await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'projetosEvidencias','a'),entrega()));
   const db=ctx('projetos');
   await assertSucceeds(getDocs(collection(db,'projetosEvidencias')));
   await assertSucceeds(getDoc(doc(db,'fotos','final1')));
-  await assertFails(getDoc(doc(db,'fotos','partida')));
-  await assertFails(getDoc(doc(db,'incidentes','a')));
+  await assertSucceeds(getDoc(doc(db,'fotos','partida')));
+  await assertSucceeds(getDoc(doc(db,'incidentes','a')));
   await assertSucceeds(updateDoc(doc(db,'projetosEvidencias','a'),{statusOzmaps:'REGISTRADO',observacaoOzmaps:'Caixas cadastradas no OZmaps',tratadoPorUid:'projetos',tratadoPorNome:'projetos',tratadoEm:serverTimestamp()}));
   await assertFails(updateDoc(doc(db,'projetosEvidencias','a'),{tratadoPorUid:'admin',tratadoPorNome:'admin',tratadoEm:serverTimestamp()}));
   await assertFails(updateDoc(doc(db,'projetosEvidencias','a'),{observacaoOzmaps:'x'.repeat(2001),tratadoEm:serverTimestamp()}));
@@ -299,13 +299,13 @@ test('medição: supervisor distribui somente sua demanda a técnico ativo da eq
 });
 test('medição: leitores, técnico próprio e supervisão são segregados; Projetos recebe só entregues',async()=>{
   await seedMedicao();
-  for(const uid of ['admin','gerente','diretor','tecnicoA','supervisorA'])await assertSucceeds(getDoc(doc(ctx(uid),'medicoes','m')));
-  for(const uid of ['tecnicoB','supervisorB','sac','noc','projetos','inativo'])await assertFails(getDoc(doc(ctx(uid),'medicoes','m')));
+  for(const uid of ['admin','gerente','diretor','tecnicoA','supervisorA','sac','suporte','noc','projetos','coordenadorProjetos'])await assertSucceeds(getDoc(doc(ctx(uid),'medicoes','m')));
+  for(const uid of ['tecnicoB','supervisorB','inativo'])await assertFails(getDoc(doc(ctx(uid),'medicoes','m')));
   await assertSucceeds(getDocs(query(collection(ctx('tecnicoA'),'medicoes'),where('tecnicoUid','==','tecnicoA'))));
   await assertFails(getDocs(collection(ctx('tecnicoA'),'medicoes')));
   await assertSucceeds(getDocs(query(collection(ctx('supervisorA'),'medicoes'),where('supervisorUid','==','supervisorA'))));
   await assertSucceeds(getDocs(query(collection(ctx('projetos'),'medicoes'),where('status','in',['ENTREGUE','CONFERIDA']))));
-  await assertFails(getDocs(collection(ctx('projetos'),'medicoes')));
+  await assertSucceeds(getDocs(collection(ctx('projetos'),'medicoes')));
 });
 test('medição: sem fotos e arquivos completos TX/RX não entrega, nem fabrica comprovantes',async()=>{
   await seedMedicao();const db=ctx('tecnicoA');
@@ -400,7 +400,7 @@ test('PDF de OTDR é aceito sem nativo extra, preservado e entregue com as mesma
     const meta={nome:'POP-PNM-DIO-03-FO-04.msor.pdf',tamanho:3,sha256:'a'.repeat(64),lado:side,indice:0,partes:1,completo:false,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()};
     await assertFails(setDoc(ref,{...meta,nome:'relatorio.pdf.exe'}));
     await assertSucceeds(setDoc(ref,meta));
-    await assertFails(getDoc(doc(ctx('projetos'),'medicoes','m','arquivos',`${side}-0`)));
+    await assertSucceeds(getDoc(doc(ctx('projetos'),'medicoes','m','arquivos',`${side}-0`)));
     await assertSucceeds(setDoc(doc(db,'medicoes','m','arquivos',`${side}-0`,'partes','0'),{dados:'QUJD'}));
     await assertSucceeds(updateDoc(ref,{completo:true}));
     await assertSucceeds(setDoc(doc(db,'medicoes','m','comprovantes',`${side}Arquivos`),{tipo:'arquivos',lado:side,quantidade:1,criadoPorUid:'tecnicoA',criadoEm:serverTimestamp()}));
@@ -413,7 +413,8 @@ test('PDF de OTDR é aceito sem nativo extra, preservado e entregue com as mesma
 
 test('coordenação cria demandas para supervisor ativo, sem assumir distribuição ou conferência',async()=>{
   const db=ctx('coordenador');
-  await assertSucceeds(getDocs(query(collection(db,'usuarios'),where('perfil','==','supervisor'))));
+  await assertSucceeds(getDocs(query(collection(db,'usuarios'),where(documentId(),'in',['supervisorA']),where('perfil','==','supervisor'))));
+  await assertFails(getDocs(query(collection(db,'usuarios'),where('perfil','==','supervisor'))));
   await assertFails(getDocs(collection(db,'usuarios')));
   await assertFails(getDoc(doc(db,'usuarios','tecnicoA')));
   await assertSucceeds(setDoc(doc(db,'medicoes','m'),medicaoAberta({criadoPorUid:'coordenador'})));
@@ -423,7 +424,7 @@ test('coordenação cria demandas para supervisor ativo, sem assumir distribuiç
   await enviarDuasEtapas(ctx('tecnicoA'));
   await assertSucceeds(getDoc(doc(db,'medicoes','m')));
   await assertFails(updateDoc(doc(db,'medicoes','m'),{status:'CONFERIDA',observacaoProjetos:'Tentativa de conferir.',conferidoPorUid:'coordenador',conferidoPorNome:'coordenador',conferidoEm:serverTimestamp()}));
-  await assertFails(getDoc(doc(db,'incidentes','a')));
+  await assertSucceeds(getDoc(doc(db,'incidentes','a')));
   await assertFails(updateDoc(doc(db,'usuarios','coordenador'),{perfil:'admin'}));
 });
 test('somente admin aprova ou configura o perfil de coordenador',async()=>{
@@ -442,7 +443,7 @@ test('POP 1 é obrigatório, transmite fotos e localização sem encerrar a OS n
   await assertFails(updateDoc(ref,pop1Medicao('tecnicoA',{pop1PorNome:'Outro técnico'})));
   await assertSucceeds(updateDoc(ref,pop1Medicao()));assert.equal((await getDoc(ref)).data().status,'EM_CAMPO');
   for(const uid of ['supervisorA','diretor','coordenador']){await assertSucceeds(getDoc(doc(ctx(uid),'medicoes','m')));await assertSucceeds(getDoc(doc(ctx(uid),'medicoesFotos','m-tx-0')))}
-  await assertFails(getDoc(doc(ctx('projetos'),'medicoes','m')));
+  await assertSucceeds(getDoc(doc(ctx('projetos'),'medicoes','m')));
   await assertSucceeds(getDocs(query(collection(db,'medicoes'),where('tecnicoUid','==','tecnicoA'))));
 });
 test('POP 1 enviado é imutável; POP 2 requer evidências próprias e encaminha para Projetos',async()=>{
@@ -469,4 +470,61 @@ test('fluxo POP aceita o limite real de seis fotos e três arquivos por etapa',a
  await seedMedicao({versao:2});const db=ctx('tecnicoA'),ref=doc(db,'medicoes','m');
  await subirProvas(db,{sides:['tx'],photos:6,files:3,chunks:4});await assertSucceeds(updateDoc(ref,pop1Medicao('tecnicoA',{txFotos:6,txArquivos:3})));
  await subirProvas(db,{sides:['rx'],photos:6,files:3,chunks:4});await assertSucceeds(updateDoc(ref,pop2Medicao('tecnicoA',{rxFotos:6,rxArquivos:3})));
+});
+
+
+test('coordenação de operações consulta só a própria equipe, inclusive histórico e fotos recentes',async()=>{
+ const db=ctx('coordenador');
+ await assertSucceeds(getDocs(query(collection(db,'incidentes'),where('supervisorUid','in',['supervisorA']))));
+ await assertFails(getDocs(collection(db,'incidentes')));await assertFails(getDoc(doc(db,'incidentes','b')));
+ await assertSucceeds(getDoc(doc(db,'fotos','partida')));await assertFails(getDoc(doc(db,'fotos','antiga')));
+ await assertFails(updateDoc(doc(db,'incidentes','a'),{previsao:'2026-10-20T15:00'}));
+ await seedMedicao();await assertSucceeds(getDoc(doc(db,'medicoes','m')));
+ await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'medicoes','outra'),medicao({supervisorUid:'supervisorB',supervisorNome:'supervisorB'})));
+ await assertFails(getDoc(doc(db,'medicoes','outra')));await assertFails(getDocs(collection(db,'medicoes')));
+ await assertSucceeds(getDocs(query(collection(db,'medicoes'),where('supervisorUid','in',['supervisorA']))));
+ await assertFails(setDoc(doc(db,'medicoes','foraEscopo'),medicaoAberta({criadoPorUid:'coordenador',supervisorUid:'supervisorB',supervisorNome:'supervisorB'})));
+ await assertFails(updateDoc(doc(db,'usuarios','coordenador'),{supervisoresUids:['supervisorB']}));
+ await assertSucceeds(updateDoc(doc(ctx('admin'),'usuarios','coordenador'),{supervisoresUids:[]}));
+ await assertFails(getDoc(doc(db,'incidentes','a')));await assertFails(getDoc(doc(db,'medicoes','m')));
+});
+test('admin vincula equipe e configura coordenação de Projetos; não-coordenador não guarda escopo',async()=>{
+ await assertFails(updateDoc(doc(ctx('projetos'),'usuarios','projetos'),{perfil:'coordenador_projetos'}));
+ await assertSucceeds(updateDoc(doc(ctx('admin'),'usuarios','projetosB'),{perfil:'coordenador_projetos',supervisoresUids:[]}));
+ await assertFails(updateDoc(doc(ctx('admin'),'usuarios','projetosB'),{supervisoresUids:['supervisorA']}));
+ await assertFails(updateDoc(doc(ctx('admin'),'usuarios','coordenador'),{supervisoresUids:Array(31).fill('supervisorA')}));
+});
+test('acompanhamento de Projetos é leitura; fila final e conferência continuam separadas',async()=>{
+ await seedMedicao({versao:2});
+ for(const uid of ['projetos','coordenadorProjetos']){
+  await assertSucceeds(getDocs(collection(ctx(uid),'incidentes')));await assertSucceeds(getDoc(doc(ctx(uid),'medicoes','m')));
+  await assertFails(updateDoc(doc(ctx(uid),'incidentes','a'),{statusAtual:'FINALIZADO'}));
+  await assertFails(updateDoc(doc(ctx(uid),'medicoes','m'),pop1Medicao(uid)));
+  assert.equal((await getDocs(query(collection(ctx(uid),'medicoes'),where('status','in',['ENTREGUE','CONFERIDA'])))).size,0);
+ }
+ await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'projetosEvidencias','a'),entrega()));
+ await assertSucceeds(getDocs(collection(ctx('coordenadorProjetos'),'projetosEvidencias')));
+ await assertFails(updateDoc(doc(ctx('coordenadorProjetos'),'projetosEvidencias','a'),{statusOzmaps:'REGISTRADO',observacaoOzmaps:'Não pode confirmar como analista',tratadoPorUid:'coordenadorProjetos',tratadoPorNome:'coordenadorProjetos',tratadoEm:serverTimestamp()}));
+});
+const projectAssign=(target='projetos',actor='coordenadorProjetos')=>({projetoResponsavelUid:target,projetoResponsavelNome:target,projetoAtribuidoEm:serverTimestamp(),projetoAtribuidoPorUid:actor,projetoAtribuidoPorNome:actor});
+test('responsabilidade de Projetos valida ator, analista e imutabilidade depois do tratamento',async()=>{
+ await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'projetosEvidencias','a'),entrega()));
+ const ref=uid=>doc(ctx(uid),'projetosEvidencias','a');
+ await assertFails(updateDoc(ref('coordenadorProjetos'),projectAssign('tecnicoA')));
+ await assertSucceeds(updateDoc(ref('coordenadorProjetos'),projectAssign()));
+ await assertFails(updateDoc(ref('projetosB'),projectAssign('projetosB','projetosB')));
+ const treated={statusOzmaps:'REGISTRADO',observacaoOzmaps:'Caixas documentadas.',tratadoPorUid:'projetosB',tratadoPorNome:'projetosB',tratadoEm:serverTimestamp()};
+ await assertFails(updateDoc(ref('projetosB'),treated));
+ await assertSucceeds(updateDoc(ref('projetos'),{...treated,tratadoPorUid:'projetos',tratadoPorNome:'projetos'}));
+ await assertFails(updateDoc(ref('admin'),projectAssign('projetosB','admin')));
+ await assertFails(updateDoc(ref('projetos'),{observacaoOzmaps:'Tentativa de reescrita',tratadoEm:serverTimestamp()}));
+ await assertSucceeds(getDoc(ref('diretor')));await assertSucceeds(getDoc(ref('coordenador')));
+});
+test('responsabilidade em Medições não altera POPs; coordenador acompanha sem conferir',async()=>{
+ await seedMedicao({status:'ENTREGUE'});const ref=uid=>doc(ctx(uid),'medicoes','m');
+ await assertSucceeds(updateDoc(ref('projetos'),projectAssign('projetos','projetos')));
+ await assertFails(updateDoc(ref('coordenadorProjetos'),{...projectAssign('projetosB'),pop1Observacao:'Mudança indevida'}));
+ await assertFails(updateDoc(ref('projetosB'),{status:'CONFERIDA',observacaoProjetos:'Não é meu atendimento.',conferidoPorUid:'projetosB',conferidoPorNome:'projetosB',conferidoEm:serverTimestamp()}));
+ await assertSucceeds(updateDoc(ref('projetos'),{status:'CONFERIDA',observacaoProjetos:'Conferência registrada.',conferidoPorUid:'projetos',conferidoPorNome:'projetos',conferidoEm:serverTimestamp()}));
+ await assertFails(updateDoc(ref('coordenadorProjetos'),projectAssign('projetosB')));await assertSucceeds(getDoc(ref('coordenadorProjetos')));
 });

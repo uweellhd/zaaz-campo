@@ -27,7 +27,7 @@
     <nav id="adminNavMenu" class="nav-menu">
       <button id="btnTabGerente" class="nav-btn" style="display:none" onclick="alternarAba('viewGerente')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h16M8 15v-4m5 4V7m5 8v-6"/></svg> Diretoria</button>
       <button id="btnTabNoc" class="nav-btn" style="display:none" onclick="alternarAba('viewNoc')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg> NOC</button>
-      <button id="btnTabSac" class="nav-btn" style="display:none" onclick="alternarAba('viewSac')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13v-2a8 8 0 0 1 16 0v2M4 12H3v6h4v-6H4m16 0h1v6h-4v-6h3M18 18v2h-6"/></svg> SAC / Suporte</button>
+      <button id="btnTabSac" class="nav-btn" style="display:none" onclick="alternarAba('viewSac')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13v-2a8 8 0 0 1 16 0v2M4 12H3v6h4v-6H4m16 0h1v6h-4v-6h3M18 18v2h-6"/></svg> Acompanhamento</button>
       <button id="btnTabTech" class="nav-btn" style="display:none" onclick="alternarAba('viewTech')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="m14 5 5 5M4 20l4-1L20 7a2 2 0 0 0-3-3L5 16l-1 4Z"/></svg> Técnico</button>
       <button id="btnTabMedicoes" class="nav-btn" style="display:none" onclick="alternarAba('viewMedicoes')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17h4l3-10 4 13 3-9h4M3 4v16h18"/></svg> Medições</button>
       <button id="btnTabSupervisor" class="nav-btn" style="display:none" onclick="alternarAba('viewSupervisor')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3m1-16a3 3 0 0 1 0 6m2 3a6 6 0 0 1 3 4v3"/></svg> Supervisão</button>
@@ -163,7 +163,8 @@
       </div>
       <div class="executive-filterbar">
         <div class="report-filters" aria-label="Filtros da visão executiva">
-          <label>Abertos de <input type="date" id="relatorioInicio" onchange="atualizarRecorteDiretoria()"></label>
+          <label>Período por <select id="relatorioBaseData" onchange="atualizarRecorteDiretoria()"><option value="abertura">Abertura</option><option value="conclusao">Conclusão técnica</option></select></label>
+          <label>De <input type="date" id="relatorioInicio" onchange="atualizarRecorteDiretoria()"></label>
           <label>Até <input type="date" id="relatorioFim" onchange="atualizarRecorteDiretoria()"></label>
           <label>Estado <select id="relatorioEstado" onchange="filtrarPainelPorEstado(this.value)"><option value="TODOS">Todos</option></select></label>
           <label>Supervisor <input type="search" id="relatorioSupervisor" placeholder="Nome ou sobrenome" oninput="atualizarRecorteDiretoria()"></label>
@@ -197,7 +198,7 @@
 
       <div class="executive-section-label"><span>Chamados</span><strong>Chamados e relatório para reunião</strong></div>
       <div class="report-toolbar"><div><h4 class="section-subtitle" id="tituloListaConsolidada">Chamados da operação</h4><p>Selecione um chamado para consultar o histórico. PDF e CSV incluem ativos e resolvidos do recorte.</p></div><button class="btn-export" onclick="exportarRelatorioCSV()">Exportar CSV <span aria-hidden="true">↗</span></button></div>
-      <div class="status-tabs" id="diretoriaFiltros" aria-label="Situação dos chamados"><button type="button" class="btn-sec-sm active" data-status="ativos" onclick="filtrarSituacaoDiretoria('ativos')">Em andamento</button><button type="button" class="btn-sec-sm" data-status="resolvidos" onclick="filtrarSituacaoDiretoria('resolvidos')">Resolvidos</button></div>
+      <div class="status-tabs" id="diretoriaFiltros" aria-label="Situação dos chamados"><button type="button" class="btn-sec-sm active" data-status="ativos" onclick="filtrarSituacaoDiretoria('ativos')">Em andamento</button><button type="button" class="btn-sec-sm" data-status="resolvidos" onclick="filtrarSituacaoDiretoria('resolvidos')">Concluídos</button><button type="button" class="btn-sec-sm" data-status="todos" onclick="filtrarSituacaoDiretoria('todos')">Todos</button></div>
       <div id="gerenteIncidentesList" class="incidents-grid-list"></div><button type="button" id="diretoriaMais" class="btn-sec-sm" onclick="maisDiretoria()">Carregar mais IDs</button>
     </section>
 
@@ -221,7 +222,10 @@
 
     <!-- 3. PAINEL DE CONSULTA (SAC / SUPORTE / NOC) -->
     <section id="viewSac" class="view-panel" style="display:none;">
-      <h3 class="panel-title">Consulta de incidentes</h3>
+      <nav class="executive-switcher" aria-label="Serviços em acompanhamento"><button type="button" class="executive-switch selected" aria-pressed="true" data-acomp-service="rompimentos" onclick="alternarServicoAcompanhamento('rompimentos')">Rompimentos</button><button type="button" class="executive-switch" aria-pressed="false" data-acomp-service="medicoes" onclick="alternarServicoAcompanhamento('medicoes')">Medições</button></nav>
+      <div id="acompRompimentosArea">
+
+      <h3 class="panel-title">Acompanhamento operacional</h3>
       <p class="panel-desc">Consulte a evolução dos chamados, previsões de restauração e fotos do técnico.</p>
 
       <div class="search-box">
@@ -231,6 +235,8 @@
       <p class="search-hint">A lista mostra 24 chamados por vez. A busca por ID ou OS consulta todos os registros, inclusive os que ainda não aparecem nesta página. Apague a busca e clique em Buscar para voltar à lista.</p>
       <div id="sacResultsList" class="incidents-grid-list"></div>
       <div class="list-actions"><button type="button" id="btnMaisSac" class="btn-sec-sm" onclick="carregarMaisSac()">Carregar mais chamados</button></div>
+
+      </div><div id="acompMedicoesArea" hidden></div>
     </section>
 
     <!-- 4. PAINEL EXCLUSIVO DO TÉCNICO DE CAMPO -->

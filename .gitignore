@@ -1,3 +1,6 @@
 maintenance/node_modules/
 /tests/security/node_modules/
 *-debug.log
+
+/tests/browser/node_modules/
+/tests/browser/artifacts/

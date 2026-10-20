@@ -1,3 +1,5 @@
+> Regra atual de acesso, coordenação, acompanhamento e relatórios: [Etapa 1 — 20/10/2026](etapa-1-acompanhamento-e-relatorios.md). As seções datadas de 19/10 abaixo registram a evolução anterior.
+
 # Medições OTDR — NEXTFLOW Campo
 
 Atualização de 19/10/2026, revisada após teste de abertura e distribuição. Serviço separado dos rompimentos; não altera as quatro etapas existentes.
