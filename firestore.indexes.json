@@ -1,0 +1,311 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "referencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "referencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "referencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "referencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "entregueEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "entregueEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "referencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "entregueEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "entregueEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "referencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "entregueEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "referencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "entregueEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "medicoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "referencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "entregueEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "incidentes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "supervisorUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dataTimestamp",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "fotos",
+      "fieldPath": "dadosBase64",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "medicoesFotos",
+      "fieldPath": "dadosBase64",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "partes",
+      "fieldPath": "dados",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "incidentes",
+      "fieldPath": "timelineEtapas",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "incidentes",
+      "fieldPath": "textoCompleto",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "incidentes",
+      "fieldPath": "descricao",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "projetosEvidencias",
+      "fieldPath": "caixas",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "projetosEvidencias",
+      "fieldPath": "descricaoServico",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "projetosEvidencias",
+      "fieldPath": "fotoIds",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "medicoes",
+      "fieldPath": "observacao",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "medicoes",
+      "fieldPath": "pop1Observacao",
+      "indexes": []
+    }
+  ]
+}

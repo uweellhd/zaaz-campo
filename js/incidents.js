@@ -3,15 +3,17 @@ import { validarVolumePDF, mapearComLimite } from '../lib/async-work.mjs';
    NEXTFLOW ENTERPRISE - LOGICA DE PERMISSÕES & INCIDENTES (js/incidents.js)
    ========================================================================== */
 
+import { periodoRecente, limitarAberturaIncidentes } from '../lib/query-period.mjs';
+import { configurarBackup } from './backup.js';
 import { criarConsultasCompartilhadas } from '../lib/live-queries.mjs';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, setDoc, updateDoc, runTransaction, query, where, documentId, startAfter, limit, serverTimestamp, queryEqual, refEqual } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, getDocFromServer, getDocsFromServer, setDoc, updateDoc, runTransaction, query, where, documentId, startAfter, limit, orderBy, serverTimestamp, queryEqual, refEqual } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, signOut, verifyBeforeUpdateEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { avaliarFinalizacao, avaliarEtapa, categoriasEtapa, listaFotos, LIMITE_FOTOS, etapaConcluida, exigirProximaEtapa, modeloDescricao, separarDescricao, formatarPrevisao, resolvido } from '../lib/field-flow.mjs';
 import { renderizarGaleria } from '../lib/photo-gallery.mjs';
 import { montarGaleria, abrirFotos, fecharFotos, fotoAberta } from '../lib/photo-viewer.mjs';
 import { selecionarIncidentes, analisarOperacao, leituraExecutiva, dataConclusao, horarioBrasil, diaBrasil } from '../lib/executive-metrics.mjs';
-import { reconhecerSupervisor, coordenadasValidas, lerLocalizacao } from '../lib/incident-identity.mjs';
+import { identificarSupervisor, coordenadasValidas, lerLocalizacao } from '../lib/incident-identity.mjs';
 import { configurarAlteracaoSenha } from './account.js';
 import { criarCartaoTecnico } from '../lib/field-task-card.mjs';
 import { iniciarMedicoes } from './measurements.js';
@@ -44,7 +46,7 @@ const ouvintes = new Map();
 const consultasCompartilhadas = criarConsultasCompartilhadas(onSnapshot, (a,b) => a.type === 'document' ? b.type === 'document' && refEqual(a,b) : b.type !== 'document' && queryEqual(a,b));
 let saindo = false;
 let medicoes, medicoesTecnico, medicoesProjetos, medicoesAcompanhamento;
-let supervisoresEscopo=[], filaProjetos;
+let supervisoresEscopo=[], filaProjetos,backupConfigurado=false;
 let servicoProjetos = 'rompimentos';
 let servicoTecnico = 'rompimentos';
 const abasPermitidas = {
@@ -65,12 +67,14 @@ function ouvirUmaVez(chave, consulta, aoReceber) {
   if (ouvintes.has(chave)) return;
   const cancelar = consultasCompartilhadas.ouvir(consulta, aoReceber, erro => {
     ouvintes.delete(chave);
+    if(chave==='gerente'){carregandoPainel=false;consultaPainelAssinatura=null;el('avisoRelatorio').textContent='Não foi possível atualizar o período. Abra a guia novamente para tentar.';}
     console.error(`Falha ao consultar ${chave}:`, erro);
     if (saindo || !auth.currentUser) return;
     const mensagem=erro.code==='resource-exhausted'?'O banco atingiu um limite de uso. Avise o administrador e tente novamente mais tarde.':erro.code==='permission-denied'?'Seu acesso não permite esta consulta ou foi alterado. Entre novamente; se persistir, avise o administrador.':'Não foi possível atualizar os dados. Confira a conexão e tente abrir a guia novamente. Se necessário, atualize a página após salvar o rascunho.';
     alert(mensagem);
   });
   ouvintes.set(chave, cancelar);
+  return () => { if(ouvintes.get(chave)===cancelar)ouvintes.delete(chave);cancelar(); };
 }
 
 const badgeElem = document.getElementById('userBadge');
@@ -184,15 +188,18 @@ el('formBuscarAtribuicao')?.addEventListener('submit',async evento=>{
 });
 function prepararIdentidadesIxc(){
   if(perfilSalvo!=='admin'||el('formIdentidadeIxc'))return;
-  const secao=elemento('details','', 'team-panel');secao.append(elemento('summary','🔗 Identificadores únicos do IXC'));
-  const corpo=elemento('div','', 'team-panel-body');corpo.append(elemento('p','Cadastre o ID exato do usuário supervisor no IXC. Novos comunicados com o campo ID USUÁRIO IXC ou ID SUPERVISOR IXC serão vinculados à conta correspondente. Não usamos semelhança de nomes.','search-hint'));
+  const secao=elemento('details','', 'team-panel');secao.append(elemento('summary','Vínculo do supervisor: IXC → NEXTFLOW'));
+  const corpo=elemento('div','', 'team-panel-body');corpo.append(elemento('p','Esta tela relaciona o número de um usuário supervisor no IXC à conta dele no NEXTFLOW. Ela não conecta os sistemas nem importa OS. O número pedido aqui não é o ID do incidente, da OS ou do cliente.','search-hint'));
+  corpo.append(elemento('p','Exemplo fictício: supervisor de número 123 no IXC → conta de Ana no NEXTFLOW. Quando o comunicado informar ID USUÁRIO IXC: 123, a OS será destinada à Ana, que distribui o atendimento ao técnico.','search-hint'));
+  corpo.append(elemento('p','Sem o número IXC no comunicado, o sistema tenta somente o nome completo exato e único. Se houver número inválido, não cadastrado ou vínculo inativo, o atendimento fica pendente de identificação; não será atribuído por aproximação.','search-hint'));
+  let revisao=null;
   const form=elemento('form','', 'assignment-search');form.id='formIdentidadeIxc';const id=elemento('input');id.required=true;id.pattern='[0-9]{1,20}';id.inputMode='numeric';id.placeholder='ID do usuário no IXC';id.setAttribute('aria-label','ID do usuário supervisor no IXC');const supervisor=elemento('select');supervisor.required=true;supervisor.setAttribute('aria-label','Supervisor correspondente no NEXTFLOW');
   carregarTecnicosDisponiveis().then(()=>supervisor.replaceChildren(new Option('Selecione o supervisor',''),...supervisoresDisponiveis.map(p=>new Option(p.nome,p.uid)))).catch(()=>{});
   const salvar=elemento('button','Salvar identificação','btn-primary');salvar.type='submit';form.append(id,supervisor,salvar);const lista=elemento('div','', 'team-roster');
-  form.onsubmit=async e=>{e.preventDefault();if(!/^[0-9]{1,20}$/.test(id.value))return;const pessoa=supervisoresDisponiveis.find(p=>p.uid===supervisor.value);if(!pessoa)return;salvar.disabled=true;
-    try{await runTransaction(db,async tx=>{const ref=doc(db,'identidadesIxc',id.value),atual=await tx.get(ref);if(atual.exists()&&atual.data().supervisorUid!==pessoa.uid)throw new Error('Este ID IXC já está vinculado a outra conta. Revise o cadastro antes de alterar.');tx.set(ref,{supervisorUid:pessoa.uid,supervisorNome:pessoa.nome,atualizadoEm:serverTimestamp(),atualizadoPorUid:usuarioUid})});id.value='';}catch(erro){alert(erro.message||'Não foi possível salvar.')}finally{salvar.disabled=false}
+  form.onsubmit=async e=>{e.preventDefault();if(!/^[0-9]{1,20}$/.test(id.value))return;const pessoa=supervisoresDisponiveis.find(p=>p.uid===supervisor.value);if(!pessoa)return;if(revisao&&revisao.uid!==pessoa.uid&&!confirm('Alterar este vínculo para os próximos comunicados? Os IDs já registrados e suas equipes não serão alterados.'))return;salvar.disabled=true;
+    try{await runTransaction(db,async tx=>{const ref=doc(db,'identidadesIxc',id.value),atual=await tx.get(ref);if(atual.exists()&&atual.data().supervisorUid!==pessoa.uid&&(!revisao||revisao.id!==id.value||revisao.uid!==atual.data().supervisorUid))throw new Error('Este número IXC já tem outro vínculo. Clique em Revisar vínculo na lista e confira a conta correta.');tx.set(ref,{supervisorUid:pessoa.uid,supervisorNome:pessoa.nome,atualizadoEm:serverTimestamp(),atualizadoPorUid:usuarioUid})});id.value='';revisao=null;salvar.textContent='Salvar identificação';}catch(erro){alert(erro.message||'Não foi possível salvar.')}finally{salvar.disabled=false}
   };corpo.append(form,lista);secao.append(corpo);el('listaEquipe').before(secao);
-  ouvirUmaVez('identidades-ixc',collection(db,'identidadesIxc'),snapshot=>{lista.replaceChildren();for(const d of snapshot.docs)lista.append(elemento('p',`IXC ${d.id} → ${d.data().supervisorNome}`));if(snapshot.empty)lista.append(elemento('p','Nenhuma identificação cadastrada.','empty-state'))});
+  ouvirUmaVez('identidades-ixc',collection(db,'identidadesIxc'),snapshot=>{lista.replaceChildren();for(const d of snapshot.docs){const row=elemento('div','','team-member');row.append(elemento('strong',`Usuário IXC ${d.id} → ${d.data().supervisorNome}`));const edit=elemento('button','Revisar vínculo','btn-sec-sm');edit.type='button';edit.onclick=()=>{id.value=d.id;supervisor.value=d.data().supervisorUid;revisao={id:d.id,uid:d.data().supervisorUid};salvar.textContent='Salvar revisão do vínculo';form.scrollIntoView({block:'center',behavior:'smooth'});supervisor.focus()};row.append(edit);lista.append(row)}if(snapshot.empty)lista.append(elemento('p','Nenhuma identificação cadastrada.','empty-state'))});
 }
 
 // LÓGICA DE VISIBILIDADE DAS ABAS BASEADA EM PERMISSÕES DINÂMICAS (RBAC)
@@ -411,6 +418,7 @@ function carregarSupervisor() {
 function carregarSolicitacoes() {
   if (perfilSalvo !== 'admin') return;
   prepararIdentidadesIxc();
+  if(!backupConfigurado&&perfilSalvo==='admin'){backupConfigurado=true;configurarBackup({root:el('listaEquipe'),db,services:{collection,doc,getDoc:getDocFromServer,getDocs:getDocsFromServer,query,where,documentId,orderBy,startAfter,limit},uid:usuarioUid,nome:usuarioSalvo,isActive:()=>!saindo&&auth.currentUser?.uid===usuarioUid});}
   ouvirUmaVez('equipe', collection(db, 'usuarios'), snapshot => {
     const lista = document.getElementById('listaEquipe');
     lista.replaceChildren();
@@ -669,12 +677,12 @@ if (formNoc) {
       const tipoRedeExt = detectarTipoRede(textoBruto);
 
       const ixcUsuarioId=extrairCampo(textoBruto,'ID USUÁRIO IXC')||extrairCampo(textoBruto,'ID USUARIO IXC')||extrairCampo(textoBruto,'ID SUPERVISOR IXC')||'';
-      let identidade=null, origemVinculo='PENDENTE';
-      if(/^[0-9]{1,20}$/.test(ixcUsuarioId)){
-        const registro=await getDoc(doc(db,'identidadesIxc',ixcUsuarioId));
-        if(registro.exists()) { const pessoa=await getDoc(doc(db,'usuarios',registro.data().supervisorUid)); if(pessoa.exists()&&pessoa.data().ativo&&pessoa.data().perfil==='supervisor'){identidade={uid:pessoa.id,nome:pessoa.data().nome};origemVinculo='IXC_ID';} }
-      }
-      if(!identidade){await carregarTecnicosDisponiveis();identidade=reconhecerSupervisor(extrairCampo(textoBruto,'RESPONSÁVEL'),supervisoresDisponiveis);if(identidade)origemVinculo='NOME_EXATO_UNICO';}
+      const reconhecimento=await identificarSupervisor({ixcId:ixcUsuarioId,nome:extrairCampo(textoBruto,'RESPONSÁVEL')},{
+        buscarVinculo:async id=>{const r=await getDoc(doc(db,'identidadesIxc',id));return r.exists()?r.data():null},
+        buscarPessoa:async uid=>{const r=await getDoc(doc(db,'usuarios',uid));return r.exists()?r.data():null},
+        listarPessoas:async()=>{await carregarTecnicosDisponiveis();return supervisoresDisponiveis}
+      });
+      const identidade=reconhecimento.identidade,origemVinculo=reconhecimento.origem;
       await addDoc(collection(db, "incidentes"), {
         idIncidente: idIncidenteExt,
         os: extrairCampo(textoBruto, "ORDEM DE SERVIÇO") || "Não informada",
@@ -712,7 +720,7 @@ if (formNoc) {
 
 // 3. DASHBOARD GERENCIAL
 let todosIncidentesCache = [];
-let gerandoRelatorio=false;
+let gerandoRelatorio=false,carregandoPainel=false,consultaPainelAssinatura=null,painelEpoch=0;
 let estadoFiltroAtivo = "TODOS";
 let chartTipoInstance = null;
 let chartEstadosInstance = null;
@@ -730,9 +738,15 @@ async function carregarDashboardGerente() {
     await graficosProntos;
   } catch { el('avisoRelatorio').textContent='Gráficos indisponíveis. Os registros e relatórios continuam acessíveis.'; }
   if(saindo)return;
-  const consulta=scopeQuery({collection,query,where,db},perfilSalvo,supervisoresEscopo,'incidentes');
-  if(!consulta){todosIncidentesCache=[];renderizarPainelGerenteFiltrado();el('avisoRelatorio').textContent='Nenhum supervisor vinculado. Solicite a configuração ao administrador.';return}
+  const filtros=filtrosDiretoria(),assinatura=JSON.stringify([filtros.baseData,filtros.inicio,filtros.fim]);
+  if(consultaPainelAssinatura===assinatura)return;consultaPainelAssinatura=assinatura;const epoch=++painelEpoch;
+  ouvintes.get('gerente')?.();ouvintes.delete('gerente');
+  const base=scopeQuery({collection,query,where,db},perfilSalvo,supervisoresEscopo,'incidentes');
+  if(!base){todosIncidentesCache=[];renderizarPainelGerenteFiltrado();el('avisoRelatorio').textContent='Nenhum supervisor vinculado. Solicite a configuração ao administrador.';return}
+  const consulta=limitarAberturaIncidentes(base,filtros,{query,where});
+  carregandoPainel=true;todosIncidentesCache=[];renderizarPainelGerenteFiltrado();el('avisoRelatorio').textContent='Consultando os registros do período selecionado…';
   ouvirUmaVez('gerente', consulta, (snapshot) => {
+    if(epoch!==painelEpoch||saindo)return;carregandoPainel=false;
     todosIncidentesCache = [];
 
     snapshot.forEach((docSnap) => {
@@ -747,10 +761,10 @@ async function carregarDashboardGerente() {
 }
 
 function filtrosDiretoria(){return {inicio:document.getElementById('relatorioInicio').value,fim:document.getElementById('relatorioFim').value,estado:estadoFiltroAtivo,supervisor:document.getElementById('relatorioSupervisor').value.trim(),baseData:el('relatorioBaseData').value};}
-window.atualizarRecorteDiretoria = () => {paginaDiretoria=1;renderizarPainelGerenteFiltrado()};
+window.atualizarRecorteDiretoria = () => {paginaDiretoria=1;renderizarPainelGerenteFiltrado();if(recorteValido())carregarDashboardGerente()};
 window.limparRecorteDiretoria = () => {for(const id of ['relatorioInicio','relatorioFim','relatorioSupervisor'])document.getElementById(id).value='';el('relatorioBaseData').value='abertura';filtrarPainelPorEstado('TODOS')};
 window.filtrarPainelPorEstado = estado => {estadoFiltroAtivo=estado;document.getElementById('relatorioEstado').value=estado;atualizarRecorteDiretoria()};
-function recorteValido(){const f=filtrosDiretoria();const valido=!f.inicio||!f.fim||f.inicio<=f.fim;document.getElementById('avisoRelatorio').textContent=valido?'':'A data inicial deve ser anterior ou igual à data final.';document.getElementById('btnRelatorioPDF').disabled=!valido||gerandoRelatorio;return valido;}
+function recorteValido(){const f=filtrosDiretoria();const valido=!f.inicio||!f.fim||f.inicio<=f.fim;document.getElementById('avisoRelatorio').textContent=valido?'':'A data inicial deve ser anterior ou igual à data final.';document.getElementById('btnRelatorioPDF').disabled=!valido||gerandoRelatorio||carregandoPainel;return valido;}
 
 function renderizarPainelGerenteFiltrado() {
   if(!recorteValido())return;
@@ -1636,7 +1650,7 @@ document.addEventListener('keydown', event => {
 
 const fotosExecutivo=opcaoFotos();el('viewGerente').querySelector('.executive-actions').prepend(fotosExecutivo.label);
 window.exportarRelatorioPDF = async () => {
-  if(gerandoRelatorio||!['admin','gerente','diretor','coordenador'].includes(perfilSalvo)||!recorteValido())return;
+  if(carregandoPainel||gerandoRelatorio||!['admin','gerente','diretor','coordenador'].includes(perfilSalvo)||!recorteValido())return;
   const filtros=filtrosDiretoria(),itens=selecionarIncidentes(todosIncidentesCache,filtros,detectarEstado);
   if(!itens.length){document.getElementById('avisoRelatorio').textContent='Nenhum chamado no recorte selecionado.';return}
   const botao=document.getElementById('btnRelatorioPDF'),aviso=document.getElementById('avisoRelatorio');gerandoRelatorio=true;botao.disabled=true;aviso.textContent='Preparando o relatório executivo...';
@@ -1645,7 +1659,7 @@ window.exportarRelatorioPDF = async () => {
   finally{gerandoRelatorio=false;botao.disabled=false}
 };
 window.exportarRelatorioCSV = () => {
-  if(!['admin','gerente','diretor','coordenador'].includes(perfilSalvo)||!recorteValido())return;
+  if(carregandoPainel||!['admin','gerente','diretor','coordenador'].includes(perfilSalvo)||!recorteValido())return;
   const {inicio,fim,estado,supervisor}=filtrosDiretoria();
   const filtrados=selecionarIncidentes(todosIncidentesCache,filtrosDiretoria(),detectarEstado);
   if(!filtrados.length){alert('Nenhum dado para exportar.');return}
@@ -1716,11 +1730,12 @@ onAuthStateChanged(auth, async (usuario) => {
     estadoSalvo = perfil.estado;
     supervisoresEscopo=scopeUids(perfil);
     if (badgeElem) badgeElem.textContent = usuarioSalvo;
-    const contextoMedicoes={supervisoresUids:supervisoresEscopo,servicos:{collection,doc,getDoc,getDocs,setDoc,updateDoc,query,where,documentId,serverTimestamp,runTransaction},db,uid:usuarioUid,nome:usuarioSalvo,perfil:perfilSalvo,estado:estadoSalvo,ouvir:ouvirUmaVez,marcarFoto:comprimirEMarcarDagua,obterGPS:obterGPSFoto};
+    const contextoMedicoes={supervisoresUids:supervisoresEscopo,servicos:{collection,doc,getDoc,getDocs,setDoc,updateDoc,query,where,documentId,serverTimestamp,runTransaction,orderBy,limit,startAfter,onSnapshot},db,uid:usuarioUid,nome:usuarioSalvo,perfil:perfilSalvo,estado:estadoSalvo,ouvir:ouvirUmaVez,marcarFoto:comprimirEMarcarDagua,obterGPS:obterGPSFoto};
     if(['admin','tecnico'].includes(perfilSalvo))medicoesTecnico=iniciarMedicoes({...contextoMedicoes,perfil:'tecnico',root:el('techMedicoesArea'),ouvir:(key,...args)=>ouvirUmaVez('campo-'+key,...args),navegar:()=>window.alternarAba('viewTech','medicoes')});
     if(['admin','diretor','gerente','supervisor','coordenador'].includes(perfilSalvo))medicoes=iniciarMedicoes({...contextoMedicoes,abrirColetaPropria:async id=>{window.alternarAba('viewTech','medicoes');await medicoesTecnico.abrirColeta(id)}});
     if(['admin','projetos','coordenador_projetos'].includes(perfilSalvo))medicoesProjetos=iniciarMedicoes({...contextoMedicoes,filaProjetos:true,root:el('projetosMedicoesArea'),ouvir:(key,...args)=>ouvirUmaVez('projetos-'+key,...args)});
     if(['admin','projetos','coordenador_projetos','sac','suporte','noc'].includes(perfilSalvo))medicoesAcompanhamento=iniciarMedicoes({...contextoMedicoes,somenteConsulta:true,root:el('acompMedicoesArea'),ouvir:(key,...args)=>ouvirUmaVez('acomp-'+key,...args),navegar:()=>alternarAba('viewSac')});
+    if(['admin','diretor','gerente','coordenador'].includes(perfilSalvo)){const periodo=periodoRecente();el('relatorioInicio').value=periodo.inicio;el('relatorioFim').value=periodo.fim;}
     configurarTelasPorPerfil();
     ouvirUmaVez('meuPerfil', doc(db, 'usuarios', usuarioUid), snapshot => {
       if (!snapshot.exists() || snapshot.data().ativo !== true

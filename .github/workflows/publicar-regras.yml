@@ -6,11 +6,13 @@ on:
     paths:
       - 'firestore.rules'
       - 'firebase.json'
+      - 'firestore.indexes.json'
       - '.github/workflows/publicar-regras.yml'
   pull_request:
     paths:
       - 'firestore.rules'
       - 'firebase.json'
+      - 'firestore.indexes.json'
       - '.github/workflows/publicar-regras.yml'
   workflow_dispatch:
     inputs:
@@ -28,6 +30,8 @@ permissions:
 
 jobs:
   regras:
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor == 'uweellhd')
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,7 +47,15 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
       - name: Validar sem publicar
-        run: npx --yes firebase-tools@15.31.0 deploy --only firestore:rules --project nextflow-telecom --non-interactive --dry-run
+        run: npx --yes firebase-tools@15.31.0 deploy --only firestore:rules,firestore:indexes --project nextflow-telecom --non-interactive --dry-run
+      - name: Preparar índices antes de publicar o aplicativo
+        if: github.event_name == 'pull_request'
+        run: npx --yes firebase-tools@15.31.0 deploy --only firestore:indexes --project nextflow-telecom --non-interactive
+      - name: Instalar ferramenta de conferência de índices
+        run: npm ci --prefix maintenance --ignore-scripts --no-audit --no-fund
+      - name: Aguardar índices disponíveis para consulta
+        if: github.event_name == 'pull_request'
+        run: node maintenance/aguardar-indices.mjs
       - name: Publicar
         if: github.event_name == 'push' || inputs.publicar == 'true'
-        run: npx --yes firebase-tools@15.31.0 deploy --only firestore:rules --project nextflow-telecom --non-interactive
+        run: npx --yes firebase-tools@15.31.0 deploy --only firestore:rules,firestore:indexes --project nextflow-telecom --non-interactive

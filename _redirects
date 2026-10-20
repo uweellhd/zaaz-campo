@@ -5,3 +5,4 @@
 /firestore.rules /404.html 404!
 /firebase.json /404.html 404!
 /firebase.test.json /404.html 404!
+/firestore.indexes.json /404.html 404!
