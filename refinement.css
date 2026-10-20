@@ -161,3 +161,4 @@ body { -webkit-font-smoothing:antialiased; }
 .connection-status[hidden] { display:none; }
 @media(max-width:380px) { .dashboard-body .dashboard-container { padding-left:10px; padding-right:10px; } .dashboard-body .executive-switch { padding-inline:8px; font-size:13px; } }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; scroll-behavior:auto!important; transition:none!important; } }
+.report-filters > .report-scope-note { grid-column:1/-1; margin:0 0 4px; }

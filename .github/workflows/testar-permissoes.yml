@@ -20,6 +20,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: npm ci --prefix tests/security --ignore-scripts --no-audit --no-fund
+      - run: npm ci --prefix maintenance --ignore-scripts --no-audit --no-fund
       - name: Testes de campos e retenção
         run: node --test tests/*.test.mjs
       - name: Testes com usuários fictícios no emulador

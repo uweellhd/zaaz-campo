@@ -1,5 +1,7 @@
 # Fase 2 — qualidade e início da operação
 
+Continuação: [fase 3 — dados, cópia de segurança e vínculo IXC](fase-3-dados-backup-e-ixc.md).
+
 Implementação de 20/10/2026, mantendo os fluxos aprovados na etapa 1. Guia de cargos, histórico e relatórios: [etapa 1](etapa-1-acompanhamento-e-relatorios.md).
 
 ## O que muda para quem usa

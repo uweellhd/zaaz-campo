@@ -528,3 +528,26 @@ test('responsabilidade em Medições não altera POPs; coordenador acompanha sem
  await assertSucceeds(updateDoc(ref('projetos'),{status:'CONFERIDA',observacaoProjetos:'Conferência registrada.',conferidoPorUid:'projetos',conferidoPorNome:'projetos',conferidoEm:serverTimestamp()}));
  await assertFails(updateDoc(ref('coordenadorProjetos'),projectAssign('projetosB')));await assertSucceeds(getDoc(ref('coordenadorProjetos')));
 });
+
+test('restauração de cópia cifrada no emulador preserva timestamps e originais, sem sobrescrever',async()=>{
+ const {encryptBackup,pack}=await import('../../lib/backup.mjs');
+ const {mkdtemp,writeFile,rm}=await import('node:fs/promises');const {tmpdir}=await import('node:os');const {join}=await import('node:path');const {execFile}=await import('node:child_process');const {promisify}=await import('node:util');
+ const bytes=new TextEncoder().encode('ABC'),hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(b=>b.toString(16).padStart(2,'0')).join('');
+ const documents=[['incidentes/restaurado',{idIncidente:'TESTE-RESTORE',estado:'SP',statusAtual:'ABERTO',timelineEtapas:[],dataTimestamp:Date.parse('2026-10-20T10:00Z')}],['medicoes/restaurada',{referencia:'TESTE-RESTORE',supervisorUid:'supervisorA',tecnicoUid:'tecnicoA',status:'EM_CAMPO',etapaConcluida:1,txArquivos:1,criadoEm:new Date('2026-10-20T10:00Z')}],['medicoes/restaurada/arquivos/tx-0',{nome:'teste.sor',tamanho:3,partes:1,lado:'tx',indice:0,completo:true,sha256:hash}],['medicoes/restaurada/arquivos/tx-0/partes/0',{dados:'QUJD'}]].map(([path,data])=>({path,data:pack(data)}));
+ const password='Senha-ficticia-copia-123',encrypted=await encryptBackup({format:'nextflow-operacao-v1',project:'nextflow-telecom',documents},password),folder=await mkdtemp(join(tmpdir(),'nextflow-restore-')),file=join(folder,'backup.json');await writeFile(file,encrypted);
+ const cli=new URL('../../maintenance/restaurar-copia.mjs',import.meta.url).pathname,run=promisify(execFile),options={env:{...process.env,FIRESTORE_EMULATOR_HOST:'127.0.0.1:8080',NEXTFLOW_BACKUP_PASSWORD:password},timeout:30000};
+ try{
+  const simulated=await run(process.execPath,[cli,file,'--emulador'],options);assert.match(simulated.stdout,/"simulacao":true/);await assertSucceeds(getDoc(doc(ctx('admin'),'incidentes','restaurado'))).then(s=>assert(!s.exists()));
+  const restored=await run(process.execPath,[cli,file,'--emulador','--aplicar'],options);assert.match(restored.stdout,/"restaurados":4/);
+  const snapshot=await getDoc(doc(ctx('admin'),'medicoes','restaurada'));assert.equal(snapshot.data().criadoEm.toDate().toISOString(),'2026-10-20T10:00:00.000Z');assert.equal((await getDoc(doc(ctx('admin'),'medicoes','restaurada','arquivos','tx-0','partes','0'))).data().dados,'QUJD');
+  await assert.rejects(run(process.execPath,[cli,file,'--emulador','--aplicar'],options),error=>/mesmos IDs/.test(error.stderr));
+ }finally{await rm(folder,{recursive:true,force:true})}
+});
+
+test('acompanhamento paginado permite consulta ordenada e conserva isolamento de equipes',async()=>{
+ const {orderBy,limit,startAfter}=await import('firebase/firestore');
+ await env.withSecurityRulesDisabled(async c=>{const db=c.firestore();for(let n=0;n<30;n++)await setDoc(doc(db,'medicoes','pagina-'+String(n).padStart(2,'0')),{referencia:'REF-'+n,status:'EM_CAMPO',criadoEm:Timestamp.fromMillis(1000+n),supervisorUid:'supervisorA',tecnicoUid:'tecnicoA',estado:'SP'})});
+ const db=ctx('sac'),first=await assertSucceeds(getDocs(query(collection(db,'medicoes'),where('estado','==','SP'),orderBy('criadoEm','desc'),limit(24))));assert.equal(first.size,24);const next=await assertSucceeds(getDocs(query(collection(db,'medicoes'),where('estado','==','SP'),orderBy('criadoEm','desc'),startAfter(first.docs.at(-1)),limit(24))));assert(next.docs.every(d=>!first.docs.some(a=>a.id===d.id)));
+ await assertFails(getDocs(query(collection(ctx('coordenador'),'medicoes'),orderBy('criadoEm','desc'),limit(24))));
+ await assertFails(getDocs(query(collection(ctx('tecnicoOutro'),'medicoes'),orderBy('criadoEm','desc'),limit(24))));
+});
