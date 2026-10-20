@@ -130,3 +130,22 @@ body { -webkit-font-smoothing:antialiased; }
 .dashboard-body .chart-card canvas { max-width:100%; }
 
 .dashboard-body .executive-actions button { min-height:44px; white-space:nowrap; }
+
+/* Etapa 1: os controles reutilizam o padrão operacional existente. */
+.scope-editor { grid-column:1 / -1; border:1px solid var(--border-color); border-radius:9px; padding:14px; }
+.scope-editor[hidden] { display:none; }
+.scope-editor label { display:flex; gap:9px; align-items:center; margin:8px 0; }
+.scope-editor input { width:18px; height:18px; }
+.project-ownership { display:grid; gap:12px; padding:18px 0; border-top:1px solid var(--border-color); }
+.project-ownership button { justify-self:start; min-height:44px; }
+.project-team-summary { padding:22px 0; overflow-x:auto; }
+.project-team-table { border-collapse:collapse; width:100%; font-size:13px; }
+.project-team-table th,.project-team-table td { text-align:left; padding:12px 10px; border-bottom:1px solid var(--border-color); }
+.project-team-table th { color:var(--text-muted); font-weight:600; }
+#acompRompimentosArea[hidden],#acompMedicoesArea[hidden] { display:none; }
+#projetosMedicoesArea .measure-kpis { grid-template-columns:repeat(3,minmax(0,1fr)); }
+@media(max-width:640px){#projetosMedicoesArea .measure-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }.project-team-table { min-width:420px; }}
+
+.report-photo-option { margin-right:auto; font-size:12px; color:var(--text-muted); }
+.dashboard-body .executive-actions .report-photo-option { display:flex; gap:8px; align-items:center; }
+.report-photo-option input[type=checkbox] { flex:0 0 18px; width:18px; height:18px; }

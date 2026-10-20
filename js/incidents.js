@@ -13,6 +13,10 @@ import { reconhecerSupervisor, coordenadasValidas, lerLocalizacao } from '../lib
 import { configurarAlteracaoSenha } from './account.js';
 import { criarCartaoTecnico } from '../lib/field-task-card.mjs';
 import { iniciarMedicoes } from './measurements.js';
+import { ROLES, scopeUids, scopeCaption, scopeQuery } from '../lib/access-scope.mjs';
+import { opcaoFotos, prepararFotosRelatorio } from './report-evidence.js';
+import { montarResponsabilidade } from './project-work.js';
+import { iniciarFilaProjetos } from './project-queue.js';
 import { criarRelatorioPDF } from '../lib/executive-report.mjs';
 
 const firebaseConfig = {
@@ -36,7 +40,8 @@ let estadoSalvo = '';
 let usuarioUid = '';
 const ouvintes = new Map();
 let saindo = false;
-let medicoes, medicoesTecnico, medicoesProjetos;
+let medicoes, medicoesTecnico, medicoesProjetos, medicoesAcompanhamento;
+let supervisoresEscopo=[], filaProjetos;
 let servicoProjetos = 'rompimentos';
 let servicoTecnico = 'rompimentos';
 const abasPermitidas = {
@@ -48,8 +53,9 @@ const abasPermitidas = {
   suporte: ['viewSac'],
   tecnico: ['viewMedicoes', 'viewTech'],
   supervisor: ['viewMedicoes', 'viewSupervisor'],
-  coordenador: ['viewMedicoes'],
-  projetos: ['viewMedicoes', 'viewProjetos']
+  coordenador: ['viewMedicoes','viewGerente'],
+  coordenador_projetos: ['viewProjetos','viewSac'],
+  projetos: ['viewMedicoes', 'viewProjetos','viewSac']
 };
 
 function ouvirUmaVez(chave, consulta, aoReceber) {
@@ -189,7 +195,7 @@ function configurarTelasPorPerfil() {
   const partesNome=String(usuarioSalvo||'').trim().split(/\s+/).filter(Boolean);
   const iniciais=partesNome.length>1?partesNome[0][0]+partesNome.at(-1)[0]:(partesNome[0]||'·').slice(0,2);
   document.getElementById('accountInitials').textContent=iniciais.toLocaleUpperCase('pt-BR');
-  document.getElementById('accountRole').textContent=({admin:'Administração',diretor:'Diretoria',gerente:'Gerência',noc:'NOC',sac:'SAC',suporte:'Suporte',tecnico:'Técnico',supervisor:'Supervisão',coordenador:'Coordenação',projetos:'Projetos'})[perfilSalvo]||'Minha conta';
+  document.getElementById('accountRole').textContent=({admin:'Administração',diretor:'Diretoria',gerente:'Gerência',noc:'NOC',sac:'SAC',suporte:'Suporte',tecnico:'Técnico',supervisor:'Supervisão',coordenador:'Coordenação de Operações',coordenador_projetos:'Coordenação de Projetos',projetos:'Projetos'})[perfilSalvo]||'Minha conta';
 
   const btnGerente = document.getElementById('btnTabGerente');
   const btnNoc = document.getElementById('btnTabNoc');
@@ -232,8 +238,10 @@ function configurarTelasPorPerfil() {
     if (btnSupervisor) btnSupervisor.style.display = 'inline-block';
     alternarAba('viewSupervisor');
   } else if (perfilSalvo === 'coordenador') {
-    alternarAba('viewMedicoes');
-  } else if (perfilSalvo === 'projetos') {
+    btnGerente.style.display='inline-block';btnGerente.lastChild.textContent=' Coordenação';
+    alternarAba('viewGerente');
+  } else if (['projetos','coordenador_projetos'].includes(perfilSalvo)) {
+    btnSac.style.display='inline-block';
     if (btnProjetos) btnProjetos.style.display = 'inline-block';
     alternarAba('viewProjetos');
   } else {
@@ -244,7 +252,7 @@ function configurarTelasPorPerfil() {
 }
 
 window.alternarServicoProjetos = servico => {
-  if(!['admin','projetos'].includes(perfilSalvo))return;
+  if(!['admin','projetos','coordenador_projetos'].includes(perfilSalvo))return;
   servicoProjetos=servico==='medicoes'?'medicoes':'rompimentos';
   el('projetosRompimentosArea').hidden=servicoProjetos!=='rompimentos';
   el('projetosMedicoesArea').hidden=servicoProjetos!=='medicoes';
@@ -261,7 +269,7 @@ window.alternarServicoTecnico = servico => {
 };
 window.alternarAba = (idAba, contexto = '') => {
   if(perfilSalvo==='tecnico' && idAba==='viewMedicoes'){idAba='viewTech';contexto='medicoes'}
-  if(perfilSalvo==='projetos' && idAba==='viewMedicoes'){idAba='viewProjetos';contexto='medicoes'}
+  if(['projetos','coordenador_projetos'].includes(perfilSalvo) && idAba==='viewMedicoes'){idAba='viewProjetos';contexto='medicoes'}
   if (idAba !== 'viewConta' && !(abasPermitidas[perfilSalvo] || []).includes(idAba)) return;
   const conta = document.getElementById('accountMenu');
   if (conta) conta.open = false;
@@ -284,7 +292,7 @@ window.alternarAba = (idAba, contexto = '') => {
   } else if (idAba === 'viewSac') {
     const b = document.getElementById('btnTabSac');
     if (b) b.classList.add('active');
-    carregarIncidentesSac();
+    alternarServicoAcompanhamento('rompimentos');
   } else if (idAba === 'viewTech') {
     const b = document.getElementById('btnTabTech');
     if (b) b.classList.add('active');
@@ -316,27 +324,14 @@ function fotosPendentesEtapas(incidente) {
   return [...etapas.values()].reduce((total, evento) => total + Number(evento.fotosPendentes ?? Math.max(0, (evento.etapa.startsWith('ETAPA 1') ? 1 : 2) - (evento.fotoIds || []).length)), 0);
 }
 
+window.alternarServicoAcompanhamento=servico=>{
+ const med=servico==='medicoes';el('acompRompimentosArea').hidden=med;el('acompMedicoesArea').hidden=!med;
+ document.querySelectorAll('[data-acomp-service]').forEach(b=>{const active=(b.dataset.acompService==='medicoes')===med;b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active))});
+ if(med)medicoesAcompanhamento?.abrir();else carregarIncidentesSac();
+};
 function carregarProjetos() {
-  ouvirUmaVez('projetos', collection(db, 'projetosEvidencias'), snapshot => {
-    const lista = document.getElementById('projetosResultados');
-    lista.replaceChildren();
-    if (snapshot.empty) { lista.textContent = 'Ainda não há entregas da etapa 4.'; return; }
-    snapshot.forEach(documento => {
-      const registro = documento.data();
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'incidente-card supervisor-card project-list-card';
-      const titulo = document.createElement('strong'); titulo.textContent = `ID ${registro.idIncidente}`;
-      const identificacao = document.createElement('small'); identificacao.textContent = `OS ${registro.os || '—'} · ${registro.estado} · ${(registro.caixas || []).length} caixas`;
-      const status = document.createElement('span');
-      status.className = registro.statusOzmaps === 'REGISTRADO' ? 'evidence-complete' : 'evidence-pending';
-      status.textContent = registro.statusOzmaps === 'REGISTRADO' ? 'Registrado no OZmaps' : 'Aguardando lançamento no OZmaps';
-      const ajuda = document.createElement('small'); ajuda.textContent = 'Ver serviço, coordenadas e fotos →';
-      card.append(titulo, identificacao, status, ajuda);
-      card.onclick = () => abrirModalProjeto(documento.id, registro);
-      lista.append(card);
-    });
-  });
+  filaProjetos ||= iniciarFilaProjetos({root:el('projetosResultados'),db,servicos:{doc,getDoc},perfil:perfilSalvo,nome:usuarioSalvo,abrir:abrirModalProjeto});
+  ouvirUmaVez('projetos',collection(db,'projetosEvidencias'),snapshot=>filaProjetos.receber(snapshot.docs.map(d=>({id:d.id,...d.data()}))));
 }
 let geracaoModalProjeto = 0;
 let focoProjetoAnterior;
@@ -359,6 +354,14 @@ function abrirModalProjeto(id, registro) {
     const fotosCaixa=(registro.fotoIds||[]).slice(caixa.indiceFoto,caixa.indiceFoto+(caixa.quantidadeFotos||1));
     carregarGaleriaRegistrada(galeria,fotosCaixa,fotosCaixa.map((_,n)=>`Caixa ${caixa.numero} · Foto ${n+1}`),()=>geracao===geracaoModalProjeto);
     conteudo.append(linha);
+  }
+  if(registro.statusOzmaps==='REGISTRADO'){
+    conteudo.append(elemento('h4','Tratamento registrado'),elemento('p',registro.observacaoOzmaps||'Sem observação registrada.'),elemento('p',`Responsável: ${registro.tratadoPorNome||'Registro anterior sem identificação'} · ${registro.tratadoEm?.toDate?.().toLocaleString('pt-BR')||'Data não informada'}`,'project-audit'));
+    modal.style.display='flex';modal.querySelector('.modal-close').focus();return;
+  }
+  montarResponsabilidade(conteudo,registro,{perfil:perfilSalvo,uid:usuarioUid,nome:usuarioSalvo,db,servicos:{collection,doc,getDoc,getDocs,query,where,runTransaction,serverTimestamp},collectionName:'projetosEvidencias',id,atualizar:novo=>abrirModalProjeto(id,novo)});
+  if(perfilSalvo==='coordenador_projetos'||(perfilSalvo==='projetos'&&registro.projetoResponsavelUid&&registro.projetoResponsavelUid!==usuarioUid)){
+    conteudo.append(elemento('p','Acompanhamento do tratamento. A confirmação será feita pelo analista responsável.','search-hint'));modal.style.display='flex';modal.querySelector('.modal-close').focus();return;
   }
   const tratamento = document.createElement('form'); tratamento.className = 'project-treatment field-card';
   const titulo = document.createElement('h4'); titulo.textContent = 'Tratamento em Projetos';
@@ -415,7 +418,7 @@ function carregarSolicitacoes() {
       nome.textContent = pessoa.nome || documento.id;
       const perfil = document.createElement('select');
       perfil.setAttribute('aria-label', `Função de ${pessoa.nome}`);
-      for (const [valor, texto] of Object.entries({ sac: 'SAC', suporte: 'Suporte', noc: 'NOC', tecnico: 'Técnico', supervisor: 'Supervisor', coordenador: 'Coordenador', projetos: 'Projetos', gerente: 'Gerente', diretor: 'Diretor' })) {
+      for (const [valor, texto] of Object.entries(ROLES)) {
         perfil.add(new Option(texto, valor));
       }
       perfil.value = pessoa.perfil;
@@ -427,6 +430,11 @@ function carregarSolicitacoes() {
       ativo.type = 'checkbox';
       ativo.checked = pessoa.ativo === true;
       ativo.setAttribute('aria-label', `Conta ativa de ${pessoa.nome}`);
+      const scopes=elemento('fieldset','','scope-editor');scopes.append(elemento('legend','Supervisores desta coordenação · até 30'));
+      const options=[];for(const d of snapshot.docs.filter(d=>d.data().perfil==='supervisor'&&(d.data().ativo||scopeUids(pessoa).includes(d.id)))){
+        const label=elemento('label'),input=elemento('input');input.type='checkbox';input.value=d.id;input.checked=scopeUids(pessoa).includes(d.id);label.append(input,document.createTextNode(d.data().nome+(d.data().ativo?'':' · inativo / histórico')));scopes.append(label);options.push(input);
+      }
+      scopes.hidden=pessoa.perfil!=='coordenador';perfil.onchange=()=>scopes.hidden=perfil.value!=='coordenador';
       const salvar = document.createElement('button');
       salvar.type = 'button';
       salvar.className = 'btn-sec-sm';
@@ -434,13 +442,14 @@ function carregarSolicitacoes() {
       salvar.addEventListener('click', async () => {
         if (!perfil.value || !estado.value) { alert('Escolha função e estado válidos.'); return; }
 
+        if(perfil.value==='coordenador'&&options.filter(i=>i.checked).length>30){alert('Selecione até 30 supervisores.');return}
         salvar.disabled = true;
         try {
-          await updateDoc(doc(db, 'usuarios', documento.id), { perfil: perfil.value, estado: estado.value, ativo: ativo.checked });
+          await updateDoc(doc(db, 'usuarios', documento.id), { perfil: perfil.value, estado: estado.value, ativo: ativo.checked, supervisoresUids:perfil.value==='coordenador'?options.filter(i=>i.checked).map(i=>i.value):[] });
         } catch (erro) { alert('Não foi possível atualizar o acesso.'); }
         finally { salvar.disabled = false; }
       });
-      card.append(nome, perfil, estado, ativo, salvar);
+      card.append(nome, perfil, estado, ativo, scopes, salvar);
       lista.append(card);
     });
     if (!lista.children.length) lista.textContent = 'Só sua conta está cadastrada.';
@@ -468,7 +477,7 @@ function carregarSolicitacoes() {
       email.textContent = pedido.email;
       const perfil = document.createElement('select');
       perfil.setAttribute('aria-label', `Função de ${pedido.nome}`);
-      for (const [valor, texto] of Object.entries({ sac: 'SAC', suporte: 'Suporte', noc: 'NOC', tecnico: 'Técnico', supervisor: 'Supervisor', coordenador: 'Coordenador', projetos: 'Projetos', gerente: 'Gerente', diretor: 'Diretor' })) {
+      for (const [valor, texto] of Object.entries(ROLES)) {
         perfil.add(new Option(texto, valor));
       }
       const estado = document.createElement('select');
@@ -698,15 +707,18 @@ if (formNoc) {
 
 // 3. DASHBOARD GERENCIAL
 let todosIncidentesCache = [];
+let gerandoRelatorio=false;
 let estadoFiltroAtivo = "TODOS";
 let chartTipoInstance = null;
 let chartEstadosInstance = null;
 let chartSupervisoresInstance = null, chartEtapasInstance=null, chartConclusoesInstance=null;
-window.filtrarSituacaoDiretoria = valor => { filtroDiretoria=valor==='resolvidos'?'resolvidos':'ativos';paginaDiretoria=1;renderizarPainelGerenteFiltrado(); };
+window.filtrarSituacaoDiretoria = valor => { filtroDiretoria=['resolvidos','todos'].includes(valor)?valor:'ativos';paginaDiretoria=1;renderizarPainelGerenteFiltrado(); };
 window.maisDiretoria = () => {paginaDiretoria++;renderizarPainelGerenteFiltrado()};
 
 function carregarDashboardGerente() {
-  ouvirUmaVez('gerente', collection(db, "incidentes"), (snapshot) => {
+  const consulta=scopeQuery({collection,query,where,db},perfilSalvo,supervisoresEscopo,'incidentes');
+  if(!consulta){todosIncidentesCache=[];renderizarPainelGerenteFiltrado();el('avisoRelatorio').textContent='Nenhum supervisor vinculado. Solicite a configuração ao administrador.';return}
+  ouvirUmaVez('gerente', consulta, (snapshot) => {
     todosIncidentesCache = [];
 
     snapshot.forEach((docSnap) => {
@@ -720,11 +732,11 @@ function carregarDashboardGerente() {
   });
 }
 
-function filtrosDiretoria(){return {inicio:document.getElementById('relatorioInicio').value,fim:document.getElementById('relatorioFim').value,estado:estadoFiltroAtivo,supervisor:document.getElementById('relatorioSupervisor').value.trim()};}
+function filtrosDiretoria(){return {inicio:document.getElementById('relatorioInicio').value,fim:document.getElementById('relatorioFim').value,estado:estadoFiltroAtivo,supervisor:document.getElementById('relatorioSupervisor').value.trim(),baseData:el('relatorioBaseData').value};}
 window.atualizarRecorteDiretoria = () => {paginaDiretoria=1;renderizarPainelGerenteFiltrado()};
-window.limparRecorteDiretoria = () => {for(const id of ['relatorioInicio','relatorioFim','relatorioSupervisor'])document.getElementById(id).value='';filtrarPainelPorEstado('TODOS')};
+window.limparRecorteDiretoria = () => {for(const id of ['relatorioInicio','relatorioFim','relatorioSupervisor'])document.getElementById(id).value='';el('relatorioBaseData').value='abertura';filtrarPainelPorEstado('TODOS')};
 window.filtrarPainelPorEstado = estado => {estadoFiltroAtivo=estado;document.getElementById('relatorioEstado').value=estado;atualizarRecorteDiretoria()};
-function recorteValido(){const f=filtrosDiretoria();const valido=!f.inicio||!f.fim||f.inicio<=f.fim;document.getElementById('avisoRelatorio').textContent=valido?'':'A data inicial deve ser anterior ou igual à data final.';document.getElementById('btnRelatorioPDF').disabled=!valido;return valido;}
+function recorteValido(){const f=filtrosDiretoria();const valido=!f.inicio||!f.fim||f.inicio<=f.fim;document.getElementById('avisoRelatorio').textContent=valido?'':'A data inicial deve ser anterior ou igual à data final.';document.getElementById('btnRelatorioPDF').disabled=!valido||gerandoRelatorio;return valido;}
 
 function renderizarPainelGerenteFiltrado() {
   if(!recorteValido())return;
@@ -737,11 +749,11 @@ function renderizarPainelGerenteFiltrado() {
   const container=document.getElementById('gerenteIncidentesList');if(!container)return;container.innerHTML='';
   document.getElementById('tituloListaConsolidada').textContent=estadoFiltroAtivo==='TODOS'?'Chamados da operação':`Chamados em ${estadoFiltroAtivo}`;
   document.getElementById('painelEscopo').textContent=estadoFiltroAtivo==='TODOS'?'Todos os estados':`Estado: ${estadoFiltroAtivo}`;
-  document.getElementById('recorteDiretoria').textContent=`Abertos: ${filtros.inicio||'sem limite inicial'} a ${filtros.fim||'sem limite final'} · ${filtros.supervisor?'Supervisor: '+filtros.supervisor:'Todos os supervisores'} · ${filtrados.length} registros. Indicadores, PDF e CSV incluem as duas situações.`;
+  document.getElementById('recorteDiretoria').textContent=`${filtros.baseData==='conclusao'?'Conclusões':'Aberturas'}: ${filtros.inicio||'sem limite inicial'} a ${filtros.fim||'sem limite final'} · ${filtros.supervisor?'Supervisor: '+filtros.supervisor:'Todos os supervisores'} · ${filtrados.length} registros. Indicadores, PDF e CSV incluem as duas situações.`;
 
     filtrados.forEach(item => {
     const encerrado = resolvido(item);
-    if(encerrado!==(filtroDiretoria==='resolvidos'))return;
+    if(filtroDiretoria!=='todos'&&encerrado!==(filtroDiretoria==='resolvidos'))return;
     if(container.children.length>=paginaDiretoria*TAMANHO_PAGINA)return;
     const est = item.estado || 'Não informado';
     const card = document.createElement('div');
@@ -762,6 +774,7 @@ function renderizarPainelGerenteFiltrado() {
   });
 
   for(const [id,valor] of Object.entries({kpiTotalIncidentes:metricas.ativos,kpiTotalGpon:metricas.gpon,kpiTotalBackbone:metricas.backbone,kpiResolvidos:metricas.resolvidos,kpiSemTecnico:metricas.semTecnico,kpiPrevisoesVencidas:metricas.vencidos}))document.getElementById(id).textContent=valor.toLocaleString('pt-BR');
+  if(perfilSalvo==='coordenador')el('painelEscopo').textContent+=' · Somente minha coordenação';
   const leitura=leituraExecutiva(metricas);document.getElementById('resumoExecutivo').textContent=leitura[0];
   const prioridades=document.getElementById('prioridadesExecutivas');prioridades.replaceChildren(...leitura.slice(1).map(frase=>elemento('li',frase)));
   document.getElementById('painelAtualizado').textContent=`Posição em ${horarioBrasil(new Date())} · Brasília`;
@@ -788,7 +801,7 @@ function renderizarPainelGerenteFiltrado() {
     container.innerHTML = '<p class="empty-state">Nenhum chamado nesta situação e região.</p>';
   }
 
-  document.getElementById('diretoriaMais').hidden=filtrados.filter(i=>resolvido(i)===(filtroDiretoria==='resolvidos')).length<=paginaDiretoria*TAMANHO_PAGINA;
+  document.getElementById('diretoriaMais').hidden=filtrados.filter(i=>filtroDiretoria==='todos'||resolvido(i)===(filtroDiretoria==='resolvidos')).length<=paginaDiretoria*TAMANHO_PAGINA;
   document.getElementById('diretoriaFiltros').querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.dataset.status===filtroDiretoria);b.setAttribute('aria-pressed',String(b.dataset.status===filtroDiretoria))});
   renderizarEvolucao(filtrados);
   renderizarGraficosGerenciais(metricas.ativos - metricas.backbone, metricas.backbone, estadosContagem, supervisoresMap);
@@ -1603,17 +1616,18 @@ document.addEventListener('keydown', event => {
   }
 });
 
+const fotosExecutivo=opcaoFotos();el('viewGerente').querySelector('.executive-actions').prepend(fotosExecutivo.label);
 window.exportarRelatorioPDF = async () => {
-  if(!['admin','gerente','diretor'].includes(perfilSalvo)||!recorteValido())return;
+  if(gerandoRelatorio||!['admin','gerente','diretor','coordenador'].includes(perfilSalvo)||!recorteValido())return;
   const filtros=filtrosDiretoria(),itens=selecionarIncidentes(todosIncidentesCache,filtros,detectarEstado);
   if(!itens.length){document.getElementById('avisoRelatorio').textContent='Nenhum chamado no recorte selecionado.';return}
-  const botao=document.getElementById('btnRelatorioPDF'),aviso=document.getElementById('avisoRelatorio');botao.disabled=true;aviso.textContent='Preparando o relatório executivo...';
-  try{const {pdf,nome}=await criarRelatorioPDF(itens,filtros,detectarEstado);pdf.save(nome);aviso.textContent='PDF gerado. Verifique os downloads do navegador.'}
+  const botao=document.getElementById('btnRelatorioPDF'),aviso=document.getElementById('avisoRelatorio');gerandoRelatorio=true;botao.disabled=true;aviso.textContent='Preparando o relatório executivo...';
+  try{const completos=[];for(const item of itens){let projetoRelatorio=null;if(resolvido(item)){const snap=await getDoc(doc(db,'projetosEvidencias',item.docId));if(snap.exists())projetoRelatorio=snap.data()}completos.push({...item,projetoRelatorio})}const dados=fotosExecutivo.input.checked?await prepararFotosRelatorio(completos,'rompimentos',{doc,getDoc},db):completos;const {pdf,nome}=await criarRelatorioPDF(dados,{...filtros,emitidoPor:usuarioSalvo,perfil:perfilSalvo,escopo:scopeCaption(perfilSalvo)},detectarEstado);pdf.save(nome);aviso.textContent='PDF gerado. Verifique os downloads do navegador.'}
   catch(erro){aviso.textContent=erro.message||'Não foi possível gerar o PDF. Tente novamente.'}
-  finally{botao.disabled=false}
+  finally{gerandoRelatorio=false;botao.disabled=false}
 };
 window.exportarRelatorioCSV = () => {
-  if(!['admin','gerente','diretor'].includes(perfilSalvo)||!recorteValido())return;
+  if(!['admin','gerente','diretor','coordenador'].includes(perfilSalvo)||!recorteValido())return;
   const {inicio,fim,estado,supervisor}=filtrosDiretoria();
   const filtrados=selecionarIncidentes(todosIncidentesCache,filtrosDiretoria(),detectarEstado);
   if(!filtrados.length){alert('Nenhum dado para exportar.');return}
@@ -1651,6 +1665,7 @@ window.sair = async () => {
   medicoes?.fechar();
   medicoesTecnico?.fechar();
   medicoesProjetos?.fechar();
+  medicoesAcompanhamento?.fechar();
   for (const cancelar of ouvintes.values()) cancelar();
   ouvintes.clear();
   try {
@@ -1676,15 +1691,17 @@ onAuthStateChanged(auth, async (usuario) => {
     usuarioSalvo = perfil.nome || usuario.email;
     perfilSalvo = perfil.perfil;
     estadoSalvo = perfil.estado;
+    supervisoresEscopo=scopeUids(perfil);
     if (badgeElem) badgeElem.textContent = usuarioSalvo;
-    const contextoMedicoes={servicos:{collection,doc,getDoc,getDocs,setDoc,updateDoc,query,where,serverTimestamp,runTransaction},db,uid:usuarioUid,nome:usuarioSalvo,perfil:perfilSalvo,estado:estadoSalvo,ouvir:ouvirUmaVez,marcarFoto:comprimirEMarcarDagua,obterGPS:obterGPSFoto};
+    const contextoMedicoes={supervisoresUids:supervisoresEscopo,servicos:{collection,doc,getDoc,getDocs,setDoc,updateDoc,query,where,documentId,serverTimestamp,runTransaction},db,uid:usuarioUid,nome:usuarioSalvo,perfil:perfilSalvo,estado:estadoSalvo,ouvir:ouvirUmaVez,marcarFoto:comprimirEMarcarDagua,obterGPS:obterGPSFoto};
     if(['admin','tecnico'].includes(perfilSalvo))medicoesTecnico=iniciarMedicoes({...contextoMedicoes,perfil:'tecnico',root:el('techMedicoesArea'),ouvir:(key,...args)=>ouvirUmaVez('campo-'+key,...args),navegar:()=>window.alternarAba('viewTech','medicoes')});
     if(['admin','diretor','gerente','supervisor','coordenador'].includes(perfilSalvo))medicoes=iniciarMedicoes({...contextoMedicoes,abrirColetaPropria:async id=>{window.alternarAba('viewTech','medicoes');await medicoesTecnico.abrirColeta(id)}});
-    if(['admin','projetos'].includes(perfilSalvo))medicoesProjetos=iniciarMedicoes({...contextoMedicoes,perfil:'projetos',filaProjetos:true,root:el('projetosMedicoesArea'),ouvir:(key,...args)=>ouvirUmaVez('projetos-'+key,...args)});
+    if(['admin','projetos','coordenador_projetos'].includes(perfilSalvo))medicoesProjetos=iniciarMedicoes({...contextoMedicoes,filaProjetos:true,root:el('projetosMedicoesArea'),ouvir:(key,...args)=>ouvirUmaVez('projetos-'+key,...args)});
+    if(['admin','projetos','coordenador_projetos','sac','suporte','noc'].includes(perfilSalvo))medicoesAcompanhamento=iniciarMedicoes({...contextoMedicoes,somenteConsulta:true,root:el('acompMedicoesArea'),ouvir:(key,...args)=>ouvirUmaVez('acomp-'+key,...args),navegar:()=>alternarAba('viewSac')});
     configurarTelasPorPerfil();
     ouvirUmaVez('meuPerfil', doc(db, 'usuarios', usuarioUid), snapshot => {
       if (!snapshot.exists() || snapshot.data().ativo !== true
-        || snapshot.data().perfil !== perfilSalvo || snapshot.data().estado !== estadoSalvo) {
+        || snapshot.data().perfil !== perfilSalvo || snapshot.data().estado !== estadoSalvo || JSON.stringify(scopeUids(snapshot.data()))!==JSON.stringify(supervisoresEscopo)) {
         window.sair();
       }
     });
