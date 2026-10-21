@@ -64,4 +64,25 @@ Fontes oficiais consultadas em 21/10/2026:
 
 Testar chegada de pedido de acesso com a lista fechada, atribuição a técnico, entrega a Projetos, reatribuição para outro analista, limpeza sem alterar registro, celular a 320 px, temas, teclado e encerramento de sessão. Conferir o histórico do deploy antes de anunciar que a versão está disponível.
 
+### Revisão após o incidente de 21/10/2026
+
+A correção do posicionamento dos alertas permanece no PR de rascunho do próximo lote. Não confundir o código desse PR com a versão publicada na `main`.
+
+Defeitos reproduzidos no navegador: painel deslocado horizontalmente do sino; painel longo ultrapassando a altura útil em 390 × 440; painel fixo que não acompanhava o sino durante a rolagem móvel. A revisão limita o painel ao espaço visível, escolhe o lado com espaço vertical, acompanha a rolagem e fecha quando o sino sai da tela. A rolagem dentro da lista continua funcionando e mantém título, fechar e limpar avisos acessíveis. Abrir o painel dispensa o aviso flutuante para evitar duplicação na tela. Abrir/fechar não deve deslocar a página pelo foco do botão. Reposicionamentos são agrupados por quadro de animação; não fazem consultas ao Firebase.
+
+Os testes de regressão incluem fila com 30 avisos, telas em paisagem, celular, desktop, os três temas, fechamento pelo Escape e rolagem da lista e da página. Eles utilizam dados fictícios, não as contas ou os registros em produção.
+
+Um erro apresentado pelo Netlify antes do carregamento do HTML precisa ser investigado separadamente de um erro do aplicativo. O HTTP 401 com redirecionamento do Netlify confirma uma barreira de autenticação naquele acesso; sozinho, não prova a causa de uma tela genérica “Error — Request ID”. Não mudar a visibilidade por suposição nem afirmar que o aplicativo corrigiu esse erro sem verificar o endereço novamente.
+
+### Regra de trabalho para os próximos lotes
+
+1. Manter todas as correções na mesma branch e no mesmo PR de rascunho; não integrar pequenos ajustes na `main` durante os testes.
+2. Reproduzir a falha antes da correção. Executar os testes de cálculos, permissões no emulador e navegador. Conferir também as capturas de tela; testes automáticos não substituem revisão visual.
+3. Aguardar os dois jobs do GitHub (permissões e navegador). Verificações do GitHub não são publicação em produção.
+4. Antes da única publicação do lote, conferir o projeto atualmente associado ao domínio, o commit publicado e a configuração de build. Não reutilizar um ID de projeto antigo: recriar o projeto muda esse identificador.
+5. Após publicar, conferir o commit realmente servido, login, CSS e módulos, entrada/saída e alertas no endereço final. Se houver proteção de acesso do Netlify, a validação autenticada precisa ser feita no navegador que possui esse acesso; registrar a limitação se ela não puder ser realizada.
+6. Se a conferência externa falhar, interromper novas publicações. Guardar o Request ID, horário, status HTTP e log disponível; diagnosticar antes de gastar outro deploy. Usar uma versão anterior já publicada, quando possível e adequado, sem repetir builds para tentar adivinhar a causa.
+
+Não declarar “disponível e testado em produção” com base apenas em testes locais ou checks verdes do GitHub. Informar separadamente: preparado, testado, integrado e conferido no endereço final. Importar um novo projeto antes de integrar o lote ainda usará a versão anterior da `main`.
+
 Para reverter apenas as notificações, reverter o commit do lote. Para permitir novamente as prévias do Netlify, remover o atributo `build.ignore` do `netlify.toml` em uma alteração revisada.
