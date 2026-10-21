@@ -6,7 +6,7 @@ export function iniciarNotificacoes(ctx){
   const channels=notificationChannels(ctx);host.hidden=!channels.length;
   if(!channels.length)return {fechar(){}};
   const dateFormat=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',dateStyle:'short',timeStyle:'short'});
-  const storageKey=`nextflow-alertas-v1:${ctx.uid}:${ctx.perfil}`,stops=[],errors=new Set();let closed=false,popupTimer,batchTimer,pending=new Map();
+  const storageKey=`nextflow-alertas-v1:${ctx.uid}:${ctx.perfil}`,stops=[],errors=new Set();let closed=false,popupTimer,batchTimer,positionFrame,pending=new Map();
   function stored(){try{return JSON.parse(localStorage.getItem(storageKey)||'[]')}catch{return []}}
   const state=createNotificationState(Array.isArray(stored())?stored():[]);
   const bell=action('',()=>toggle(),'notification-bell');bell.setAttribute('aria-controls','notificationPanel');bell.setAttribute('aria-expanded','false');
@@ -24,11 +24,23 @@ export function iniciarNotificacoes(ctx){
   function position(){
     if(panel.hidden)return;
     const rect=bell.getBoundingClientRect();
+    const viewport=window.visualViewport;
+    const left=viewport?.offsetLeft||0,top=viewport?.offsetTop||0;
+    const widthAvailable=viewport?.width||innerWidth,heightAvailable=viewport?.height||innerHeight;
+    if(rect.bottom<=top||rect.top>=top+heightAvailable){toggle(false,false);return;}
+    const below=Math.max(0,top+heightAvailable-12-(rect.bottom+10));
+    const above=Math.max(0,rect.top-10-(top+12));
+    const desiredHeight=Math.min(heightAvailable*.68,560);
+    const useBelow=below>=Math.min(220,desiredHeight)||below>=above;
+    panel.style.width=`${Math.min(390,Math.max(0,widthAvailable-24))}px`;
+    panel.style.maxHeight=`${Math.min(desiredHeight,useBelow?below:above)}px`;
     const width=panel.getBoundingClientRect().width;
-    panel.style.left=`${Math.max(12,Math.min(rect.left+rect.width/2-width/2,innerWidth-width-12))}px`;
-    panel.style.top=`${Math.max(12,Math.min(rect.bottom+10,innerHeight-220))}px`;
+    const height=panel.getBoundingClientRect().height;
+    panel.style.left=`${Math.max(left+12,Math.min(rect.left+rect.width/2-width/2,left+widthAvailable-width-12))}px`;
+    panel.style.top=`${useBelow?rect.bottom+10:Math.max(top+12,rect.top-10-height)}px`;
   }
-  function toggle(value=panel.hidden,returnFocus=true){panel.hidden=!value;bell.setAttribute('aria-expanded',String(value));if(value){document.getElementById('accountMenu')?.removeAttribute('open');position();closePanel.focus()}else if(returnFocus)bell.focus()}
+  function schedulePosition(){if(panel.hidden||closed||positionFrame)return;positionFrame=requestAnimationFrame(()=>{positionFrame=null;if(!closed)position()})}
+  function toggle(value=panel.hidden,returnFocus=true){panel.hidden=!value;bell.setAttribute('aria-expanded',String(value));if(value){hidePopup();document.getElementById('accountMenu')?.removeAttribute('open');position();if(!panel.hidden)closePanel.focus({preventScroll:true})}else if(returnFocus)bell.focus({preventScroll:true})}
   function hidePopup(){clearTimeout(popupTimer);popup.hidden=true;announcement.textContent='';}
   function open(item){state.dismiss([item.key]);persist();panel.hidden=true;bell.setAttribute('aria-expanded','false');hidePopup();render();ctx.navegar(item.view,item.service);}
   function render(){if(closed)return;const items=state.list();count.textContent=String(items.length);count.hidden=!items.length;bell.setAttribute('aria-label',`Notificações: ${items.length} aviso${items.length===1?'':'s'}`);clear.disabled=!items.length;list.replaceChildren();
@@ -36,16 +48,17 @@ export function iniciarNotificacoes(ctx){
     help.textContent='Até 100 avisos recentes. Limpar não altera as OS.';
     if(!items.length)list.append(node('p','Nenhum aviso novo para sua responsabilidade.','notification-empty'));
     for(const item of items){const row=node('div','','notification-item'),go=action('',()=>open(item),'notification-open');go.append(node('strong',item.title),node('span',item.detail));if(item.stamp){const time=node('time',dateFormat.format(new Date(item.stamp)));go.append(time)}const remove=action('×',()=>{state.dismiss([item.key]);pending.delete(item.key);persist();render()},'notification-remove');remove.setAttribute('aria-label',`Dispensar aviso: ${item.detail}`);row.append(go,remove);list.append(row)}
+    schedulePosition();
   }
   function enqueue(events){for(const event of events)pending.set(event.key,event);if(!events.length||batchTimer)return;batchTimer=setTimeout(()=>{batchTimer=null;if(closed)return;const current=new Set(state.list().map(e=>e.key)),fresh=[...pending.values()].filter(e=>current.has(e.key));pending.clear();if(!fresh.length)return;announcement.textContent=fresh.length===1?`${fresh[0].title}. ${fresh[0].detail}`:`${fresh.length} novas notificações para sua responsabilidade.`;popup.hidden=false;clearTimeout(popupTimer);popupTimer=setTimeout(hidePopup,10000);},250)}
   const outside=event=>{if(!panel.hidden&&!host.contains(event.target)&&!popup.contains(event.target))toggle(false,false)};
   const keyboard=event=>{if(event.key==='Escape'&&!panel.hidden){toggle(false);event.preventDefault()}};
   const storage=event=>{if(event.key===storageKey){state.restore(stored());pending.clear();hidePopup();render()}};
-  document.addEventListener('click',outside);document.addEventListener('keydown',keyboard);window.addEventListener('resize',position);window.addEventListener('storage',storage);
+  document.addEventListener('click',outside);document.addEventListener('keydown',keyboard);window.addEventListener('resize',schedulePosition);window.addEventListener('scroll',schedulePosition,true);window.visualViewport?.addEventListener('resize',schedulePosition);window.visualViewport?.addEventListener('scroll',schedulePosition);window.addEventListener('storage',storage);
   render();
   const {collection,query,where}=ctx.servicos;
   for(const source of channels){let ref=collection(ctx.db,source.collection);if(source.filters.length)ref=query(ref,...source.filters.map(f=>where(...f)));
     stops.push(ctx.ouvir(ref,snapshot=>{if(closed)return;const hadError=errors.delete(source.key),version=state.version();const events=notificationEvents(source.key,snapshot.docs.map(d=>({...d.data(),id:d.id})),ctx);const fresh=state.update(source.key,events,{silent:!!(snapshot.metadata?.fromCache||snapshot.metadata?.hasPendingWrites)});if(hadError||version!==state.version())render();enqueue(fresh)},()=>{if(closed)return;errors.add(source.key);state.update(source.key,[],{silent:true});render()}));
   }
-  return {fechar(){closed=true;for(const stop of stops)stop?.();clearTimeout(batchTimer);clearTimeout(popupTimer);document.removeEventListener('click',outside);document.removeEventListener('keydown',keyboard);window.removeEventListener('resize',position);window.removeEventListener('storage',storage);state.clear();pending.clear();popup.remove();host.replaceChildren();host.hidden=true;}};
+  return {fechar(){closed=true;for(const stop of stops)stop?.();clearTimeout(batchTimer);clearTimeout(popupTimer);cancelAnimationFrame(positionFrame);document.removeEventListener('click',outside);document.removeEventListener('keydown',keyboard);window.removeEventListener('resize',schedulePosition);window.removeEventListener('scroll',schedulePosition,true);window.visualViewport?.removeEventListener('resize',schedulePosition);window.visualViewport?.removeEventListener('scroll',schedulePosition);window.removeEventListener('storage',storage);state.clear();pending.clear();popup.remove();host.replaceChildren();host.hidden=true;}};
 }

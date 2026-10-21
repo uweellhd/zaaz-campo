@@ -62,6 +62,44 @@ assert(!/Pessoa|zaaztelecom/.test(await alertsAdmin.evaluate(()=>localStorage.ge
 await alertsAdmin.evaluate(()=>window.__notify());await alertsAdmin.waitForTimeout(350);assert.equal(await alertsAdmin.locator('.notification-toast').isVisible(),false);
 await alertsAdmin.evaluate(()=>{window.__entries.set('solicitacoesAcesso/pedido-alerta-2',{nome:'Outra pessoa',status:'pendente',criadoEm:new Date()});window.__notify()});await alertsAdmin.locator('.notification-toast').waitFor({state:'visible'});
 for(const width of [320,390,1366]){await alertsAdmin.setViewportSize({width,height:900});await alertsAdmin.locator('.notification-bell').click();await alertsAdmin.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));assert.equal(await alertsAdmin.locator('#notificationPanel').isVisible(),true);const rect=await alertsAdmin.locator('#notificationPanel').boundingBox();assert(rect.x>=0&&rect.x+rect.width<=width);const trigger=await alertsAdmin.locator('.notification-bell').boundingBox(),center=trigger.x+trigger.width/2;if(center>=12+rect.width/2&&center<=width-12-rect.width/2)assert(Math.abs(rect.x+rect.width/2-center)<2,'O painel deve acompanhar o sino');assert(await alertsAdmin.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await alertsAdmin.screenshot({path:out+'/notificacoes-'+width+'.png',fullPage:false});await alertsAdmin.keyboard.press('Escape')}
+// O painel deve caber também em paisagem e acompanhar a rolagem no celular.
+await alertsAdmin.evaluate(()=>{for(let n=0;n<30;n++)window.__entries.set('solicitacoesAcesso/altura-'+n,{nome:'Teste de fila '+n,status:'pendente',criadoEm:new Date()});window.__notify()});
+for(const [width,height] of [[390,440],[844,390],[320,568]]){
+  await alertsAdmin.setViewportSize({width,height});
+  await alertsAdmin.evaluate(()=>window.scrollTo(0,0));
+  await alertsAdmin.locator('.notification-bell').click();
+  await alertsAdmin.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  const r=await alertsAdmin.locator('#notificationPanel').boundingBox();
+  assert(r.y>=12&&r.y+r.height<=height-11,`Painel fora da altura útil em ${width}x${height}: ${JSON.stringify(r)}`);
+  await alertsAdmin.keyboard.press('Escape');
+}
+for(const theme of ['theme-light','theme-dark','theme-zaaz']){
+  await alertsAdmin.evaluate(theme=>{document.body.classList.remove('theme-light','theme-dark','theme-zaaz');document.body.classList.add(theme)},theme);
+  await alertsAdmin.setViewportSize({width:390,height:844});
+  await alertsAdmin.evaluate(()=>window.scrollTo(0,0));await alertsAdmin.locator('.notification-bell').click();
+  await alertsAdmin.locator('.notification-list').evaluate(n=>n.scrollTop=100);
+  await alertsAdmin.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  assert.equal(await alertsAdmin.locator('#notificationPanel').isVisible(),true,'Rolar os próprios avisos não fecha o painel');
+  const panelBounds=await alertsAdmin.locator('#notificationPanel').boundingBox();
+  const headerBounds=await alertsAdmin.locator('.notification-header').boundingBox();
+  assert(headerBounds.y>=panelBounds.y&&headerBounds.y+headerBounds.height<=panelBounds.y+panelBounds.height,'Título e fechar continuam visíveis durante a leitura');
+  assert.equal(await alertsAdmin.locator('.notification-toast').isVisible(),false,'Abrir a lista dispensa o aviso flutuante');
+  await alertsAdmin.screenshot({path:out+'/notificacoes-revisao-'+theme+'.png',fullPage:false});
+  await alertsAdmin.keyboard.press('Escape');
+  assert.equal(await alertsAdmin.evaluate(()=>document.activeElement.className),'notification-bell');
+}
+await alertsAdmin.setViewportSize({width:390,height:844});
+await alertsAdmin.evaluate(()=>window.scrollTo(0,0));await alertsAdmin.locator('.notification-bell').click();
+const originalTop=(await alertsAdmin.locator('#notificationPanel').boundingBox()).y;
+await alertsAdmin.evaluate(()=>window.scrollBy(0,60));
+await alertsAdmin.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+assert.equal(await alertsAdmin.locator('#notificationPanel').isVisible(),true);
+const scrolledTop=(await alertsAdmin.locator('#notificationPanel').boundingBox()).y;
+assert(Math.abs(originalTop-60-scrolledTop)<2,'Painel acompanha a rolagem enquanto o sino está visível');
+await alertsAdmin.evaluate(()=>window.scrollTo(0,700));
+await alertsAdmin.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+assert.equal(await alertsAdmin.locator('#notificationPanel').isVisible(),false,'Painel fecha quando o sino sai da tela');
+await alertsAdmin.evaluate(()=>window.scrollTo(0,0));
 const alertsTech=await page('tech');assert.equal(await alertsTech.locator('.notification-toast').isVisible(),false);
 await alertsTech.evaluate(()=>{window.__entries.set('medicoes/alerta-fora',{referencia:'OUTRO TECNICO',tecnicoUid:'outra-pessoa',status:'EM_CAMPO',atribuidoEm:new Date()});window.__notify()});await alertsTech.waitForTimeout(350);assert.equal(await alertsTech.locator('.notification-toast').isVisible(),false);
 await alertsTech.evaluate(()=>{window.__entries.set('medicoes/alerta-meu',{referencia:'MED-ALERTA',tecnicoUid:'tech',supervisorUid:'super',status:'EM_CAMPO',atribuidoEm:new Date()});window.__notify()});await alertsTech.locator('.notification-toast').waitFor({state:'visible'});await alertsTech.getByRole('button',{name:'Fechar aviso',exact:true}).click();
