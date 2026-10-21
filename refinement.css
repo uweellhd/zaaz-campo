@@ -47,6 +47,7 @@ body { -webkit-font-smoothing:antialiased; }
 .login-body .login-card { border-radius:14px; box-shadow:0 16px 40px rgba(0,0,0,.16); }
 .login-body .login-card h2 { font-size:27px; font-weight:600; letter-spacing:-.025em; }
 .login-body .login-card input { border-radius:7px; font-size:15px; }
+.login-body .login-card .form-group input:not([type=checkbox]):not([type=radio]) { display:block; width:100%; min-width:0; min-height:48px; }
 .login-body .btn-primary { border-radius:7px; font-weight:600; box-shadow:none; }
 .login-body .internal-tag { border-radius:6px; font-weight:500; }
 .login-body .login-helper { font-size:14px; }
