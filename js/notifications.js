@@ -21,7 +21,13 @@ export function iniciarNotificacoes(ctx){
   const popup=node('div','','notification-toast');popup.hidden=true;const announcement=node('p');announcement.setAttribute('role','status');announcement.setAttribute('aria-live','polite');
   const popupAction=action('Ver notificações',()=>{hidePopup();toggle(true)},'notification-text-button'),dismissPopup=action('×',()=>hidePopup(),'notification-toast-close');dismissPopup.setAttribute('aria-label','Fechar aviso');popup.append(announcement,popupAction,dismissPopup);document.body.append(popup);
   function persist(){try{localStorage.setItem(storageKey,JSON.stringify(state.dismissed()))}catch{/* Sem armazenamento, os avisos ainda funcionam nesta sessão. */}}
-  function position(){if(panel.hidden)return;const rect=bell.getBoundingClientRect();panel.style.top=`${Math.max(12,Math.min(rect.bottom+10,innerHeight-220))}px`;}
+  function position(){
+    if(panel.hidden)return;
+    const rect=bell.getBoundingClientRect();
+    const width=panel.getBoundingClientRect().width;
+    panel.style.left=`${Math.max(12,Math.min(rect.left+rect.width/2-width/2,innerWidth-width-12))}px`;
+    panel.style.top=`${Math.max(12,Math.min(rect.bottom+10,innerHeight-220))}px`;
+  }
   function toggle(value=panel.hidden,returnFocus=true){panel.hidden=!value;bell.setAttribute('aria-expanded',String(value));if(value){document.getElementById('accountMenu')?.removeAttribute('open');position();closePanel.focus()}else if(returnFocus)bell.focus()}
   function hidePopup(){clearTimeout(popupTimer);popup.hidden=true;announcement.textContent='';}
   function open(item){state.dismiss([item.key]);persist();panel.hidden=true;bell.setAttribute('aria-expanded','false');hidePopup();render();ctx.navegar(item.view,item.service);}
