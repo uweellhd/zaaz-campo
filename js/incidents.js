@@ -5,6 +5,7 @@ import { validarVolumePDF, mapearComLimite } from '../lib/async-work.mjs';
 
 import { periodoRecente, limitarAberturaIncidentes } from '../lib/query-period.mjs';
 import { configurarBackup } from './backup.js';
+import { iniciarNotificacoes } from './notifications.js';
 import { criarConsultasCompartilhadas } from '../lib/live-queries.mjs';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, getDocFromServer, getDocsFromServer, setDoc, updateDoc, runTransaction, query, where, documentId, startAfter, limit, orderBy, serverTimestamp, queryEqual, refEqual } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -45,6 +46,7 @@ let usuarioUid = '';
 const ouvintes = new Map();
 const consultasCompartilhadas = criarConsultasCompartilhadas(onSnapshot, (a,b) => a.type === 'document' ? b.type === 'document' && refEqual(a,b) : b.type !== 'document' && queryEqual(a,b));
 let saindo = false;
+let notificacoes;
 let medicoes, medicoesTecnico, medicoesProjetos, medicoesAcompanhamento;
 let supervisoresEscopo=[], filaProjetos,backupConfigurado=false;
 let servicoProjetos = 'rompimentos';
@@ -1694,6 +1696,7 @@ window.exportarRelatorioCSV = () => {
 
 window.sair = async () => {
   saindo = true;
+  notificacoes?.fechar(); notificacoes=null;
   medicoes?.fechar();
   medicoesTecnico?.fechar();
   medicoesProjetos?.fechar();
@@ -1714,6 +1717,7 @@ window.sair = async () => {
 onAuthStateChanged(auth, async (usuario) => {
   if (!usuario || (usuarioUid && usuario.uid !== usuarioUid)) {
     saindo = true;
+    notificacoes?.fechar(); notificacoes=null;
     consultasCompartilhadas.fechar();
     document.body.hidden = true;
     window.location.replace('index.html');
@@ -1737,6 +1741,11 @@ onAuthStateChanged(auth, async (usuario) => {
     if(['admin','projetos','coordenador_projetos','sac','suporte','noc'].includes(perfilSalvo))medicoesAcompanhamento=iniciarMedicoes({...contextoMedicoes,somenteConsulta:true,root:el('acompMedicoesArea'),ouvir:(key,...args)=>ouvirUmaVez('acomp-'+key,...args),navegar:()=>alternarAba('viewSac')});
     if(['admin','diretor','gerente','coordenador'].includes(perfilSalvo)){const periodo=periodoRecente();el('relatorioInicio').value=periodo.inicio;el('relatorioFim').value=periodo.fim;}
     configurarTelasPorPerfil();
+    notificacoes ||= iniciarNotificacoes({perfil:perfilSalvo,uid:usuarioUid,supervisoresUids:supervisoresEscopo,db,servicos:{collection,query,where},ouvir:(...args)=>consultasCompartilhadas.ouvir(...args),navegar:(view,service)=>{
+      window.alternarAba(view,['viewTech','viewProjetos'].includes(view)?service:'');
+      if(view==='viewSupervisor'&&service==='medicoes')el('supervisorMedicoesLista')?.scrollIntoView({block:'center'});
+      else document.getElementById(view)?.scrollIntoView({block:'start'});
+    }});
     ouvirUmaVez('meuPerfil', doc(db, 'usuarios', usuarioUid), snapshot => {
       if (!snapshot.exists() || snapshot.data().ativo !== true
         || snapshot.data().perfil !== perfilSalvo || snapshot.data().estado !== estadoSalvo || JSON.stringify(scopeUids(snapshot.data()))!==JSON.stringify(supervisoresEscopo)) {
@@ -1744,6 +1753,8 @@ onAuthStateChanged(auth, async (usuario) => {
       }
     });
   } catch (erro) {
+    notificacoes?.fechar(); notificacoes=null;
+    consultasCompartilhadas.fechar();
     await signOut(auth);
     window.location.replace('index.html');
   }
