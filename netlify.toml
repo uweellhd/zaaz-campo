@@ -1,0 +1,4 @@
+# Uma publicação em produção por lote concluído e testado.
+# As verificações continuam no GitHub; prévias não são publicadas no Netlify.
+[build]
+  ignore = "node ./maintenance/netlify-build-ignore.mjs"

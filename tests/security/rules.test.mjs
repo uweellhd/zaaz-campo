@@ -551,3 +551,15 @@ test('acompanhamento paginado permite consulta ordenada e conserva isolamento de
  await assertFails(getDocs(query(collection(ctx('coordenador'),'medicoes'),orderBy('criadoEm','desc'),limit(24))));
  await assertFails(getDocs(query(collection(ctx('tecnicoOutro'),'medicoes'),orderBy('criadoEm','desc'),limit(24))));
 });
+
+
+test('notificações consultam só filas autorizadas; perfil de outro técnico não amplia leitura',async()=>{
+ const {notificationChannels}=await import('../../lib/notifications.mjs');
+ await seedMedicao();await env.withSecurityRulesDisabled(async c=>{await setDoc(doc(c.firestore(),'solicitacoesAcesso','pedidoAviso'),{nome:'Candidato',status:'pendente'});await setDoc(doc(c.firestore(),'projetosEvidencias','a'),entrega())});
+ for(const [uid,perfil] of [['admin','admin'],['tecnicoA','tecnico'],['supervisorA','supervisor'],['projetos','projetos'],['coordenadorProjetos','coordenador_projetos'],['coordenador','coordenador']]){
+  const db=ctx(uid);for(const source of notificationChannels({uid,perfil,supervisoresUids:['supervisorA']}))await assertSucceeds(getDocs(query(collection(db,source.collection),...source.filters.map(f=>where(...f)))));
+ }
+ for(const uid of ['tecnicoA','supervisorA','sac','projetos'])await assertFails(getDocs(query(collection(ctx(uid),'solicitacoesAcesso'),where('status','==','pendente'))));
+ await assertFails(getDocs(query(collection(ctx('tecnicoA'),'medicoes'),where('tecnicoUid','==','tecnicoB'),where('status','==','EM_CAMPO'))));
+ await assertFails(getDocs(query(collection(ctx('supervisorA'),'incidentes'),where('supervisorUid','==','supervisorB'))));
+});
