@@ -165,3 +165,26 @@ body { -webkit-font-smoothing:antialiased; }
 @media(max-width:380px) { .dashboard-body .dashboard-container { padding-left:10px; padding-right:10px; } .dashboard-body .executive-switch { padding-inline:8px; font-size:13px; } }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; scroll-behavior:auto!important; transition:none!important; } }
 .report-filters > .report-scope-note { grid-column:1/-1; margin:0 0 4px; }
+
+/* Identificação do produto: mesma hierarquia do B2B, conteúdo do Campo. */
+.login-body .login-intro { isolation:isolate; min-width:0; }
+.login-body .login-intro-content { width:100%; min-width:0; }
+.login-body .login-eyebrow { letter-spacing:.075em; }
+.login-body .login-intro h1 { font-weight:700; }
+.login-body .field-product-lockup { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin:-5px 0 24px; }
+.login-body .field-product-lockup strong { color:#f5c431; font-size:12px; font-weight:700; letter-spacing:.18em; }
+.login-body .field-product-lockup span { color:#a4b5db; font-size:10px; font-weight:600; letter-spacing:.1em; }
+.login-body .login-lead { font-size:22px; font-weight:500; line-height:1.4; margin-bottom:16px; }
+.login-body .field-login-description { max-width:390px; color:#aebddd; font-size:16px; line-height:1.6; }
+.login-body .login-card { position:relative; z-index:1; }
+@media(min-width:761px) and (max-width:1000px) {
+ .login-body .login-intro h1 { font-size:clamp(36px,4.7vw,47px); }
+}
+@media(max-width:760px) {
+ .login-body .login-intro { min-height:210px; text-align:center; }
+ .login-body .login-intro h1 { font-size:clamp(36px,10vw,44px); }
+ .login-body .field-product-lockup { justify-content:center; margin:12px 0 18px; }
+ .login-body .login-lead { display:block; font-size:18px; margin:0; }
+ .login-body .field-login-description { display:none; }
+ .login-body .internal-tag { margin-top:16px; }
+}
