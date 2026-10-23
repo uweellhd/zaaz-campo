@@ -14,7 +14,8 @@
   <link rel="stylesheet" href="refinement.css">
   <link rel="stylesheet" href="measurements.css">
 
-  <!-- Biblioteca de Gráficos Chart.js -->
+  <!-- Chart.js é carregado sob demanda pelo módulo da Diretoria. -->
+  <link rel="stylesheet" href="executive.css">
 </head>
 <body class="dashboard-body theme-light" id="appBody">
 
@@ -166,6 +167,7 @@
         <div class="hero-meta"><span id="painelAtualizado">Aguardando dados</span><span id="painelEscopo">Todos os estados</span></div>
       </div>
       <div class="executive-filterbar">
+        <div class="period-shortcuts" role="group" aria-label="Atalhos de período"><span>Últimos</span><button type="button" data-period="7" aria-pressed="false" onclick="aplicarPeriodoDiretoria(7)">7 dias</button><button type="button" data-period="30" aria-pressed="true" onclick="aplicarPeriodoDiretoria(30)">30 dias</button><button type="button" data-period="90" aria-pressed="false" onclick="aplicarPeriodoDiretoria(90)">90 dias</button></div>
         <div class="report-filters" aria-label="Filtros da visão executiva">
           <p class="report-scope-note">A visão inicia com os últimos 30 dias. Altere o período ou limpe os filtros para consultar o histórico completo.</p>
           <label>Período por <select id="relatorioBaseData" onchange="atualizarRecorteDiretoria()"><option value="abertura">Abertura</option><option value="conclusao">Conclusão técnica</option></select></label>
@@ -174,14 +176,16 @@
           <label>Estado <select id="relatorioEstado" onchange="filtrarPainelPorEstado(this.value)"><option value="TODOS">Todos</option></select></label>
           <label>Supervisor <input type="search" id="relatorioSupervisor" placeholder="Nome ou sobrenome" oninput="atualizarRecorteDiretoria()"></label>
         </div>
+        <div id="filtrosAtivosDiretoria" class="active-filters" role="group" aria-label="Filtros aplicados"></div>
         <div class="executive-actions"><button type="button" class="btn-sec-sm" onclick="limparRecorteDiretoria()">Limpar filtros</button><button type="button" id="btnRelatorioPDF" class="btn-export" onclick="exportarRelatorioPDF()"><span aria-hidden="true">↓</span> Relatório PDF</button></div>
         <p class="report-scope-note" id="recorteDiretoria">Sem limite de período · todas as situações. Datas filtram a abertura dos chamados.</p>
         <p id="avisoRelatorio" role="status" aria-live="polite"></p>
       </div>
-      <div class="executive-section-label"><span>Resumo</span><strong>Volume, impacto e prioridades</strong></div>
+      <p id="estadoDadosDiretoria" class="panel-data-state" role="status" hidden></p>
+      <div class="executive-section-label"><span>Prioridades da operação</span><strong>Volume, impacto e prioridades</strong></div>
       <div class="kpi-grid executive-kpis">
         <div class="kpi-card kpi-card-primary"><span class="kpi-title">Incidentes ativos</span><h2 id="kpiTotalIncidentes" class="kpi-value">0</h2><span class="kpi-foot">Em andamento no recorte</span></div>
-        <div class="kpi-card"><span class="kpi-title">Chamados resolvidos</span><h2 id="kpiResolvidos" class="kpi-value success-text">0</h2><span class="kpi-foot">Concluídos no recorte de abertura</span></div>
+        <div class="kpi-card"><span class="kpi-title">Chamados resolvidos</span><h2 id="kpiResolvidos" class="kpi-value success-text">0</h2><span class="kpi-foot">Concluídos no período e filtros aplicados</span></div>
         <div class="kpi-card"><span class="kpi-title">Clientes afetados · GPON</span><h2 id="kpiTotalGpon" class="kpi-value alert-text">0</h2><span class="kpi-foot">Soma informada nos chamados ativos</span></div>
         <div class="kpi-card"><span class="kpi-title">Paradas de backbone</span><h2 id="kpiTotalBackbone" class="kpi-value warning-text">0</h2><span class="kpi-foot">Ocorrências em andamento</span></div>
         <div class="kpi-card"><span class="kpi-title">Aguardando técnico</span><h2 id="kpiSemTecnico" class="kpi-value">0</h2><span class="kpi-foot">Ativos sem responsável definido</span></div>
@@ -192,14 +196,41 @@
       <div class="section-heading"><h4 class="section-subtitle">Operação por estado</h4><span>Selecione uma região para filtrar os chamados abaixo</span></div>
       <div id="stateGrid" class="kpi-grid state-grid"></div>
 
-      <div class="executive-section-label"><span>Acompanhamento</span><strong>Composição e acompanhamento</strong></div>
-      <div class="charts-grid-two">
-        <div class="chart-card"><h5>Incidentes ativos por rede</h5><canvas id="chartTipoIncidente"></canvas></div>
-        <div class="chart-card"><h5>Incidentes ativos por estado</h5><canvas id="chartEstados"></canvas></div>
+      <div class="executive-section-label"><span>Distribuição e evolução</span><strong>Chamados ativos e conclusões do recorte</strong></div>
+      <p id="avisoGraficos" role="status"></p>
+      <div class="executive-chart-grid">
+        <article class="chart-card " aria-labelledby="chartTipoIncidenteTitulo"><h5 id="chartTipoIncidenteTitulo">Incidentes ativos por rede</h5>
+          <p class="chart-note">Aguardando dados.</p>
+          <div class="chart-scroll"><div class="executive-chart-frame"><canvas id="chartTipoIncidente" role="img" aria-label="Incidentes ativos por rede"></canvas></div></div>
+          <p class="chart-empty" hidden>Nenhum registro para este gráfico no recorte selecionado.</p>
+          <ul class="chart-network-legend" aria-label="Participação por rede"></ul>
+          <details class="chart-data"><summary>Ver dados em tabela</summary><div class="chart-table-wrap"><table><caption>Incidentes ativos por rede · mesmos filtros do painel</caption><thead><tr></tr></thead><tbody></tbody></table></div></details>
+        </article>
+        <article class="chart-card " aria-labelledby="chartEstadosTitulo"><h5 id="chartEstadosTitulo">Incidentes ativos por estado</h5>
+          <p class="chart-note">Aguardando dados.</p>
+          <div class="chart-scroll"><div class="executive-chart-frame"><canvas id="chartEstados" role="img" aria-label="Incidentes ativos por estado"></canvas></div></div>
+          <p class="chart-empty" hidden>Nenhum registro para este gráfico no recorte selecionado.</p>
+          <details class="chart-data"><summary>Ver dados em tabela</summary><div class="chart-table-wrap"><table><caption>Incidentes ativos por estado · mesmos filtros do painel</caption><thead><tr></tr></thead><tbody></tbody></table></div></details>
+        </article>
+        <article class="chart-card supervisor-chart" aria-labelledby="chartSupervisoresTitulo"><h5 id="chartSupervisoresTitulo">Carteira por supervisor</h5>
+          <p class="chart-note">Aguardando dados.</p>
+          <div class="chart-scroll"><div class="executive-chart-frame"><canvas id="chartSupervisores" role="img" aria-label="Carteira por supervisor"></canvas></div></div>
+          <p class="chart-empty" hidden>Nenhum registro para este gráfico no recorte selecionado.</p>
+          <details class="chart-data"><summary>Ver dados em tabela</summary><div class="chart-table-wrap"><table><caption>Carteira por supervisor · mesmos filtros do painel</caption><thead><tr></tr></thead><tbody></tbody></table></div></details>
+        </article>
+        <article class="chart-card " aria-labelledby="chartEtapasTitulo"><h5 id="chartEtapasTitulo">Progresso dos atendimentos ativos</h5>
+          <p class="chart-note">Aguardando dados.</p>
+          <div class="chart-scroll"><div class="executive-chart-frame"><canvas id="chartEtapas" role="img" aria-label="Progresso dos atendimentos ativos"></canvas></div></div>
+          <p class="chart-empty" hidden>Nenhum registro para este gráfico no recorte selecionado.</p>
+          <details class="chart-data"><summary>Ver dados em tabela</summary><div class="chart-table-wrap"><table><caption>Progresso dos atendimentos ativos · mesmos filtros do painel</caption><thead><tr></tr></thead><tbody></tbody></table></div></details>
+        </article>
+        <article class="chart-card " aria-labelledby="chartConclusoesTitulo"><h5 id="chartConclusoesTitulo">Conclusões por dia · últimos 7 dias</h5>
+          <p class="chart-note">Aguardando dados.</p>
+          <div class="chart-scroll"><div class="executive-chart-frame"><canvas id="chartConclusoes" role="img" aria-label="Conclusões por dia · últimos 7 dias"></canvas></div></div>
+          <p class="chart-empty" hidden>Nenhum registro para este gráfico no recorte selecionado.</p>
+          <details class="chart-data"><summary>Ver dados em tabela</summary><div class="chart-table-wrap"><table><caption>Conclusões por dia · últimos 7 dias · mesmos filtros do painel</caption><thead><tr></tr></thead><tbody></tbody></table></div></details>
+        </article>
       </div>
-
-      <div class="chart-card supervisor-chart"><h5>Carteira por supervisor · até 6 maiores volumes ativos</h5><canvas id="chartSupervisores"></canvas></div>
-      <div class="charts-grid-two"><div class="chart-card"><h5>Progresso dos atendimentos ativos</h5><canvas id="chartEtapas"></canvas></div><div class="chart-card"><h5>Conclusões por dia · últimos 7 dias</h5><canvas id="chartConclusoes"></canvas></div></div>
 
       <div class="executive-section-label"><span>Chamados</span><strong>Chamados e relatório para reunião</strong></div>
       <div class="report-toolbar"><div><h4 class="section-subtitle" id="tituloListaConsolidada">Chamados da operação</h4><p>Selecione um chamado para consultar o histórico. PDF e CSV incluem ativos e resolvidos do recorte.</p></div><button class="btn-export" onclick="exportarRelatorioCSV()">Exportar CSV <span aria-hidden="true">↗</span></button></div>

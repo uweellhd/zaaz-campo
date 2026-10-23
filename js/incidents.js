@@ -6,6 +6,7 @@ import { validarVolumePDF, mapearComLimite } from '../lib/async-work.mjs';
 import { periodoRecente, limitarAberturaIncidentes } from '../lib/query-period.mjs';
 import { configurarBackup } from './backup.js';
 import { iniciarNotificacoes } from './notifications.js';
+import { criarGraficosDiretoria } from './executive-charts.js';
 import { criarConsultasCompartilhadas } from '../lib/live-queries.mjs';
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, getDocs, getDocFromServer, getDocsFromServer, setDoc, updateDoc, runTransaction, query, where, documentId, startAfter, limit, orderBy, serverTimestamp, queryEqual, refEqual } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -69,7 +70,7 @@ function ouvirUmaVez(chave, consulta, aoReceber) {
   if (ouvintes.has(chave)) return;
   const cancelar = consultasCompartilhadas.ouvir(consulta, aoReceber, erro => {
     ouvintes.delete(chave);
-    if(chave==='gerente'){carregandoPainel=false;consultaPainelAssinatura=null;el('avisoRelatorio').textContent='Não foi possível atualizar o período. Abra a guia novamente para tentar.';}
+    if(chave==='gerente'){carregandoPainel=false;consultaPainelAssinatura=null;erroPainel='Não foi possível atualizar o período. Abra a guia novamente para tentar.';renderizarPainelGerenteFiltrado();}
     console.error(`Falha ao consultar ${chave}:`, erro);
     if (saindo || !auth.currentUser) return;
     const mensagem=erro.code==='resource-exhausted'?'O banco atingiu um limite de uso. Avise o administrador e tente novamente mais tarde.':erro.code==='permission-denied'?'Seu acesso não permite esta consulta ou foi alterado. Entre novamente; se persistir, avise o administrador.':'Não foi possível atualizar os dados. Confira a conexão e tente abrir a guia novamente. Se necessário, atualize a página após salvar o rascunho.';
@@ -722,11 +723,9 @@ if (formNoc) {
 
 // 3. DASHBOARD GERENCIAL
 let todosIncidentesCache = [];
-let gerandoRelatorio=false,carregandoPainel=false,consultaPainelAssinatura=null,painelEpoch=0;
+let gerandoRelatorio=false,carregandoPainel=false,consultaPainelAssinatura=null,painelEpoch=0,erroPainel='',ultimaAtualizacaoPainel=null;
 let estadoFiltroAtivo = "TODOS";
-let chartTipoInstance = null;
-let chartEstadosInstance = null;
-let chartSupervisoresInstance = null, chartEtapasInstance=null, chartConclusoesInstance=null;
+const graficosDiretoria = criarGraficosDiretoria();
 window.filtrarSituacaoDiretoria = valor => { filtroDiretoria=['resolvidos','todos'].includes(valor)?valor:'ativos';paginaDiretoria=1;renderizarPainelGerenteFiltrado(); };
 window.maisDiretoria = () => {paginaDiretoria++;renderizarPainelGerenteFiltrado()};
 
@@ -738,17 +737,18 @@ async function carregarDashboardGerente() {
       document.dispatchEvent(new Event('nextflow-chart-ready'));
     }).catch(error=>{graficosProntos=null;throw error});
     await graficosProntos;
-  } catch { el('avisoRelatorio').textContent='Gráficos indisponíveis. Os registros e relatórios continuam acessíveis.'; }
+    el('avisoGraficos').textContent='';
+  } catch { el('avisoGraficos').textContent='Gráficos indisponíveis. Consulte as tabelas de dados ou gere o relatório.'; }
   if(saindo)return;
   const filtros=filtrosDiretoria(),assinatura=JSON.stringify([filtros.baseData,filtros.inicio,filtros.fim]);
   if(consultaPainelAssinatura===assinatura)return;consultaPainelAssinatura=assinatura;const epoch=++painelEpoch;
   ouvintes.get('gerente')?.();ouvintes.delete('gerente');
   const base=scopeQuery({collection,query,where,db},perfilSalvo,supervisoresEscopo,'incidentes');
-  if(!base){todosIncidentesCache=[];renderizarPainelGerenteFiltrado();el('avisoRelatorio').textContent='Nenhum supervisor vinculado. Solicite a configuração ao administrador.';return}
+  if(!base){carregandoPainel=false;erroPainel='Nenhum supervisor vinculado. Solicite a configuração ao administrador.';todosIncidentesCache=[];renderizarPainelGerenteFiltrado();return}
   const consulta=limitarAberturaIncidentes(base,filtros,{query,where});
-  carregandoPainel=true;todosIncidentesCache=[];renderizarPainelGerenteFiltrado();el('avisoRelatorio').textContent='Consultando os registros do período selecionado…';
+  carregandoPainel=true;erroPainel='';todosIncidentesCache=[];renderizarPainelGerenteFiltrado();el('avisoRelatorio').textContent='Consultando os registros do período selecionado…';
   ouvirUmaVez('gerente', consulta, (snapshot) => {
-    if(epoch!==painelEpoch||saindo)return;carregandoPainel=false;
+    if(epoch!==painelEpoch||saindo)return;carregandoPainel=false;erroPainel='';ultimaAtualizacaoPainel=new Date();
     todosIncidentesCache = [];
 
     snapshot.forEach((docSnap) => {
@@ -766,20 +766,32 @@ function filtrosDiretoria(){return {inicio:document.getElementById('relatorioIni
 window.atualizarRecorteDiretoria = () => {paginaDiretoria=1;renderizarPainelGerenteFiltrado();if(recorteValido())carregarDashboardGerente()};
 window.limparRecorteDiretoria = () => {for(const id of ['relatorioInicio','relatorioFim','relatorioSupervisor'])document.getElementById(id).value='';el('relatorioBaseData').value='abertura';filtrarPainelPorEstado('TODOS')};
 window.filtrarPainelPorEstado = estado => {estadoFiltroAtivo=estado;document.getElementById('relatorioEstado').value=estado;atualizarRecorteDiretoria()};
-function recorteValido(){const f=filtrosDiretoria();const valido=!f.inicio||!f.fim||f.inicio<=f.fim;document.getElementById('avisoRelatorio').textContent=valido?'':'A data inicial deve ser anterior ou igual à data final.';document.getElementById('btnRelatorioPDF').disabled=!valido||gerandoRelatorio||carregandoPainel;return valido;}
+const dataFiltroBrasil = value => value ? value.split('-').reverse().join('/') : '';
+window.aplicarPeriodoDiretoria = dias => {
+  if(![7,30,90].includes(Number(dias)))return;
+  const periodo=periodoRecente(new Date(),Number(dias));
+  el('relatorioInicio').value=periodo.inicio;el('relatorioFim').value=periodo.fim;atualizarRecorteDiretoria();
+};
+function renderizarFiltrosDiretoria(f){
+  const root=el('filtrosAtivosDiretoria');root.replaceChildren();
+  const add=(texto,remover)=>{const b=elemento('button',texto+' ×');b.type='button';b.setAttribute('aria-label','Remover filtro: '+texto);b.onclick=remover;root.append(b)};
+  for(const [field,id,label]of [['inicio','relatorioInicio','De'],['fim','relatorioFim','Até'],['supervisor','relatorioSupervisor','Supervisor']])if(f[field])add(label+': '+(field==='supervisor'?f[field]:dataFiltroBrasil(f[field])),()=>{el(id).value='';atualizarRecorteDiretoria()});
+  if(f.estado!=='TODOS')add('Estado: '+f.estado,()=>filtrarPainelPorEstado('TODOS'));
+  if(f.baseData==='conclusao')add('Por conclusão técnica',()=>{el('relatorioBaseData').value='abertura';atualizarRecorteDiretoria()});
+  for(const b of el('viewGerente').querySelectorAll('[data-period]')){const p=periodoRecente(new Date(),Number(b.dataset.period));b.setAttribute('aria-pressed',String(f.inicio===p.inicio&&f.fim===p.fim))}
+}
+function recorteValido(){const f=filtrosDiretoria();const valido=!f.inicio||!f.fim||f.inicio<=f.fim;document.getElementById('avisoRelatorio').textContent=valido?'':'A data inicial deve ser anterior ou igual à data final.';document.getElementById('btnRelatorioPDF').disabled=!valido||gerandoRelatorio||carregandoPainel||!!erroPainel;return valido;}
 
 function renderizarPainelGerenteFiltrado() {
   if(!recorteValido())return;
   const filtros=filtrosDiretoria(),filtrados=selecionarIncidentes(todosIncidentesCache,filtros,detectarEstado);
   const metricas=analisarOperacao(filtrados,detectarEstado);
   const global=analisarOperacao(selecionarIncidentes(todosIncidentesCache,filtros,detectarEstado,true),detectarEstado);
-  const estadosContagem=new Map(metricas.estados.map(e=>[e.nome,e.ativos]));
   const contagemRegioes=new Map(global.estados.map(e=>[e.nome,e.ativos]));
-  const supervisoresMap=Object.fromEntries(metricas.supervisores.map((e,n)=>[n,{nome:e.nome,total:e.ativos,compliance:e.resolvidos}]));
   const container=document.getElementById('gerenteIncidentesList');if(!container)return;container.innerHTML='';
   document.getElementById('tituloListaConsolidada').textContent=estadoFiltroAtivo==='TODOS'?'Chamados da operação':`Chamados em ${estadoFiltroAtivo}`;
   document.getElementById('painelEscopo').textContent=estadoFiltroAtivo==='TODOS'?'Todos os estados':`Estado: ${estadoFiltroAtivo}`;
-  document.getElementById('recorteDiretoria').textContent=`${filtros.baseData==='conclusao'?'Conclusões':'Aberturas'}: ${filtros.inicio||'sem limite inicial'} a ${filtros.fim||'sem limite final'} · ${filtros.supervisor?'Supervisor: '+filtros.supervisor:'Todos os supervisores'} · ${filtrados.length} registros. Indicadores, PDF e CSV incluem as duas situações.`;
+  document.getElementById('recorteDiretoria').textContent=`${filtros.baseData==='conclusao'?'Conclusões':'Aberturas'}: ${dataFiltroBrasil(filtros.inicio)||'sem limite inicial'} a ${dataFiltroBrasil(filtros.fim)||'sem limite final'} · ${filtros.supervisor?'Supervisor: '+filtros.supervisor:'Todos os supervisores'} · ${filtrados.length} registros. Indicadores, PDF e CSV incluem as duas situações.`;
 
     filtrados.forEach(item => {
     const encerrado = resolvido(item);
@@ -803,11 +815,13 @@ function renderizarPainelGerenteFiltrado() {
     container.appendChild(card);
   });
 
-  for(const [id,valor] of Object.entries({kpiTotalIncidentes:metricas.ativos,kpiTotalGpon:metricas.gpon,kpiTotalBackbone:metricas.backbone,kpiResolvidos:metricas.resolvidos,kpiSemTecnico:metricas.semTecnico,kpiPrevisoesVencidas:metricas.vencidos}))document.getElementById(id).textContent=valor.toLocaleString('pt-BR');
+  for(const [id,valor] of Object.entries({kpiTotalIncidentes:metricas.ativos,kpiTotalGpon:metricas.gpon,kpiTotalBackbone:metricas.backbone,kpiResolvidos:metricas.resolvidos,kpiSemTecnico:metricas.semTecnico,kpiPrevisoesVencidas:metricas.vencidos}))document.getElementById(id).textContent=carregandoPainel||erroPainel?'—':valor.toLocaleString('pt-BR');
   if(perfilSalvo==='coordenador')el('painelEscopo').textContent+=' · Somente minha coordenação';
-  const leitura=leituraExecutiva(metricas);document.getElementById('resumoExecutivo').textContent=leitura[0];
+  const leitura=carregandoPainel?['Consultando os registros do período selecionado…']:erroPainel?[erroPainel]:leituraExecutiva(metricas);document.getElementById('resumoExecutivo').textContent=leitura[0];
   const prioridades=document.getElementById('prioridadesExecutivas');prioridades.replaceChildren(...leitura.slice(1).map(frase=>elemento('li',frase)));
-  document.getElementById('painelAtualizado').textContent=`Posição em ${horarioBrasil(new Date())} · Brasília`;
+  document.getElementById('painelAtualizado').textContent=carregandoPainel?'Consultando período…':erroPainel?'Atualização indisponível':ultimaAtualizacaoPainel?`Dados recebidos em ${horarioBrasil(ultimaAtualizacaoPainel)} · Brasília`:'Aguardando dados';
+  renderizarFiltrosDiretoria(filtros);
+  const estadoDados=el('estadoDadosDiretoria');el('viewGerente').setAttribute('aria-busy',String(carregandoPainel));estadoDados.hidden=!carregandoPainel&&!erroPainel&&filtrados.length>0;estadoDados.dataset.state=erroPainel?'error':carregandoPainel?'loading':'empty';estadoDados.textContent=erroPainel||(carregandoPainel?'Consultando os registros do período selecionado…': 'Nenhum chamado no recorte selecionado. Ajuste os filtros ou consulte outro período.');
   const siglas = [...new Set(['SP', 'MG', 'PR', ...contagemRegioes.keys(), ...todosIncidentesCache.map(item => item.estado).filter(Boolean)])].sort();
   const grid = document.getElementById('stateGrid');
   grid.replaceChildren();
@@ -833,63 +847,7 @@ function renderizarPainelGerenteFiltrado() {
 
   document.getElementById('diretoriaMais').hidden=filtrados.filter(i=>filtroDiretoria==='todos'||resolvido(i)===(filtroDiretoria==='resolvidos')).length<=paginaDiretoria*TAMANHO_PAGINA;
   document.getElementById('diretoriaFiltros').querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.dataset.status===filtroDiretoria);b.setAttribute('aria-pressed',String(b.dataset.status===filtroDiretoria))});
-  renderizarEvolucao(filtrados);
-  renderizarGraficosGerenciais(metricas.ativos - metricas.backbone, metricas.backbone, estadosContagem, supervisoresMap);
-}
-
-function renderizarGraficosGerenciais(gpon, backbone, estadosContagem, supervisoresMap) {
-  if(typeof Chart === 'undefined')return;
-  const ctxTipo = document.getElementById('chartTipoIncidente');
-  const ctxEst = document.getElementById('chartEstados');
-  const ctxSup = document.getElementById('chartSupervisores');
-
-  if (ctxTipo) {
-    if (chartTipoInstance) chartTipoInstance.destroy();
-    chartTipoInstance = new Chart(ctxTipo, {
-      type: 'doughnut',
-      data: { labels: ['GPON', 'Backbone'], datasets: [{ data: [gpon, backbone], backgroundColor: ['#315DB9', '#D89434'] }] },
-      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-    });
-  }
-
-  if (ctxEst) {
-    if (chartEstadosInstance) chartEstadosInstance.destroy();
-    chartEstadosInstance = new Chart(ctxEst, {
-      type: 'bar',
-      data: { labels: ['SP', 'MG', 'PR', ...[...estadosContagem.keys()].filter(sigla => !['SP','MG','PR'].includes(sigla))], datasets: [{ label: 'Incidentes ativos', data: ['SP', 'MG', 'PR', ...[...estadosContagem.keys()].filter(sigla => !['SP','MG','PR'].includes(sigla))].map(sigla => estadosContagem.get(sigla) || 0), backgroundColor: '#315DB9' }] },
-      options: { responsive: true, plugins: { legend: { display: false } } }
-    });
-  }
-
-  if (ctxSup) {
-    if (chartSupervisoresInstance) chartSupervisoresInstance.destroy();
-    const principais = Object.entries(supervisoresMap).sort((a, b) => b[1].total-a[1].total||b[1].compliance-a[1].compliance).slice(0, 6);
-    const supNomes = principais.map(([,dados]) => dados.nome);
-    const supTotals = principais.map(([, dados]) => dados.total);
-    const supCompls = principais.map(([, dados]) => dados.compliance);
-
-    chartSupervisoresInstance = new Chart(ctxSup, {
-      type: 'bar',
-      data: {
-        labels: supNomes,
-        datasets: [
-          { label: 'Ativos', data: supTotals, backgroundColor: '#AAB9D6' },
-          { label: 'Resolvidos', data: supCompls, backgroundColor: '#4D86B7' }
-        ]
-      },
-      options: { responsive: true, indexAxis: 'y', plugins: { legend: { position: 'bottom' } } }
-    });
-  }
-}
-
-function renderizarEvolucao(itens){
-  if(typeof Chart === 'undefined')return;
-  const etapas=[0,0,0,0];for(const i of itens.filter(i=>!resolvido(i)))etapas[Math.min(3,etapaConcluida(i))]++;
-  if(chartEtapasInstance)chartEtapasInstance.destroy();
-  chartEtapasInstance=new Chart(document.getElementById('chartEtapas'),{type:'bar',data:{labels:['Aguardando / distribuição','Deslocamento enviado','No local','Atuação'],datasets:[{label:'Atendimentos ativos',data:etapas,backgroundColor:['#aab9d6','#6a91df','#315db9','#11a892']}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
-  const serie=analisarOperacao(itens,detectarEstado).dias;
-  if(chartConclusoesInstance)chartConclusoesInstance.destroy();
-  chartConclusoesInstance=new Chart(document.getElementById('chartConclusoes'),{type:'line',data:{labels:serie.map(d=>d.nome),datasets:[{label:'IDs finalizados com etapa 4',data:serie.map(d=>d.total),borderColor:'#11a892',backgroundColor:'rgba(17,168,146,.1)',fill:true,tension:.25}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+  graficosDiretoria.render(metricas);
 }
 
 // 4. MÓDULO TÉCNICO DE CAMPO
@@ -902,11 +860,8 @@ function abrirBancoRascunhos() {
   if (!bancoRascunhos) bancoRascunhos = new Promise((resolve, reject) => {
     const pedido = indexedDB.open('nextflow-campo-rascunhos', 1);
     pedido.onupgradeneeded = () => pedido.result.createObjectStore('atendimentos');
-    let resultado;
-    pedido.onsuccess = () => { resultado = pedido.result; };
-    transacao.oncomplete = () => resolve(resultado);
-    transacao.onerror = () => reject(transacao.error);
-    transacao.onabort = () => reject(transacao.error);
+    pedido.onsuccess = () => resolve(pedido.result);
+    pedido.onerror = () => { bancoRascunhos=null; reject(pedido.error); };
   });
   return bancoRascunhos;
 }
@@ -1652,7 +1607,7 @@ document.addEventListener('keydown', event => {
 
 const fotosExecutivo=opcaoFotos();el('viewGerente').querySelector('.executive-actions').prepend(fotosExecutivo.label);
 window.exportarRelatorioPDF = async () => {
-  if(carregandoPainel||gerandoRelatorio||!['admin','gerente','diretor','coordenador'].includes(perfilSalvo)||!recorteValido())return;
+  if(carregandoPainel||erroPainel||gerandoRelatorio||!['admin','gerente','diretor','coordenador'].includes(perfilSalvo)||!recorteValido())return;
   const filtros=filtrosDiretoria(),itens=selecionarIncidentes(todosIncidentesCache,filtros,detectarEstado);
   if(!itens.length){document.getElementById('avisoRelatorio').textContent='Nenhum chamado no recorte selecionado.';return}
   const botao=document.getElementById('btnRelatorioPDF'),aviso=document.getElementById('avisoRelatorio');gerandoRelatorio=true;botao.disabled=true;aviso.textContent='Preparando o relatório executivo...';
@@ -1661,7 +1616,7 @@ window.exportarRelatorioPDF = async () => {
   finally{gerandoRelatorio=false;botao.disabled=false}
 };
 window.exportarRelatorioCSV = () => {
-  if(carregandoPainel||!['admin','gerente','diretor','coordenador'].includes(perfilSalvo)||!recorteValido())return;
+  if(carregandoPainel||erroPainel||!['admin','gerente','diretor','coordenador'].includes(perfilSalvo)||!recorteValido())return;
   const {inicio,fim,estado,supervisor}=filtrosDiretoria();
   const filtrados=selecionarIncidentes(todosIncidentesCache,filtrosDiretoria(),detectarEstado);
   if(!filtrados.length){alert('Nenhum dado para exportar.');return}
@@ -1697,6 +1652,7 @@ window.exportarRelatorioCSV = () => {
 window.sair = async () => {
   saindo = true;
   notificacoes?.fechar(); notificacoes=null;
+  graficosDiretoria.fechar();
   medicoes?.fechar();
   medicoesTecnico?.fechar();
   medicoesProjetos?.fechar();
