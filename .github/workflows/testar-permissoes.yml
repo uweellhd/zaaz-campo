@@ -40,5 +40,10 @@ jobs:
       - name: Preparar Chromium
         working-directory: tests/browser
         run: npx playwright install --with-deps chromium
-      - name: Conferir fluxos, relatórios, cargos, temas, conexão e telas pequenas
+      - name: Preparar pacote estático do Cloudflare Pages
+        run: node maintenance/preparar-pages.mjs
+      - name: Conferir pacote, rotas, fluxos, relatórios, cargos, temas e conexão
+        env:
+          NEXTFLOW_PUBLIC_DIR: maintenance/pages-public
+          NEXTFLOW_PAGES_EMULATION: '1'
         run: node tests/browser/stage-one.cjs
