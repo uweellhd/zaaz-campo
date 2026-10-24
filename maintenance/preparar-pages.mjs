@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const rootFiles = ['index.html','dashboard.html','simulacao.html','404.html','style.css','refinement.css','measurements.css','executive.css','simulacao.css','favicon.ico','logo.png'];
+export const rootFiles = ['index.html','dashboard.html','simulacao.html','404.html','login.css','style.css','refinement.css','measurements.css','executive.css','simulacao.css','favicon.ico','logo.png'];
 const directories = {js:new Set(['.js']),lib:new Set(['.mjs']),assets:new Set(['.svg','.png','.ico']),vendor:new Set(['.js','.ttf','.md','.txt'])};
 const maxFileSize = 25 * 1024 * 1024;
 
